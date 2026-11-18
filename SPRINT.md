@@ -90,7 +90,11 @@ wallet (docs/legal.md: not the vocabulary of crypto).
 - [x] **account, not wallet** (DONE: the app's words, the landing, the page at `/app/` with `/wallet/` sending on, README, run-a-node in four languages (the other documents never said wallet)) — the app's words, the site (its page at `/app/`, the old address redirected), the
   documents in four languages, the okay-effects site. Code names (`wallet` module, `Wallet`) stay: nobody reads
   them. Done when: no "wallet" in what a person sees; the browser check passes at `/app/`.
-- [ ] **publish** — Worker, Pages.
+- [x] **publish** (DONE: Worker and Pages redeployed — `/app/` answers, `/wallet/` sends on; the section on
+  okay-effects.github.io says the same. In Chromium against the jar, in Russian: the old address, a community made
+  with the default "people earn first" and the standard rules, a business and a private person joined by the
+  inviting link; the person could not buy until paid. Not tried on the live hub: this address had made its three
+  communities for the day) — Worker, Pages.
 
 ## Later (BACKLOG)
 
