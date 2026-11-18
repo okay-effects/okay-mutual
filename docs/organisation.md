@@ -12,6 +12,29 @@ Okay Mutual has no centre: a hub's operator only keeps a machine, and each commu
 organisation on top of it must not change that. So nothing here "runs the network". There are three layers, each
 with its own legal form, and only the first is a non-profit that we set up ourselves.
 
+## Where it starts: an author and open software
+
+The starting point needs no organisation at all. One person wrote open-source software; people use it of their
+own will. That is the whole of it, and it is a sound position as long as four things stay true:
+
+- **The code is under an open licence with no warranty** (Apache 2.0): anyone may run, change and share it, and
+  the author promises nothing about it.
+- **The author runs nothing for anyone.** Whoever wants a community runs its node themselves — a free cloud
+  account and half an hour ([how](run-a-node.md)) — and answers for it: its members, its rules, its data.
+- **The author takes nothing from its use**: no fee, no share, no units.
+- **The author decides nothing in anyone's community**: the software gives its author no key and no way in.
+
+Then the author is to a community what the author of a spreadsheet program is to a bookkeeper who uses it.
+
+**The one place where this stops being true is a hub the author keeps open for others.** Whoever hosts a
+community's node holds its data and is its host, with a host's duties (data protection, at least) — whether or
+not money changes hands. So a public hub kept by the author is either a **demonstration** — said to be one, for
+trying, its data erased from time to time, not for a real community's accounts — or it is hosting, and hosting
+wants someone to answer for it. That someone is where an organisation first becomes useful.
+
+Everything below — a foundation, a council, contracts — is what may come **later**, when communities want a
+shared hub, a name that is defended and an owner they can trust. None of it is needed to begin.
+
 ## The three layers
 
 | Layer | What it is | Legal form | What it owns | What it must never do |

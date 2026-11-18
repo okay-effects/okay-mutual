@@ -12,6 +12,31 @@ Okay Mutual nie ma centrum: operator huba tylko utrzymuje maszynę, a każda spo
 Organizacja postawiona nad tym nie może tego zmienić. Dlatego nic tutaj „nie zarządza siecią”. Są trzy warstwy,
 każda z własną formą prawną, i tylko pierwsza jest organizacją non-profit, którą zakładamy sami.
 
+## Od czego się zaczyna: autor i otwarte oprogramowanie
+
+Punkt wyjścia nie wymaga żadnej organizacji. Jedna osoba napisała oprogramowanie o otwartym kodzie; ludzie
+korzystają z niego dobrowolnie. To wszystko — i jest to mocna pozycja, dopóki prawdziwe są cztery rzeczy:
+
+- **Kod jest na otwartej licencji bez gwarancji** (Apache 2.0): każdy może go uruchamiać, zmieniać i
+  rozpowszechniać, a autor niczego w jego sprawie nie obiecuje.
+- **Autor niczego dla nikogo nie prowadzi.** Kto chce społeczności, sam uruchamia jej węzeł — darmowe konto w
+  chmurze i pół godziny ([jak](run-a-node.md)) — i sam za niego odpowiada: za uczestników, zasady, dane.
+- **Autor niczego nie bierze z korzystania**: ani opłaty, ani udziału, ani jednostek.
+- **Autor o niczym nie decyduje w niczyjej społeczności**: oprogramowanie nie daje autorowi ani klucza, ani
+  wejścia.
+
+Wtedy autor jest dla społeczności tym, kim autor arkusza kalkulacyjnego dla księgowego, który go używa.
+
+**Jedyne miejsce, w którym to przestaje być prawdą, to hub, który autor utrzymuje otwarty dla innych.** Kto
+hostuje węzeł społeczności, ten przechowuje jej dane i jest jej hostem, z obowiązkami hosta (co najmniej w
+zakresie ochrony danych) — czy mu się płaci, czy nie. Dlatego publiczny hub autora jest albo **demonstracją**:
+tak nazwaną, do wypróbowania, z danymi co jakiś czas usuwanymi, nie do kont prawdziwej społeczności — albo jest
+już hostingiem, a za hosting ktoś musi odpowiadać. W tym miejscu organizacja po raz pierwszy staje się
+przydatna.
+
+Wszystko poniżej — fundacja, rada, umowy — to coś, co może przyjść **później**, gdy społeczności będą chciały
+wspólnego huba, chronionej nazwy i właściciela, któremu ufają. Żeby zacząć, nic z tego nie jest potrzebne.
+
 ## Trzy warstwy
 
 | Warstwa | Czym jest | Forma prawna | Co do niej należy | Czego nigdy nie może robić |
