@@ -94,6 +94,13 @@ trait Words:
   def admitted: String; def admittedText(name: String): String; def rejected: String; def notAdmitted: String
   def placeTaken: String; def placeBad: String; def hubLimit: String; def hubClosed: String
   def anotherCommunity: String; def unitShort: String
+  // ---- trust lines: communities trading with each other
+  def payElsewhere: String; def whichCommunity: String; def nobodyThere: String
+  def cameBackElsewhere(community: String): String
+  def trustLines: String; def linesText: String; def theyMayOwe: String; def noLines: String
+  def openLine: String; def lineAddress: String; def lineAddressHint: String; def changeLine: String
+  def lineOpened: String; def lineOpenedText(community: String, credit: String): String; def lineNotOpened: String
+  def lineUnit: String; def noSuchNode: String; def lineSame: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -125,7 +132,7 @@ object Words:
     val opened = "Your account is open"
     def openedText(line: String) = s"Your credit line is $line: you can buy before you have sold."
     val notOpened = "Not opened"
-    def kind(of: String) = of
+    def kind(of: String) = if of == "line" then "another community" else of
     val communityName = "The community's name"; val setupToken = "Setup token"
     val setupText = "The community's own account is opened with this device's key. Whoever holds a key that may " +
       "manage it sets the members' limits; more such keys are added under Devices."
@@ -249,3 +256,20 @@ object Words:
     val hubLimit = "No more communities can be made from here today."
     val hubClosed = "Communities are not made here by anyone: ask the operator of this site."
     val anotherCommunity = "Another community"; val unitShort = "Unit"
+    val payElsewhere = "To another community"; val whichCommunity = "Which community"
+    val nobodyThere = "That community has no members to pay yet."
+    def cameBackElsewhere(community: String) = s"$community did not take it: it trusts this community no further, " +
+      "or the receiver cannot take it now. Nothing was paid."
+    val trustLines = "Trust lines"
+    val linesText = "A trust line says how far another community may owe this one. Its members can then pay ours, " +
+      "and ours theirs as far as THEY trust us. A positive balance: we owe them; a negative one: they owe us."
+    val theyMayOwe = "They may owe us"; val noLines = "no lines yet"
+    val openLine = "Open a line"; val lineAddress = "The other community's address"
+    val lineAddressHint = "as its members' invitation shows it after ?node="
+    val changeLine = "Change"
+    val lineOpened = "The line is open"
+    def lineOpenedText(community: String, credit: String) = s"$community may owe this community up to $credit. For " +
+      "our members to pay theirs, they open a line to us too."
+    val lineNotOpened = "The line is not open"
+    val lineUnit = "That community counts in another unit: lines between units are not built yet."
+    val noSuchNode = "No community answers at that address."; val lineSame = "That is this community itself."

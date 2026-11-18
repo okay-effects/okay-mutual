@@ -52,6 +52,8 @@ object NetInPage:
         Async.fromFuture[(Int, Json), Rest](call(node + path, method, body, token)).flatMap(k)
       case Net.AtHub(method, path, body) =>
         Async.fromFuture[(Int, Json), Rest](call(hub + path, method, body, "")).flatMap(k)
+      case Net.Elsewhere(address, path) => Async.fromFuture[(Int, Json), Rest](call(
+          (if address.startsWith("/") then hub + address else address) + path, "GET", None, "")).flatMap(k)
       case Net.Invite() => k(invitation)))
 
 /**

@@ -35,6 +35,7 @@ object WordsUk extends Words:
     case "personal" => "особистий"
     case "business" => "бізнес"
     case "community" => "громада"
+    case "line" => "інша громада"
     case other => other
   val communityName = "Назва громади"; val setupToken = "Токен засновника"
   val setupText = "Власний рахунок громади відкривається ключем цього пристрою. Той, чий ключ може ним керувати, " +
@@ -170,3 +171,20 @@ object WordsUk extends Words:
   val hubLimit = "Сьогодні звідси більше не можна створювати громади."
   val hubClosed = "Тут громади створює не кожен: зверніться до оператора цього сайту."
   val anotherCommunity = "Інша громада"; val unitShort = "Одиниця"
+  val payElsewhere = "До іншої громади"; val whichCommunity = "До якої громади"
+  val nobodyThere = "У тій громаді поки що нікому платити."
+  def cameBackElsewhere(community: String) = s"$community не прийняла платіж: вона не довіряє нашій громаді більше, " +
+    "або отримувач зараз не може його прийняти. Нічого не списано."
+  val trustLines = "Лінії довіри"
+  val linesText = "Лінія довіри каже, скільки інша громада може бути винна нашій. Тоді її учасники можуть платити " +
+    "нашим, а наші — її учасникам, наскільки ВОНА довіряє нам. Плюс на балансі: винні ми; мінус: винні нам."
+  val theyMayOwe = "Можуть бути винні нам"; val noLines = "ліній поки що немає"
+  val openLine = "Відкрити лінію"; val lineAddress = "Адреса іншої громади"
+  val lineAddressHint = "як у її посиланні-запрошенні після ?node="
+  val changeLine = "Змінити"
+  val lineOpened = "Лінію відкрито"
+  def lineOpenedText(community: String, credit: String) = s"$community може бути винна нашій громаді до $credit. " +
+    "Щоб наші учасники могли платити її учасникам, вона теж відкриває лінію до нас."
+  val lineNotOpened = "Лінію не відкрито"
+  val lineUnit = "Та громада рахує в іншій одиниці: лінії між різними одиницями ще не зроблено."
+  val noSuchNode = "За цією адресою громада не відповідає."; val lineSame = "Це сама наша громада."

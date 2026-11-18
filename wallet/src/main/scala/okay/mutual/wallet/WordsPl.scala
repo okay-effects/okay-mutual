@@ -34,6 +34,7 @@ object WordsPl extends Words:
     case "personal" => "osobiste"
     case "business" => "firmowe"
     case "community" => "społeczność"
+    case "line" => "inna społeczność"
     case other => other
   val communityName = "Nazwa społeczności"; val setupToken = "Token założyciela"
   val setupText = "Własne konto społeczności otwiera się kluczem tego urządzenia. Kto ma klucz, który może nim " +
@@ -169,3 +170,20 @@ object WordsPl extends Words:
   val hubLimit = "Dziś nie można stąd utworzyć więcej społeczności."
   val hubClosed = "Tutaj społeczności nie tworzy każdy: zapytaj operatora tej strony."
   val anotherCommunity = "Inna społeczność"; val unitShort = "Jednostka"
+  val payElsewhere = "Do innej społeczności"; val whichCommunity = "Do której społeczności"
+  val nobodyThere = "W tamtej społeczności nie ma jeszcze komu płacić."
+  def cameBackElsewhere(community: String) = s"$community nie przyjęła płatności: nie ufa naszej społeczności " +
+    "bardziej albo odbiorca nie może jej teraz przyjąć. Nic nie zostało zapłacone."
+  val trustLines = "Linie zaufania"
+  val linesText = "Linia zaufania mówi, ile inna społeczność może być winna naszej. Wtedy jej uczestnicy mogą płacić " +
+    "naszym, a nasi — jej uczestnikom, na ile ONA ufa nam. Saldo dodatnie: winni jesteśmy my; ujemne: winni są nam."
+  val theyMayOwe = "Mogą być nam winni"; val noLines = "nie ma jeszcze linii"
+  val openLine = "Otwórz linię"; val lineAddress = "Adres drugiej społeczności"
+  val lineAddressHint = "taki jak w jej linku z zaproszeniem po ?node="
+  val changeLine = "Zmień"
+  val lineOpened = "Linia otwarta"
+  def lineOpenedText(community: String, credit: String) = s"$community może być winna naszej społeczności do " +
+    s"$credit. Żeby nasi uczestnicy mogli płacić jej uczestnikom, ona też otwiera linię do nas."
+  val lineNotOpened = "Linia nie jest otwarta"
+  val lineUnit = "Tamta społeczność liczy w innej jednostce: linie między jednostkami nie są jeszcze zbudowane."
+  val noSuchNode = "Pod tym adresem żadna społeczność nie odpowiada."; val lineSame = "To nasza własna społeczność."

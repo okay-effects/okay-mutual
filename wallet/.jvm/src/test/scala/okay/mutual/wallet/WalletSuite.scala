@@ -25,6 +25,9 @@ final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
       case Net.Call(method, path, body, token) => asked(method, kept.getOrElse("node", "") + path, body,
           (if token.isEmpty then Nil else List("x-setup-token" -> token))*)
       case Net.AtHub(method, path, body) => asked(method, path, body, "cf-connecting-ip" -> "1.2.3.4")
+      // another node of this hub by its place; one elsewhere is not reached from a test
+      case Net.Elsewhere(address, path) => if address.startsWith("/") then asked("GET", address + path, None) else
+          (0, Json.Null)
       case Net.Invite() => s"https://wallet.example/?node=${kept.getOrElse("node", "")}"))
 
   private def device[R[_], Rest[_], A](p: A ! R)(using Split[Device, R, Rest]): A ! Rest =
@@ -297,4 +300,61 @@ class WalletSuite extends munit.FunSuite:
     val away = anna.play(Act.press("Accounts"), Act.press("Another community"))
     assertEquals(away.at.map(_.title), Some("Find your community"), Seen.of(away))
     assertEquals(anna.play(Act.choose("Use", "Our Town")).at.map(_.title), Some("Anna"))
+  }
+
+  test("trust lines from the wallet: two communities open lines to each other, a member pays across") {
+    val hub = Hubs("HUB_PER_DAY" -> "9")
+    def community(name: String, place: String, unit: String = "PLN"): Phone =
+      val founder = new Phone(hub)
+      val made = founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> name,
+        "Its place in the address" -> place, "Unit (the national currency it counts as)" -> unit,
+        "How one joins" -> "open to anyone"), Act.press("OK"))
+      assertEquals(made.at.map(_.title), Some(name), Seen.of(made))
+      founder
+    def member(place: String, name: String): Phone =
+      val phone = new Phone(hub, node = s"/n/$place")
+      phone.play(Act.press("Open an account"), Act.press("Save", "Your name" -> name, "Account" -> "Personal"),
+        Act.press("OK"))
+      phone
+    val (north, south) = (community("North", "north"), community("South", "south"))
+    val (anna, olaf) = (member("north", "Anna"), member("south", "Olaf"))
+    def line(founder: Phone, address: String, credit: String) = founder.play(Act.press("Community"),
+      Act.press("Trust lines"), Act.press("Open a line"), Act.press("Save", "The other community's address" -> address,
+        "They may owe us" -> credit))
+    // with no line a member is offered only its own community
+    assertEquals(anna.play(Act.press("Pay")).at.map(_.title), Some("Pay"))
+    val opened = line(north, "/n/south", "500")
+    assertEquals(opened.at.map(_.title), Some("The line is open"), Seen.of(opened))
+    assert(Seen.of(opened).contains("South may owe this community up to 500.00 PLN"), Seen.of(opened))
+    assertEquals(line(south, "/n/north/", "500").at.map(_.title), Some("The line is open"))
+    // not to a place that is no community, not to itself, not across units
+    assert(Seen.of(line(north, "/n/nowhere", "1")).contains("No community answers"))
+    assert(Seen.of(line(north, "/n/north", "1")).contains("this community itself"))
+    community("Euroville", "euroville", "EUR")
+    assert(Seen.of(line(north, "/n/euroville", "1")).contains("another unit"))
+    // Anna pays Olaf, of the other community
+    val asked = anna.play(Act.press("Pay"))
+    assertEquals(asked.at.get.buttons.map(_.label), List("North", "To another community"), Seen.of(asked))
+    val paid = anna.play(Act.press("Pay"), Act.press("To another community"), Act.press("Save", "To" -> "Olaf",
+      "Amount" -> "40", "For what" -> "a logo"), Act.press("Yes"))
+    assertEquals(paid.at.map(_.title), Some("Paid"), Seen.of(paid))
+    assert(Seen.of(paid).contains("40.00 PLN to Olaf · South"), Seen.of(paid))
+    assert(Seen.of(olaf.play()).contains("Balance: 40.00"))
+    val got = olaf.play(Act.press("History"))
+    assert(Seen.of(got).contains("received | North | 40.00 PLN | a logo"), Seen.of(got))
+    val sent = anna.play(Act.press("History"))
+    assert(Seen.of(sent).contains("paid | South | -40.00 PLN | a logo"), Seen.of(sent))
+    // the office shows where the line stands: we owe them 40, and they may owe us 500
+    val lines = north.play(Act.press("Community"), Act.press("Trust lines"))
+    assert(Seen.of(lines).contains("South | 500.00 PLN | 40.00 PLN"), Seen.of(lines))
+    val members = north.play(Act.press("Community"))
+    assert(Seen.of(members).contains("The balances' sum: 0.00") && Seen.of(members).contains("South | another " +
+      "community | 40.00 PLN"), Seen.of(members))
+    // past what South lets North owe: it comes back, said so
+    north.play(Act.press("Community"), Act.choose("Set limits", "Anna"), Act.press("Save", "Credit line" -> "9000"))
+    val back = anna.play(Act.press("Pay"), Act.press("To another community"), Act.press("Save", "To" -> "Olaf",
+      "Amount" -> "470"), Act.press("Yes"))
+    assertEquals(back.at.map(_.title), Some("It came back"), Seen.of(back))
+    assert(Seen.of(back).contains("South did not take it"), Seen.of(back))
+    assert(Seen.of(anna.play()).contains("Balance: -40.00"))
   }

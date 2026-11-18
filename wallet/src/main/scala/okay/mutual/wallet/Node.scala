@@ -10,6 +10,8 @@ import okay.mutual.chain.*
 enum Net[X]:
   case Call(method: String, path: String, body: Option[Json], token: String) extends Net[(Int, Json)]
   case AtHub(method: String, path: String, body: Option[Json]) extends Net[(Int, Json)]
+  /** a call to another node, by its address (a place at this hub, or a whole address): what anyone may ask it */
+  case Elsewhere(address: String, path: String) extends Net[(Int, Json)]
   /** the wallet's address with the node in use in it: what a member sends to one it invites */
   case Invite() extends Net[String]
 
@@ -17,6 +19,8 @@ enum Net[X]:
 final case class About(key: String, unit: String, name: String, open: Boolean, credit: Long, ceiling: Long)
 /** a community as its hub lists it */
 final case class Listed(slug: String, name: String, unit: String, open: Boolean)
+/** a node this one keeps an account for (a trust line): its key, its address, its name, the account's id here */
+final case class TrustLine(node: String, address: String, name: String, id: String)
 /** one who waits to be admitted */
 final case class Asked(id: String, name: String, of: String)
 /** a member as the others see it */
@@ -71,6 +75,16 @@ object Node:
       .getOrElse(Vector.empty))
 
   def invite[R[_]: Has[Net]]: String ! R = perform[Net](Net.Invite())
+
+  /** the communities this one has a trust line to */
+  def lines[R[_]: Has[Net]]: Vector[TrustLine] ! R = call[R]("GET", "/api/lines").map((_, j) =>
+    scala.util.Try(j("lines").list.map(l => TrustLine(l("node").string, l("address").string, l("name").string,
+      l("id").string))).getOrElse(Vector.empty))
+
+  /** the members of another community, asked of its own node */
+  def membersAt[R[_]: Has[Net]](address: String): Vector[Member] ! R =
+    perform[Net](Net.Elsewhere(address, "/api/members")).map((_, j) => scala.util.Try(j("members").list.map(m =>
+      Member(m("id").string, m("name").string, m("of").string))).getOrElse(Vector.empty))
 
   /** the communities of the hub this wallet is at */
   def listed[R[_]: Has[Net]]: Vector[Listed] ! R = perform[Net](Net.AtHub("GET", "/api/nodes", None)).map((_, j) =>

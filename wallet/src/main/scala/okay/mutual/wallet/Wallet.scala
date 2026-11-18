@@ -245,31 +245,55 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     Clock.now[R].flatMap(now => Device.signed[R](Record(s.id, s.seq + 1, s.head, now.max(s.at), body(now)))
       .flatMap(Node.append[R](s.id, _, memo)))
 
-  private def others(s: State): Vector[Member] ! R = Node.members[R].map(_.filter(_.id != s.id))
+  /** the other members here; another community's account is none of them — its members are paid through it */
+  private def others(s: State): Vector[Member] ! R =
+    Node.members[R].map(_.filter(m => m.id != s.id && m.of != "line"))
 
-  private def pay(about: About, s: State): Unit ! R = others(s).flatMap { ms =>
-    if ms.isEmpty then inform(w.nobodyToPay, w.firstMember)
-    else edit[(String, BigDecimal, Option[String])](w.pay, Form(
+  /** A PAYMENT: to a member of this community, or — where there are trust lines — of another */
+  private def pay(about: About, s: State): Unit ! R = others(s).flatMap(ms => Node.lines[R].flatMap { lines =>
+    if ms.isEmpty && lines.isEmpty then inform(w.nobodyToPay, w.firstMember)
+    else if lines.isEmpty then paying(about, s, ms, None)
+    else if ms.isEmpty then elsewhere(about, s, lines)
+    else show(Screen[Boolean](w.pay)()(Button(about.name, Style.Primary)(false), Button(w.payElsewhere)(true)))
+      .flatMap(far => if far then elsewhere(about, s, lines) else paying(about, s, ms, None))
+  })
+
+  /** to another community: which (when there are several), then its members, asked of its own node */
+  private def elsewhere(about: About, s: State, lines: Vector[TrustLine]): Unit ! R =
+    val table = Table(lines.toList)(Column.text(w.community)(_.name)).keyedBy(_.node)
+    (if lines.size == 1 then pure[Option[TrustLine], R](lines.headOption)
+    else show(Screen[Option[TrustLine]](w.whichCommunity)(table)(Button.select(w.use, table)(Some(_)),
+      Button(w.back)(None)))).flatMap {
+      case None => pure(())
+      case Some(line) => Node.membersAt[R](line.address).map(_.filter(m => m.of != "line" && m.of != "community"))
+          .flatMap(there => if there.isEmpty then inform(w.payElsewhere, w.nobodyThere)
+            else paying(about, s, there, Some(line)))
+    }
+
+  private def paying(about: About, s: State, ms: Vector[Member], line: Option[TrustLine]): Unit ! R =
+    edit[(String, BigDecimal, Option[String])](line.fold(w.pay)(l => s"${w.pay} · ${l.name}"), Form(
       said(Field.choice(w.to, ms.map(m => m.name -> m.id)*)),
       said(Field.money(w.amount, about.unit).check(w.moreThanZero)(_ > 0)),
       said(Field.text(w.forWhat).optional))).flatMap {
       case None => pure(())
       case Some((to, amount, what)) =>
-        val who = ms.find(_.id == to).fold(to)(_.name)
+        val who = ms.find(_.id == to).fold(to)(_.name) + line.fold("")(l => s" · ${l.name}")
         val memo = what.getOrElse("").trim
         confirm(w.payQuestion(money(cents(amount), about.unit), who), w.pay).flatMap { yes =>
           if !yes then pure(())
-          // the payment's name: one a payment, so sent again — a second press, a lost answer — it is paid once
-          else say(s, now => Body.Send(to, cents(amount), if memo.isEmpty then "" else Sha256.hex(memo),
-            Sha256.hex(s"${s.id}:${s.seq}:$now").take(24)), memo).flatMap {
-            case Right(after) if after.balance == s.balance => inform(w.cameBack, w.cameBackText(who))
+          // the payment's name: one a payment, so sent again — a second press, a lost answer — it is paid once;
+          // a member of another community is named with its node's key: `<account>@<key>`
+          else say(s, now => Body.Send(line.fold(to)(l => s"$to@${l.node}"), cents(amount),
+            if memo.isEmpty then "" else Sha256.hex(memo), Sha256.hex(s"${s.id}:${s.seq}:$now").take(24)), memo)
+            .flatMap {
+            case Right(after) if after.balance == s.balance => inform(w.cameBack,
+                line.fold(w.cameBackText(who))(l => w.cameBackElsewhere(l.name)))
             case Right(after) => inform(w.paid, w.paidText(money(cents(amount), about.unit), who,
                 money(after.balance, about.unit)))
             case Left(r) => inform(w.notPaid, refusal(r, about.unit))
           }
         }
     }
-  }
 
   private def vouch(about: About, s: State): Unit ! R = others(s).flatMap { ms =>
     if ms.isEmpty then inform(w.nobodyToVouch, w.firstMember)
@@ -286,9 +310,12 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   private final case class Row(seq: Long, day: String, what: String, who: String, amount: BigDecimal, memo: String)
 
-  private def history(about: About, s: State): Unit ! R = Node.members[R].flatMap(ms => Node.chain[R](s.id).flatMap {
-    lines =>
-      def name(id: String): String = ms.find(_.id == id).fold(short(id))(_.name)
+  private def history(about: About, s: State): Unit ! R = Node.members[R].flatMap(ms => Node.lines[R].flatMap(peers =>
+    Node.chain[R](s.id).flatMap { lines =>
+      // a member of another community (`<account>@<its node's key>`) is shown by its community: the line's name
+      def name(id: String): String = ms.find(_.id == id).fold(
+        if id.contains("@") then peers.find(_.node == id.dropWhile(_ != '@').drop(1)).fold(short(id))(_.name)
+        else short(id))(_.name)
       def m(cents: Long): String = money(cents, about.unit)
       val rows = lines.map { l =>
         val (what, who, amount) = l.record.body match
@@ -308,7 +335,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       show(Screen[Unit](w.history)(Table(rows)(Column.text(w.day)(_.day), Column.text(w.what)(_.what),
         Column.text(w.withWhom)(_.who), Column.money(w.amount, about.unit)(_.amount),
         Column.text(w.forColumn)(_.memo)).keyedBy(_.seq.toString).whenEmpty(w.nothingYet))(Button(w.back)(())))
-  })
+  }))
 
   // ---- devices: who may act for the account
 
@@ -416,6 +443,39 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     }
   }
 
+  /** THE COMMUNITY'S TRUST LINES: how far each other community may owe this one, and where each stands */
+  private def lines(about: About, key: String): Unit ! R = Node.lines[R].flatMap { ls =>
+    ls.foldLeft(pure[Vector[(TrustLine, State)], R](Vector.empty))((acc, l) => acc.flatMap(all =>
+      Node.account[R](l.id).map(_.fold(all)(s => all :+ (l -> s))))).flatMap { all =>
+      val table = Table(all.toList)(Column.text(w.community)(_._1.name),
+        Column.money(w.theyMayOwe, about.unit)(x => units(x._2.credit)),
+        Column.money(w.balance, about.unit)(x => units(x._2.balance))).keyedBy(_._1.node).whenEmpty(w.noLines)
+      show(Screen[Option[Option[TrustLine]]](w.trustLines)(Part.text(w.linesText), table)(
+        Button(w.openLine, Style.Primary)(Some(None)), Button.select(w.changeLine, table)(x => Some(Some(x._1))),
+        Button(w.back)(None))).flatMap {
+        case None => pure(())
+        case Some(chosen) =>
+          val address = said(Field.text(w.lineAddress).hinted(w.lineAddressHint))
+          edit[(String, BigDecimal)](chosen.fold(w.openLine)(l => s"${w.trustLines} · ${l.name}"), Form(
+            chosen.fold(address)(l => address.initially(l.address)),
+            said(Field.money(w.theyMayOwe, about.unit).check(w.notBelowZero)(_ >= 0)))).flatMap {
+            case None => pure(())
+            case Some((to, credit)) => command(key, "line", "address" -> Json.str(to.trim.stripSuffix("/")),
+                "credit" -> Json.num(cents(credit))).flatMap {
+                case Right(_) => Node.lines[R].flatMap(now => inform(w.lineOpened, w.lineOpenedText(
+                    now.find(l => l.address == to.trim.stripSuffix("/")).fold(to)(_.name),
+                    money(cents(credit), about.unit))))
+                case Left(r) => inform(w.lineNotOpened, r.why match
+                    case "unit" => w.lineUnit
+                    case "no such node" | "command" | "peer" => w.noSuchNode
+                    case "same" => w.lineSame
+                    case _ => refusal(r, about.unit))
+              }
+          }.andThen(defer(lines(about, key)))
+      }
+    }
+  }
+
   private def office(about: About, key: String): Unit ! R = Node.requests[R].flatMap(asked =>
     Node.members[R].flatMap { ms =>
     ms.foldLeft(pure[Vector[(Member, State)], R](Vector.empty))((acc, m) => acc.flatMap(all =>
@@ -424,14 +484,16 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         Column.money(w.balance, about.unit)(x => units(x._2.balance)),
         Column.money(w.creditLine, about.unit)(x => units(x._2.credit)),
         Column.money(w.ceiling, about.unit)(x => units(x._2.ceiling))).keyedBy(_._1.id).whenEmpty(w.noMembers)
-      show(Screen[Option[Option[(Member, State)]]](s"${w.community} · ${about.name}")(Part.details(
+      show(Screen[Option[Either[Boolean, (Member, State)]]](s"${w.community} · ${about.name}")(Part.details(
         w.members -> Cell.Number(BigDecimal(all.size)),
         w.sum -> Cell.Money(units(all.map(_._2.balance).sum), about.unit)), Part.text(w.sumText), table)(
-        Button.select(w.setLimits, table)(x => Some(Some(x))), Button(w.requestsButton(asked.size))(Some(None)),
+        Button.select(w.setLimits, table)(x => Some(Right(x))),
+        Button(w.requestsButton(asked.size))(Some(Left(true))), Button(w.trustLines)(Some(Left(false))),
         Button(w.back)(None))).flatMap {
         case None => pure(())
-        case Some(None) => asking(about, key).andThen(defer(office(about, key)))
-        case Some(Some((m, s))) => edit[(BigDecimal, BigDecimal)](w.limitsOf(m.name), Form(
+        case Some(Left(true)) => asking(about, key).andThen(defer(office(about, key)))
+        case Some(Left(false)) => lines(about, key).andThen(defer(office(about, key)))
+        case Some(Right((m, s))) => edit[(BigDecimal, BigDecimal)](w.limitsOf(m.name), Form(
             said(Field.money(w.creditLine, about.unit).initially(units(s.credit)).check(w.notBelowZero)(_ >= 0)),
             said(Field.money(w.ceiling, about.unit).initially(units(s.ceiling)).check(w.notBelowZero)(_ >= 0))))
             .flatMap {

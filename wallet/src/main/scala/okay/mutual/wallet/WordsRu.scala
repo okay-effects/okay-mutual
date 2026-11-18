@@ -35,6 +35,7 @@ object WordsRu extends Words:
     case "personal" => "личный"
     case "business" => "бизнес"
     case "community" => "община"
+    case "line" => "другая община"
     case other => other
   val communityName = "Название общины"; val setupToken = "Токен основателя"
   val setupText = "Собственный счёт общины открывается ключом этого устройства. Тот, чей ключ может им управлять, " +
@@ -169,3 +170,20 @@ object WordsRu extends Words:
   val hubLimit = "Сегодня отсюда больше нельзя создавать общины."
   val hubClosed = "Здесь общины создаёт не каждый: обратитесь к оператору этого сайта."
   val anotherCommunity = "Другая община"; val unitShort = "Единица"
+  val payElsewhere = "В другую общину"; val whichCommunity = "В какую общину"
+  val nobodyThere = "В той общине пока некому платить."
+  def cameBackElsewhere(community: String) = s"$community не приняла платёж: она не доверяет нашей общине больше, " +
+    "или получатель сейчас не может его принять. Ничего не списано."
+  val trustLines = "Линии доверия"
+  val linesText = "Линия доверия говорит, сколько другая община может быть должна нашей. Тогда её участники могут " +
+    "платить нашим, а наши — её участникам, насколько ОНА доверяет нам. Плюс на балансе: должны мы; минус: должны нам."
+  val theyMayOwe = "Могут быть должны нам"; val noLines = "линий пока нет"
+  val openLine = "Открыть линию"; val lineAddress = "Адрес другой общины"
+  val lineAddressHint = "как в её ссылке-приглашении после ?node="
+  val changeLine = "Изменить"
+  val lineOpened = "Линия открыта"
+  def lineOpenedText(community: String, credit: String) = s"$community может быть должна нашей общине до $credit. " +
+    "Чтобы наши участники могли платить её участникам, она тоже открывает линию к нам."
+  val lineNotOpened = "Линия не открыта"
+  val lineUnit = "Та община считает в другой единице: линии между разными единицами ещё не сделаны."
+  val noSuchNode = "По этому адресу община не отвечает."; val lineSame = "Это сама наша община."
