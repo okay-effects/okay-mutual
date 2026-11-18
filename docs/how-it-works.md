@@ -66,6 +66,17 @@ Whoever opens an offer can pay for it from there — the member, the part of the
 for are already filled in; the rest of the price is paid in money, between the two, outside the system. An entry is
 its member's own signed word and is taken off by them alone.
 
+## Stamp cards
+
+Many shops hand out a paper card: a stamp for each purchase, the sixth coffee free. Paper cards get lost. A shop
+here can keep such a card for its customers: it says how many stamps fill it and what a full card gives. At the
+counter the seller shows a code on their phone; the customer points their camera at it, the app opens, and the
+stamp is on their card. A full card's reward is given the same way. A code works once, for ten minutes.
+
+A stamp is **not a unit**: nobody owes it, it cannot be passed on or spent anywhere else — it is a shop's promise
+of a discount, kept where it cannot be lost. It works for purchases paid in ordinary money too, so a card is the
+easiest way for a shop's regulars to start using the app: an account is all a card needs.
+
 ## Vouching
 
 A newcomer has no history, so no credit. A member who knows them can **vouch**: lend part of their own credit line.

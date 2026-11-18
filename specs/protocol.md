@@ -378,6 +378,27 @@ the level above only says how far it may go.
 - Not built: a level between a community and a shared account (a federation's policy over its communities); a
   member's own narrower policy for what it accepts.
 
+## Stamp cards (sprint 9)
+
+A shop's paper card with stamps, kept where it is not lost. NOT UNITS and not on any chain: a stamp is owed by
+nobody, moves nowhere, counts at its shop alone — a shop's promise of a discount. So it is kept as the board is,
+beside the chains (`dir/card/<shop>`, `dir/stamps/<shop>/<customer>`), and may be erased.
+
+- **A card** is its shop's own signed word (`POST /api/cards {command, key, sig}`, as the board's): `card {account,
+  title, need (2–50), reward}`, `uncard {account}`. One a shop. `GET /api/cards[?of=<account>]`: the cards, and
+  that account's stamps at each.
+- **A stamp and a reward are given by a token**: `{cmd: stamp | redeem, account: <the shop>, at, n}` signed by a
+  key that holds the shop's account and may spend from it, shown as a code — the app's address with `&stamp=<the
+  token, base64url>`. The customer's phone opens it; the app signs `claim:<the token's hash>:<its account>` and
+  gives both to the node (`POST /api/cards/claim`). The node checks both signatures against the two accounts'
+  chains, that the token is no older than ten minutes and was never taken, then counts: a stamp adds one (a
+  customer holds at most `Directory.cardsKept` full cards unspent); a reward needs a full card and takes it off.
+- Why a token and not the shop naming the customer: the seller need not find the customer in a list or read
+  their code — a phone's own camera opens a link; and a customer who has no account yet is asked to open one
+  and gets the stamp after.
+- A photographed code is worth one stamp to whoever claims it first, as a paper stamp is.
+- Not built: a card of a shared account (a team's); a shop's list of its card holders; cards across communities.
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

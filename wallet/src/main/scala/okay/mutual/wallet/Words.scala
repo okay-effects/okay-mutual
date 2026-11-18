@@ -143,6 +143,17 @@ trait Words:
   def hubForbids: String; def sharedOff: String
   // ---- to be paid by a link
   def receive: String; def receiveText: String; def notMemberHere: String
+  // ---- stamp cards
+  def cards: String; def cardsText: String; def noCards: String; def shop: String; def cardTitle: String
+  def stamps: String; def reward: String; def rewardHint: String; def myCard: String; def myCardText: String
+  def stampsNeeded: String; def stampsRange: String; def makeCard: String; def changeCard: String
+  def takeCardOff: String; def takeCardOffQuestion: String; def cardSaved: String
+  def giveStamp: String; def giveStampText: String; def giveReward: String; def giveRewardText: String
+  def nextCode: String; def stampGot: String; def stampGotText(shop: String, have: Long, need: Long): String
+  def rewardReady(reward: String): String; def rewardTaken: String
+  def rewardTakenText(shop: String, reward: String): String
+  def codeUsed: String; def codeOld: String; def codeBad: String; def notEnoughStamps: String
+  def noSuchCard: String; def ownCode: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -442,3 +453,34 @@ object Words:
     val receiveText = "Show this code or send this link to whoever pays you: it opens the app at a payment to this " +
       "account. A shop puts the link on its page."
     val notMemberHere = "The one this link asks you to pay is not a member of this community."
+    val cards = "Cards"
+    val cardsText = "Stamp cards of the shops here: a stamp for each purchase, a reward when the card is full. " +
+      "A stamp is not a unit: it counts only at its shop and cannot be passed on. The card is kept here — it " +
+      "cannot be lost."
+    val noCards = "no shop here has a card yet"; val shop = "Shop"; val cardTitle = "Card"
+    val stamps = "Stamps"; val reward = "Reward"; val rewardHint = "what a full card gives: a free coffee"
+    val myCard = "My card"
+    val myCardText = "Your shop's card: how many stamps make it full, and what a full card gives."
+    val stampsNeeded = "Stamps to fill it"; val stampsRange = "from 2 to 50"
+    val makeCard = "Make my shop's card"; val changeCard = "Change my card"
+    val takeCardOff = "Take my card off"
+    val takeCardOffQuestion = "Take the card off? Nobody gets a stamp on it from then on."
+    val cardSaved = "The card is saved"
+    val giveStamp = "Give a stamp"
+    val giveStampText = "Let the customer point their phone's camera at this code: the app opens and the stamp is " +
+      "on their card. A code works once, for ten minutes."
+    val giveReward = "Give the reward"
+    val giveRewardText = "The customer with a full card scans this code: the reward is taken off the card, and " +
+      "their screen says so. A code works once, for ten minutes."
+    val nextCode = "A new code"
+    val stampGot = "A stamp"
+    def stampGotText(shop: String, have: Long, need: Long) = s"$shop: $have of $need."
+    def rewardReady(reward: String) = s"The card is full: $reward."
+    val rewardTaken = "The reward"
+    def rewardTakenText(shop: String, reward: String) = s"$shop: $reward. Show this screen to the seller."
+    val codeUsed = "This code was used already: ask for a new one."
+    val codeOld = "This code is too old: ask for a new one."
+    val codeBad = "This is not a shop's code."
+    val notEnoughStamps = "The card is not full yet."
+    val noSuchCard = "This shop has no card now."
+    val ownCode = "This is your own shop's code."

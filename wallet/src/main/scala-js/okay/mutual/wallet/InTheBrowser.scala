@@ -67,9 +67,22 @@ object InTheBrowser:
         "?" + rest))
     }
 
+  /** A SHOP'S CODE SCANNED (`?node=…&stamp=<a signed token>`): kept for the application, which claims it once —
+   * and taken out of the address */
+  private def stamped(): Unit =
+    val query = new dom.URLSearchParams(dom.window.location.search)
+    Option(query.get("stamp")).filter(_.matches("[A-Za-z0-9_-]{20,2000}")).foreach { code =>
+      dom.window.localStorage.setItem(NetInPage.prefix + "stamp", code)
+      query.delete("stamp")
+      val rest = query.toString
+      dom.window.history.replaceState(null, "", dom.window.location.pathname + (if rest.isEmpty then "" else
+        "?" + rest))
+    }
+
   def main(args: Array[String]): Unit =
     invited()
     asked()
+    stamped()
     val words = Words.of(language)
     dressed(words)
     // okay-faces' own words (Back, Help…) in the same language

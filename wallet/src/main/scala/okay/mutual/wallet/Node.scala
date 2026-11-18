@@ -32,6 +32,12 @@ final case class Lost(account: String, name: String, key: String)
 /** an entry of the board: a member's offer or want, its price (0: by agreement), the share of it taken in units */
 final case class Listing(id: String, account: String, kind: String, title: String, text: String, price: Long,
                          share: Long)
+/** a shop's stamp card: so many stamps, then the reward */
+final case class Card(account: String, title: String, need: Long, reward: String)
+/** a customer's card at a shop: the stamps on it, the rewards taken */
+final case class Stamps(shop: String, stamps: Long, used: Long)
+/** what a claimed token did: a stamp put (`stamp`) or a reward taken (`redeem`), and the card after it */
+final case class Stamped(kind: String, shop: String, title: String, reward: String, need: Long, stamps: Long)
 /** one who waits to be admitted */
 final case class Asked(id: String, name: String, of: String)
 /** a member as the others see it */
@@ -107,9 +113,25 @@ object Node:
     scala.util.Try(j("listings").list.map(l => Listing(l("id").string, l("account").string, l("kind").string,
       l("title").string, l("text").string, l("price").long, l("share").long))).getOrElse(Vector.empty))
   /** a member's own signed word on the board (`list`, `unlist`) */
-  def post[R[_]: Has[Net]](text: String, key: String, sig: String): Either[Refusal, Unit] ! R =
-    call[R]("POST", "/api/board", Some(Json.obj("command" -> Json.str(text), "key" -> Json.str(key),
+  def post[R[_]: Has[Net]](text: String, key: String, sig: String, path: String = "/api/board")
+    : Either[Refusal, Unit] ! R =
+    call[R]("POST", path, Some(Json.obj("command" -> Json.str(text), "key" -> Json.str(key),
       "sig" -> Json.str(sig)))).map((status, j) => if status == 200 then Right(()) else Left(refusal(status, j)))
+
+  /** the shops' stamp cards, and the stamps of the account `of` at each */
+  def cards[R[_]: Has[Net]](of: String): (Vector[Card], Vector[Stamps]) ! R =
+    call[R]("GET", s"/api/cards?of=$of").map((_, j) => (
+      scala.util.Try(j("cards").list.map(c => Card(c("account").string, c("title").string, c("need").long,
+        c("reward").string))).getOrElse(Vector.empty),
+      scala.util.Try(j("stamps").list.map(s => Stamps(s("shop").string, s("stamps").long, s("used").long)))
+        .getOrElse(Vector.empty)))
+  /** a shop's token — a stamp or a reward — claimed for `account` by a key that holds it */
+  def claim[R[_]: Has[Net]](token: Json, account: String, key: String, sig: String): Either[Refusal, Stamped] ! R =
+    call[R]("POST", "/api/cards/claim", Some(Json.obj("token" -> token, "account" -> Json.str(account),
+      "key" -> Json.str(key), "sig" -> Json.str(sig)))).map((status, j) =>
+      if status != 200 then Left(refusal(status, j)) else scala.util.Try(Stamped(j("kind").string, j("shop").string,
+        j("title").string, j("reward").string, j("need").long, j("stamps").long)).toOption
+        .toRight(Refusal(200, "answer", "")))
 
   /** an account asked back by this device: `sig` its signature of `recover:<account>:<key>` */
   def askBack[R[_]: Has[Net]](account: String, key: String, sig: String): Either[Refusal, Unit] ! R =

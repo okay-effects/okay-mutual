@@ -224,9 +224,9 @@ A shop's card: so many stamps, then a reward. NOT UNITS: a stamp is not owed by 
 only at its shop — a shop's promise of a discount, kept where it cannot be lost. It is also the easiest way in for
 an ordinary customer: an account is all a card needs.
 
-- [ ] **the node** — beside the chains (as the board): a shop's card (`card {title, need, reward}`, its own signed
+- [x] **the node** — beside the chains (as the board): a shop's card (`card {title, need, reward}`, its own signed
   word); a stamp and a reward given by a TOKEN the shop's device signs (`stamp` / `redeem`, good ten minutes, taken
   once) and the customer's device claims with its own signature; `GET /api/cards[?of=]`. Done when: NodeSuite.
-- [ ] **the app** — "Cards": a customer's cards and stamps; a shop's own card, "Give a stamp" and "Give the reward"
+- [x] **the app** — "Cards": a customer's cards and stamps; a shop's own card, "Give a stamp" and "Give the reward"
   as a code to scan; the app opened by the code's link claims it. Four languages. Done when: WalletSuite.
 - [ ] **publish** — Worker, Pages, docs ×4, README.

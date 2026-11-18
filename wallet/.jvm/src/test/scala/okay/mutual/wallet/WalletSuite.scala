@@ -257,7 +257,7 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(founder.kept("node"), "/n/our-town")
     val home = founder.play()
     assertEquals(home.at.map(_.title), Some("Our Town"), Seen.of(home))
-    assert(home.at.get.buttons.map(_.label).containsSlice(List("Community", "Board", "Invite", "Accounts")))
+    assert(home.at.get.buttons.map(_.label).containsSlice(List("Community", "Board", "Cards", "Invite", "Accounts")))
     assert(Seen.of(founder.play(Act.press("Invite"))).contains("https://wallet.example/?node=/n/our-town"))
     // the place is taken now
     val second = new Phone(hub)
@@ -693,4 +693,40 @@ class WalletSuite extends munit.FunSuite:
     // one who is no member here is not paid
     anna.kept("pay") = asks("0" * 64, "", "")
     assert(Seen.of(anna.play()).contains("not a member of this community"))
+  }
+
+  test("stamp cards: a shop's card; a stamp by a code the customer's app claims; the reward when the card is full") {
+    val town = Town()
+    val (shop, anna) = (joined(town, "Cafe", "Business"), joined(town, "Anna"))
+    val made = shop.play(Act.press("Cards"), Act.press("Make my shop's card"), Act.press("Save",
+      "Card" -> "Coffee card", "Stamps to fill it" -> "2", "Reward" -> "a free coffee"))
+    assertEquals(made.at.map(_.title), Some("The card is saved"), Seen.of(made))
+    // a code the shop's device signs, as the link the customer's camera opens carries it
+    def code(button: String): String =
+      town.now += 1000
+      Seen.of(shop.play(Act.press("Cards"), Act.press(button))).linesIterator.find(_.contains("&stamp=")).get
+        .split("&stamp=")(1).trim
+    def scans(phone: Phone, c: String) = { phone.kept("stamp") = c; phone.play() }
+    val first = code("Give a stamp")
+    val one = scans(anna, first)
+    assertEquals(one.at.map(_.title), Some("A stamp"), Seen.of(one))
+    assert(Seen.of(one).contains("Cafe: 1 of 2."), Seen.of(one))
+    // once: the app is at home again; the same code a second time is refused
+    assertEquals(anna.play().at.map(_.title), Some("Anna"))
+    assert(Seen.of(scans(anna, first)).contains("used already"))
+    assert(Seen.of(scans(anna, code("Give the reward"))).contains("not full yet"))
+    val two = scans(anna, code("Give a stamp"))
+    assert(Seen.of(two).contains("Cafe: 2 of 2. The card is full: a free coffee."), Seen.of(two))
+    val listed = anna.play(Act.press("Cards"))
+    assert(Seen.of(listed).contains("Cafe | Coffee card | 2 / 2 ✓ | a free coffee"), Seen.of(listed))
+    // the reward: taken off the card, the customer's screen says it
+    val reward = scans(anna, code("Give the reward"))
+    assertEquals(reward.at.map(_.title), Some("The reward"), Seen.of(reward))
+    assert(Seen.of(reward).contains("Cafe: a free coffee. Show this screen to the seller."), Seen.of(reward))
+    assert(Seen.of(anna.play(Act.press("Cards"))).contains("Cafe | Coffee card | 0 / 2 | a free coffee"))
+    // a shop does not stamp its own card; what is no code is said to be none
+    assert(Seen.of(scans(shop, code("Give a stamp"))).contains("your own shop's code"))
+    assert(Seen.of(scans(anna, "bm90IGEgY29kZSBhdCBhbGw")).contains("not a shop's code"))
+    // a stamp is no unit
+    assert(Seen.of(anna.play()).contains("Balance: 0.00") && Seen.of(shop.play()).contains("Balance: 0.00"))
   }

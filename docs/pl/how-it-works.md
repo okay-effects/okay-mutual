@@ -71,6 +71,19 @@ otworzy ofertę, może zapłacić za nią od razu stamtąd — uczestnik, częś
 wypełnione; resztę ceny strony płacą sobie pieniędzmi, poza systemem. Ogłoszenie to podpisane słowo samego
 uczestnika i tylko on może je zdjąć.
 
+## Karty z pieczątkami
+
+Wiele sklepów rozdaje papierową kartę: pieczątka za każdy zakup, szósta kawa gratis. Papierowe karty się gubią.
+Sklep może tu prowadzić taką kartę dla swoich klientów: mówi, ile pieczątek ją wypełnia i co daje pełna karta.
+Przy kasie sprzedawca pokazuje kod na swoim telefonie; klient kieruje na niego aparat, otwiera się aplikacja i
+pieczątka jest już na jego karcie. Nagrodę za pełną kartę wydaje się tak samo. Kod działa raz, przez dziesięć
+minut.
+
+Pieczątka **nie jest jednostką**: nikt jej nikomu nie jest winien, nie można jej przekazać ani wydać gdzie
+indziej — to obietnica rabatu od sklepu, przechowywana tam, gdzie się nie zgubi. Działa też przy zakupach za
+zwykłe pieniądze, więc karta to najprostszy sposób, żeby stali klienci sklepu zaczęli korzystać z aplikacji: do
+karty wystarczy konto.
+
 ## Poręczenie
 
 Nowa osoba nie ma historii, więc nie ma kredytu. Uczestnik, który ją zna, może za nią **poręczyć**: pożyczyć jej

@@ -80,6 +80,11 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("rules", _) => w.rulesChanged
     case ("business", _) => w.onlyBusinesses
     case ("shared", _) => w.sharedOff
+    case ("used", _) => w.codeUsed
+    case ("time", _) => w.codeOld
+    case ("short", _) => w.notEnoughStamps
+    case ("no card", _) => w.noSuchCard
+    case ("same", _) => w.ownCode
     case ("taken", _) => w.openAlready
     case ("token", _) => w.notTheToken
     case ("set", _) => w.setUpAlready
@@ -253,7 +258,30 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   /** AN ACCOUNT'S HOME — or, when the app was opened by a link that asks to be paid (`?pay=<account>`, kept as
    * `pay`), the payment it asks for, filled in: once, and every field still the payer's to change */
-  private def home(about: About, id: String, name: String): Unit ! R = setting[R]("pay").flatMap { kept =>
+  private def home(about: About, id: String, name: String): Unit ! R = setting[R]("stamp").flatMap {
+    case Some(code) if code.nonEmpty => keep[R]("stamp", "").andThen(claiming(about, id, code))
+    case _ => paid(about, id, name)
+  }
+
+  /** A SHOP'S CODE CLAIMED (specs/protocol.md "Stamp cards"): the app was opened by a link that carries a shop's
+   * signed token (`?stamp=`) — a stamp for this account's card at that shop, or the card's reward taken */
+  private def claiming(about: About, id: String, code: String): Unit ! R =
+    B64.decode(code).flatMap(bytes => Descent.parse(new String(bytes, "UTF-8")).toOption).filter(t =>
+      scala.util.Try(t("command").string).isSuccess) match
+      case None => inform(w.cards, w.codeBad)
+      case Some(token) => Device.ready[R].flatMap(key =>
+          Device.sign[R](s"claim:${Sha256.hex(token("command").string)}:$id").flatMap(sig =>
+            Node.claim[R](token, id, key, sig))).flatMap {
+          case Left(r) => inform(w.cards, refusal(r, about.unit))
+          case Right(st) => Node.members[R].flatMap { ms =>
+              val shop = ms.find(_.id == st.shop).fold(short(st.shop))(_.name)
+              if st.kind == "redeem" then inform(w.rewardTaken, w.rewardTakenText(shop, st.reward))
+              else inform(w.stampGot, w.stampGotText(shop, st.stamps, st.need) +
+                (if st.stamps >= st.need then " " + w.rewardReady(st.reward) else ""))
+            }
+        }
+
+  private def paid(about: About, id: String, name: String): Unit ! R = setting[R]("pay").flatMap { kept =>
     kept.filter(_.nonEmpty).flatMap(t => Descent.parse(t).toOption).flatMap(j => scala.util.Try((j("to").string,
       scala.util.Try(BigDecimal(j("amount").string)).getOrElse(BigDecimal(0)), j("for").string)).toOption) match
       case None => account(about, id, name)
@@ -278,7 +306,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               List(Button[Int](w.history)(2)) ++ (if shared then Nil else List(Button[Int](w.vouch)(3))) ++
               List(Button[Int](if shared then w.holders else w.devices)(4), Button[Int](w.checkNode)(5)) ++
               (if governs then List(Button[Int](w.community)(6)) else Nil) ++
-              (if shared then Nil else List(Button[Int](w.board)(10), Button[Int](w.invite)(8))) ++
+              (if shared then Nil else List(Button[Int](w.board)(10), Button[Int](w.cards)(13),
+                Button[Int](w.invite)(8))) ++
               List(Button[Int](w.accounts)(7)) ++
               // a recovery announced for another device: this one, which still holds the account, can say no
               s.recovering.toList.map(_ => Button[Int](w.cancelRecovery, Style.Danger)(9))
@@ -297,6 +326,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               case 3 => vouch(about, s)
               case 4 => me(s).flatMap(devices(about, s, _))
               case 11 => me(s).flatMap(confirming(about, s, _))
+              case 13 => cards(about, s, key)
               // to be paid: the app's address at this community with this account in it — a link, a code to scan
               case 12 => Node.invite[R].map(_ + "&pay=" + s.id).flatMap(link => show(Screen[Unit](w.receive)(
                   Part.text(w.receiveText), Part.qr(link, w.receive), Part.code(link))(Button(w.back)(()))))
@@ -703,6 +733,68 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           }.andThen(defer(board(about, s, key)))
       }
     })
+
+  // ---- stamp cards: a shop's card, kept where it cannot be lost (specs/protocol.md "Stamp cards")
+
+  /** THE CARDS: every shop's card here with this account's stamps on it; and this account's own card as a shop —
+   * made, a stamp given, the reward given: each a code this device signs for the customer's phone to scan */
+  private def cards(about: About, s: State, key: String): Unit ! R = Node.cards[R](s.id).flatMap((all, mine) =>
+    Node.members[R].flatMap { ms =>
+      def who(id: String): String = ms.find(_.id == id).fold(short(id))(_.name)
+      val own = all.find(_.account == s.id)
+      val others = all.filter(_.account != s.id).toList
+      def have(c: Card): Long = mine.find(_.shop == c.account).fold(0L)(_.stamps)
+      val table = Table(others)(Column.text(w.shop)(c => who(c.account)), Column.text(w.cardTitle)(_.title),
+        Column.text(w.stamps)(c => s"${have(c)} / ${c.need}" + (if have(c) >= c.need then " ✓" else "")),
+        Column.text(w.reward)(_.reward)).keyedBy(_.account).whenEmpty(w.noCards)
+      val shown = own.toList.map(c => Part.details(w.myCard -> c.title, w.stampsNeeded -> c.need.toString,
+        w.reward -> c.reward))
+      val buttons = own.fold(List(Button[Int](w.makeCard)(1)))(_ => List(Button[Int](w.giveStamp, Style.Primary)(2),
+        Button[Int](w.giveReward)(3), Button[Int](w.changeCard)(1), Button[Int](w.takeCardOff, Style.Danger)(4))) :+
+        Button[Int](w.back)(0)
+      show(Screen[Int](w.cards)((Part.text(w.cardsText) +: table +: shown)*)(buttons*)).flatMap {
+        case 1 => edit[(String, Long, String)](w.myCard, Form(
+            said(own.fold(Field.text(w.cardTitle))(c => Field.text(w.cardTitle).initially(c.title))),
+            said(Field.whole(w.stampsNeeded).initially(own.fold(5L)(_.need)).check(w.stampsRange)(n =>
+              n >= 2 && n <= 50)),
+            said(own.fold(Field.text(w.reward).hinted(w.rewardHint))(c => Field.text(w.reward).initially(c.reward)))),
+            Part.text(w.myCardText)).flatMap {
+            case None => pure(())
+            case Some((title, need, reward)) => carded(key, "card", s.id, "title" -> Json.str(title),
+                "need" -> Json.num(need), "reward" -> Json.str(reward)).flatMap {
+                case Right(_) => inform(w.cardSaved, title)
+                case Left(r) => inform(w.notPosted, refusal(r, about.unit))
+              }
+          }.andThen(defer(cards(about, s, key)))
+        case n @ (2 | 3) => code(s, key, if n == 2 then "stamp" else "redeem").andThen(defer(cards(about, s, key)))
+        case 4 => confirm(w.takeCardOffQuestion, w.takeCardOff).flatMap(yes => if !yes then pure(()) else
+            carded(key, "uncard", s.id).as(())).andThen(defer(cards(about, s, key)))
+        case _ => pure(())
+      }
+    })
+
+  /** a shop's own word about its card, signed by this device */
+  private def carded(key: String, cmd: String, account: String, fields: (String, Json)*): Either[Refusal, Unit] ! R =
+    Clock.now[R].flatMap { now =>
+      val text = Json.print(Json.Obj(Vector("cmd" -> Json.str(cmd), "at" -> Json.num(now),
+        "account" -> Json.str(account)) ++ fields))
+      Device.sign[R](text).flatMap(sig => Node.post[R](text, key, sig, "/api/cards"))
+    }
+
+  /** A CODE FOR THE CUSTOMER TO SCAN: a token this device signs — a stamp or the reward, this account's, now, a
+   * number of its own — in the app's address; good ten minutes, taken once; another for the next customer */
+  private def code(s: State, key: String, kind: String): Unit ! R = Clock.now[R].flatMap { now =>
+    val text = Json.print(Json.obj("cmd" -> Json.str(kind), "account" -> Json.str(s.id), "at" -> Json.num(now),
+      "n" -> Json.str(Sha256.hex(s"${s.id}:$kind:$now").take(12))))
+    Device.sign[R](text).flatMap(sig => Node.invite[R].flatMap { address =>
+      val token = Json.print(Json.obj("command" -> Json.str(text), "key" -> Json.str(key), "sig" -> Json.str(sig)))
+      val link = s"$address&stamp=${B64.encode(token.getBytes("UTF-8"))}"
+      val title = if kind == "stamp" then w.giveStamp else w.giveReward
+      show(Screen[Boolean](title)(Part.text(if kind == "stamp" then w.giveStampText else w.giveRewardText),
+        Part.qr(link, title), Part.code(link))(Button(w.nextCode, Style.Primary)(true), Button(w.back)(false)))
+        .flatMap(again => if again then defer(code(s, key, kind)) else pure(()))
+    })
+  }
 
   // ---- an account asked back: every device lost (specs/protocol.md "Keys")
 
