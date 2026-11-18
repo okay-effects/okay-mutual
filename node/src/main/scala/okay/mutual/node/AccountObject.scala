@@ -11,6 +11,7 @@ import okay.serverless.cloud.{Actor, InActor, Objects, Request, Response}
  * AN ACCOUNT'S OBJECT (specs/protocol.md "A payment"): one an account, named by the account's id, holding its chain
  * and nothing of any other account — so a node grows by accounts, never by one bigger ledger.
  *
+ *   acct/env                the account's node, as it was when the account was opened (its key pair, its place)
  *   acct/state              the account as its chain makes it (kept so as not to fold again; the chain is the truth)
  *   acct/rec/<seq>          a record as it travels: its text and signatures
  *   acct/name/<name>        the number of the record a named payment made
@@ -28,6 +29,7 @@ object AccountObject extends Actor:
   val namespace = "ACCOUNTS"
   private val scope = "acct"
   private val stateKey = s"$scope/state"
+  private val envKey = s"$scope/env"
   private def recKey(seq: Long) = f"$scope/rec/$seq%012d"
   private def nameKey(name: String) = s"$scope/name/$name"
   private def flightKey(hash: String) = s"$scope/flight/$hash"
@@ -42,11 +44,26 @@ object AccountObject extends Actor:
   private type Step[X] = (Live + Durable)[X]
 
   def fetch(name: String, r: Request): Response ! InActor = SignerHere.run(answer(name, r))
-  override def alarm(name: String): Unit ! InActor = SignerHere.run(NodeEnv.read[Live].flatMap(flights(_)))
+  override def alarm(name: String): Unit ! InActor = SignerHere.run(node.flatMap(_.fold(unit[Live])(flights)))
+
+  /** the account's node: kept when the account was opened */
+  private def node: Option[NodeEnv] ! Live = Http.read[Live](envKey).map(_.flatMap(NodeEnv.read))
 
   private def state: Option[State] ! Live = Http.read[Live](stateKey).map(_.flatMap(StateJson.read))
 
-  private def answer(name: String, r: Request): Response ! Live = NodeEnv.read[Live].flatMap { env =>
+  /** a call: the first record brings the node with it; every other is the account's own node's — and is refused
+   * (as an account that is not there) when it comes by another node (`x-node`, the caller's node's key): accounts of
+   * different nodes meet only by trust lines, and there are none yet */
+  private def answer(name: String, r: Request): Response ! Live =
+    if r.method == "POST" && r.path == "/_acct/open" then NodeEnv.read(Http.body(r)("env")) match
+      case Some(env) => open(env, name, Http.body(r))
+      case None => pure(Http.refused("env"))
+    else node.flatMap {
+      case Some(env) if r.header("x-node").forall(_ == env.pub) => called(env, r)
+      case _ => pure(Http.refused("unknown", 404))
+    }
+
+  private def called(env: NodeEnv, r: Request): Response ! Live =
     (r.method, r.path) match
       case ("GET", "/_acct/state") =>
         state.map(_.fold(Http.refused("unknown", 404))(s => Http.json(StateJson.write(s))))
@@ -58,7 +75,6 @@ object AccountObject extends Actor:
           Http.json(Json.obj("records" -> Json.Arr(rs.map(_._2).drop((from - 1).toInt.max(0)).map(j =>
             Signed.parse(j).flatMap(s => memos.get(s.hash)).fold(j)(m => Json.Obj(j.record :+ ("memo" -> m)))))))
         })
-      case ("POST", "/_acct/open") => open(env, name, Http.body(r))
       case ("POST", "/_acct/append") => Signed.parse(Http.body(r)("record")) match
           case None => pure(Http.refused("record"))
           case Some(signed) => append(env, signed, Http.body(r).field("memo").collect { case Json.Str(m) =>
@@ -69,7 +85,6 @@ object AccountObject extends Actor:
           case None => pure(Http.refused("body"))
           case Some((credit, ceiling)) => byNode(env, Body.Limits(credit, ceiling)).map(done)
       case _ => pure(Response.notFound())
-  }
 
   private def done(result: Either[Fault, (Signed, State)]): Response = result match
     case Right((signed, s)) => Http.json(Json.obj("record" -> Signed.json(signed), "state" -> StateJson.write(s)))
@@ -102,13 +117,13 @@ object AccountObject extends Actor:
             .andThen(Durable.put[Json, Step](stateKey, StateJson.write(next))).andThen(more).as(Right((full, next)))
         })
     }.flatMap {
-      case Right(kept) => told(kept._2).as(Right(kept))
+      case Right(kept) => told(env, kept._2).as(Right(kept))
       case left => pure(left)
     }
 
   /** the node's directory told the account's new head (its signed head covers every account) */
-  private def told(s: State): Unit ! Live =
-    Objects.call[Live](Directory.namespace, Directory.name, Http.post("/_dir/head", Json.obj(
+  private def told(env: NodeEnv, s: State): Unit ! Live =
+    Objects.call[Live](Directory.namespace, env.slug, Http.post("/_dir/head", Json.obj(
       "account" -> Json.str(s.id), "head" -> Json.str(s.head)))).as(())
 
   /** THE FIRST RECORD: signed by the member's first key, for this node and its unit; the object's name is its hash */
@@ -121,7 +136,8 @@ object AccountObject extends Actor:
               case None => Clock.now[Live].flatMap(now => Check.signers[Live](signed).flatMap { signers =>
                   Chain.step(None, signed.text, signers + env.pub) match
                     case Left(fault) => pure(faulted(fault))
-                    case Right(s) => commit(env, None, signed, s, now).flatMap {
+                    case Right(s) => commit(env, None, signed, s, now,
+                      Durable.put[Json, Step](envKey, NodeEnv.write(env))).flatMap {
                         case Left(fault) => pure(faulted(fault))
                         case Right(_) if credit == 0 && ceiling == 0 => state.map(s => done(Right((signed, s.get))))
                         case Right(_) => byNode(env, Body.Limits(credit, ceiling)).map(done)
@@ -225,7 +241,8 @@ object AccountObject extends Actor:
       val (kind, to, amount) = (f("kind").string, f("to").string, f("amount").long)
       Objects.call[Live](namespace, to, Http.post("/_acct/deliver", Json.obj("kind" -> Json.str(kind),
         "from" -> Json.str(s.id), "ref" -> Json.str(hash), "amount" -> Json.num(amount),
-        "memo" -> f.field("memo").getOrElse(Json.str(""))))).flatMap { answer =>
+        "memo" -> f.field("memo").getOrElse(Json.str("")))).copy(headers = Map("x-node" -> List(env.pub),
+        "content-type" -> List("application/json")))).flatMap { answer =>
         def landed: Unit ! Live = Durable.step[Step, Live, Unit](scope)(Durable.delete[Step](
           flightKey(hash)))
         if answer.status == 200 then landed

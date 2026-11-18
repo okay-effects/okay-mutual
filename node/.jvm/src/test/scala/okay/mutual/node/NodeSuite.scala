@@ -106,7 +106,7 @@ class NodeSuite extends munit.FunSuite:
     rich.join("Rich")
     val founder = Wallet(net)
     net.post("/api/setup", Json.obj("record" -> founder.signed(founder.opening("community")),
-      "name" -> Json.str("Test Town")), "x-setup-token" -> "setup-token")
+      "name" -> Json.str("Test Town")), "x-setup-token" -> net.token)
     net.command(founder.key, "cmd" -> Json.str("limits"), "at" -> Json.num(net.now), "account" -> Json.str(rich.id),
       "credit" -> Json.num(50000), "ceiling" -> Json.num(30000))
     assertEquals(rich.pay(jan, 30000).status, 200)
@@ -157,22 +157,38 @@ class NodeSuite extends munit.FunSuite:
     val setup = Json.obj("record" -> founder.signed(founder.opening("community")), "name" -> Json.str("Test Town"))
     assertEquals(net.post("/api/setup", setup).status, 403)
     assertEquals(net.post("/api/setup", setup, "x-setup-token" -> "wrong").status, 403)
-    assertEquals(net.post("/api/setup", setup, "x-setup-token" -> "setup-token").status, 200)
+    assertEquals(net.post("/api/setup", setup, "x-setup-token" -> net.token).status, 200)
     val other = Wallet(net)
     assertEquals(net.post("/api/setup", Json.obj("record" -> other.signed(other.opening("community")),
-      "name" -> Json.str("Another")), "x-setup-token" -> "setup-token").status, 409)
+      "name" -> Json.str("Another")), "x-setup-token" -> net.token).status, 409)
     // joining is not open: a member is admitted by a command, with the limits the community gives
     val anna = Wallet(net)
-    assertEquals(anna.join("Anna").status, 403)
-    def admit(by: Pair, at: Long = net.now) = net.command(by, "cmd" -> Json.str("admit"), "at" -> Json.num(at),
-      "record" -> anna.signed(anna.opening()), "name" -> Json.str("Anna"), "credit" -> Json.num(2000),
-      "ceiling" -> Json.num(8000))
+    // she asks: her signed first record is kept as a request; nobody asks in another's name
+    val asked = anna.join("Anna")
+    assertEquals(asked.status, 202, asked.body)
+    val request = net.json(asked)("requested").string
+    val eve = Wallet(net)
+    assertEquals(net.post("/api/accounts", Json.obj("record" -> eve.signed(eve.opening(), by = anna.key),
+      "name" -> Json.str("Eve"))).status, 409)
+    assertEquals(net.json(net.get("/api/requests"))("requests").list.map(q => q("name").string -> q("id").string),
+      Vector("Anna" -> request))
+    assert(!net.get("/api/requests").body.contains("record"))
+    assertEquals(net.get(s"/api/accounts/$request").status, 404)
+    def admit(by: Pair, at: Long = net.now, id: String = request) = net.command(by, "cmd" -> Json.str("admit"),
+      "at" -> Json.num(at), "id" -> Json.str(id), "credit" -> Json.num(2000), "ceiling" -> Json.num(8000))
+    assertEquals(admit(founder.key, id = "0" * 64).status, 404)
     assertEquals(admit(anna.key).status, 403)
     assertEquals(admit(founder.key, net.now - 11 * 60000).status, 409)
     val admitted = admit(founder.key)
     assertEquals(admitted.status, 200, admitted.body)
     anna.id = net.json(admitted)("state")("id").string
-    assertEquals((anna.state("floor").long, anna.state("ceiling").long), (-2000L, 8000L))
+    assertEquals((anna.id, anna.state("floor").long, anna.state("ceiling").long), (request, -2000L, 8000L))
+    assertEquals(net.json(net.get("/api/requests"))("requests").list.size, 0)
+    // one who is rejected is no longer waiting
+    assertEquals(eve.join("Eve").status, 202)
+    assertEquals(net.command(founder.key, "cmd" -> Json.str("reject"), "at" -> Json.num(net.now),
+      "id" -> Json.str(net.json(net.get("/api/requests"))("requests").list.head("id").string)).status, 200)
+    assertEquals(net.json(net.get("/api/requests"))("requests").list.size, 0)
     // the same command again is not taken; a forged signature is none
     assertEquals(admit(founder.key).status, 409)
     val text = Json.print(Json.obj("cmd" -> Json.str("limits"), "at" -> Json.num(net.now),
@@ -213,4 +229,53 @@ class NodeSuite extends munit.FunSuite:
     assertNotEquals(after("root").string, h("root").string)
     assert(proved(anna) && proved(jan))
     assertEquals(net.get("/api/accounts/" + "0" * 64 + "/proof").status, 404)
+  }
+
+  test("a hub: anyone makes a node, each with its own key; nodes do not see each other's accounts") {
+    val hub = Hubs()
+    assertEquals(hub.json(hub.get("/.well-known/okay-mutual-hub.json"))("making").string, "open")
+    val (north, south) = (Net(hub = hub, slug = "north", name = "North"), Net(hub = hub, slug = "south", name = "South"))
+    assertNotEquals(north.node.pub, south.node.pub)
+    assertNotEquals(north.token, south.token)
+    assertEquals(hub.json(hub.get("/api/nodes"))("nodes").list.map(n => n("slug").string -> n("name").string),
+      Vector("north" -> "North", "south" -> "South"))
+    // what is said of a node never holds its secret or its token
+    val listed = hub.get("/api/nodes").body + north.get("/.well-known/okay-mutual.json").body
+    assert(!listed.contains("secret") && !listed.contains(north.token))
+    val (anna, olaf) = (Wallet(north), Wallet(south))
+    assertEquals((anna.join("Anna").status, olaf.join("Olaf").status), (200, 200))
+    assertEquals(north.json(north.get("/api/members"))("members").list.map(_("name").string), Vector("Anna"))
+    // an account of one node is not there for the other: not read, not written, not paid
+    assertEquals(south.get(s"/api/accounts/${anna.id}").status, 404)
+    assertEquals(south.post(s"/api/accounts/${anna.id}/records", Json.obj("record" ->
+      anna.signed(anna.next(Body.Send(olaf.id, 100, "", ""))))).status, 404)
+    // a payment across nodes comes back: there are no trust lines yet
+    assertEquals(anna.pay(olaf, 500).status, 200)
+    assertEquals((anna.balance, olaf.balance), (0L, 0L))
+    assertEquals(north.checked(anna.id).map(_.seq), Right(4L))
+    // a wallet of one node cannot open at another with its record
+    assertEquals(south.post("/api/accounts", Json.obj("record" -> anna.signed(anna.opening()),
+      "name" -> Json.str("Anna"))).status, 400)
+    assertEquals(hub.get("/n/nowhere/api/members").status, 404)
+  }
+
+  test("making a node: a proper place, once; a few a day from one address; behind a token where it is not open") {
+    val hub = Hubs("HUB_PER_DAY" -> "2")
+    assertEquals(hub.make("our-town", "Our Town").status, 200)
+    assertEquals(hub.make("our-town", "Again").status, 409)
+    for bad <- Seq("x", "Bad Slug", "-a-", "api", "wallet", "a" * 41) do assertEquals(hub.make(bad, "X").status, 400, bad)
+    assertEquals(hub.make("no-name", " ").status, 400)
+    assertEquals(hub.make("second", "Second").status, 200)
+    assertEquals(hub.make("third", "Third").status, 429)
+    assertEquals(hub.make("third", "Third", from = "5.6.7.8").status, 200)
+    hub.now += 86400000L
+    assertEquals(hub.make("fourth", "Fourth").status, 200)
+    val closed = Hubs("HUB_OPEN" -> "")
+    closed.cloud.secrets += "HUB_TOKEN" -> "hub-token"
+    assertEquals(closed.make("town", "Town").status, 403)
+    assertEquals(closed.post("/api/nodes", Json.obj("slug" -> Json.str("town"), "name" -> Json.str("Town"),
+      "unit" -> Json.str("PLN"), "join" -> Json.str("open"), "credit" -> Json.num(0), "ceiling" -> Json.num(0)),
+      "x-hub-token" -> "hub-token").status, 200)
+    val full = Hubs("HUB_MAX" -> "1")
+    assertEquals((full.make("one", "One").status, full.make("two", "Two", from = "9.9.9.9").status), (200, 429))
   }

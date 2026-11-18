@@ -38,7 +38,20 @@ object InTheBrowser:
     Option(dom.document.querySelector(s"header .langs a[href='?lang=${words.code}']"))
       .foreach(_.setAttribute("aria-current", "true"))
 
+  /** A LINK THAT INVITES (`?node=<a node's address>`): the node in use from then on. Only an address of a node —
+   * `https://…` or a place at this hub — is taken */
+  private def invited(): Unit =
+    Option(new dom.URLSearchParams(dom.window.location.search).get("node"))
+      .map(_.trim.stripSuffix("/")).filter(a => a.matches("https?://[^\\s\"'<>]+") || a.matches("/n/[a-z0-9-]+"))
+      .foreach { address =>
+        // a place at this page's own hub is kept as a place
+        val own = dom.window.location.origin
+        dom.window.localStorage.setItem(NetInPage.prefix + "node",
+          if NetInPage.hub.isEmpty && address.startsWith(own + "/n/") then address.stripPrefix(own) else address)
+      }
+
   def main(args: Array[String]): Unit =
+    invited()
     val words = Words.of(language)
     dressed(words)
     // okay-faces' own words (Back, Help…) in the same language

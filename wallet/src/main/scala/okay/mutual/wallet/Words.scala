@@ -81,6 +81,19 @@ trait Words:
   def heldAlready: String; def changedMeanwhile: String; def namedAlready: String; def admitsItself: String
   def openAlready: String; def notTheToken: String; def setUpAlready: String; def offline: String
   def refused(why: String): String
+  // ---- a community found, made, joined by asking
+  def findCommunity: String; def findText: String; def communitiesHere: String; def noCommunities: String
+  def useAddress: String; def createCommunity: String; def createText: String
+  def place: String; def placeHint: String; def unitLabel: String; def howJoin: String; def byAdmission: String
+  def newcomersLine: String; def newcomersCeiling: String
+  def communityCreated: String; def communityCreatedText: String
+  def invite: String; def inviteText: String
+  def asked: String; def waitingText(name: String): String; def checkAgain: String; def withdraw: String
+  def requestsButton(n: Int): String; def requestsTitle: String; def noRequests: String
+  def admit: String; def reject: String; def admitOf(name: String): String
+  def admitted: String; def admittedText(name: String): String; def rejected: String; def notAdmitted: String
+  def placeTaken: String; def placeBad: String; def hubLimit: String; def hubClosed: String
+  def anotherCommunity: String; def unitShort: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -206,3 +219,33 @@ object Words:
     val setUpAlready = "This community is set up already."
     val offline = "The node does not answer. Check the connection and try again."
     def refused(why: String) = s"The node refused: $why."
+    val findCommunity = "Find your community"
+    val findText = "Each community runs its own node with its own members and rules. Choose yours, enter the address " +
+      "it gave you, or start a new one."
+    val communitiesHere = "Communities here"; val noCommunities = "none yet"
+    val useAddress = "Use this address"; val createCommunity = "Create a community"
+    val createText = "You become its founder: your device's key opens the community's own account, and from it you " +
+      "admit members and set their limits. Nobody else administers it."
+    val place = "Its place in the address"; val placeHint = "small letters, digits, hyphens: our-town"
+    val unitLabel = "Unit (the national currency it counts as)"; val howJoin = "How one joins"
+    val byAdmission = "by your admission (safer)"
+    val newcomersLine = "A newcomer's credit line"; val newcomersCeiling = "A newcomer's ceiling"
+    val communityCreated = "The community is created"
+    val communityCreatedText = "Its account is in this wallet. Invite people with the link under Invite, and open " +
+      "your own account too: Accounts, then Open or add another."
+    val invite = "Invite"
+    val inviteText = "Send this link to someone you want in the community. It opens the wallet at this community."
+    val asked = "You asked to join"
+    def waitingText(name: String) = s"$name admits its members itself. Your request waits for its decision; your key " +
+      "stays on this device."
+    val checkAgain = "Check again"; val withdraw = "Forget this request"
+    def requestsButton(n: Int) = s"Requests ($n)"; val requestsTitle = "Who asks to join"
+    val noRequests = "nobody is waiting"
+    val admit = "Admit"; val reject = "Reject"; def admitOf(name: String) = s"Admit · $name"
+    val admitted = "Admitted"; def admittedText(name: String) = s"$name has an account now."
+    val rejected = "Rejected"; val notAdmitted = "Not admitted"
+    val placeTaken = "That place is taken: choose another."
+    val placeBad = "The place needs 3 to 40 small letters, digits or hyphens; the unit, letters."
+    val hubLimit = "No more communities can be made from here today."
+    val hubClosed = "Communities are not made here by anyone: ask the operator of this site."
+    val anotherCommunity = "Another community"; val unitShort = "Unit"

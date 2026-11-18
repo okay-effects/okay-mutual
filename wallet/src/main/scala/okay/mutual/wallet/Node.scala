@@ -4,13 +4,21 @@ import okay.business.scala3.*
 import okay.effects.json.Json
 import okay.mutual.chain.*
 
-/** A CALL TO THE NODE: the one thing a wallet asks of the network. Answered by the browser's `fetch` in a page, by
- * the node itself in memory in a test. A node that does not answer: status 0 */
+/** WHAT A WALLET ASKS OF THE NETWORK: a call to the node in use (the one `Settings` keeps as `node`), a call to the
+ * hub the wallet is at (where communities are listed and made), and the link by which others come to the node in
+ * use. Answered by the browser's `fetch` in a page, by the hub itself in memory in a test. No answer: status 0 */
 enum Net[X]:
   case Call(method: String, path: String, body: Option[Json], token: String) extends Net[(Int, Json)]
+  case AtHub(method: String, path: String, body: Option[Json]) extends Net[(Int, Json)]
+  /** the wallet's address with the node in use in it: what a member sends to one it invites */
+  case Invite() extends Net[String]
 
 /** what a node says it is (`/.well-known/okay-mutual.json`) */
 final case class About(key: String, unit: String, name: String, open: Boolean, credit: Long, ceiling: Long)
+/** a community as its hub lists it */
+final case class Listed(slug: String, name: String, unit: String, open: Boolean)
+/** one who waits to be admitted */
+final case class Asked(id: String, name: String, of: String)
 /** a member as the others see it */
 final case class Member(id: String, name: String, of: String)
 /** a record of a chain with what was kept beside it */
@@ -53,9 +61,30 @@ object Node:
     scala.util.Try(j("records").list).getOrElse(Vector.empty).flatMap(x => Signed.parse(x).flatMap(s =>
       Record.parse(s.text).map(r => Line(s, r, x.field("memo").collect { case Json.Str(m) => m }.getOrElse(""))))))
 
-  def open[R[_]: Has[Net]](record: Signed, name: String): Either[Refusal, State] ! R =
+  /** an account opened: the account — or none, where joining is not open and the record was kept as a request */
+  def open[R[_]: Has[Net]](record: Signed, name: String): Either[Refusal, Option[State]] ! R =
     call[R]("POST", "/api/accounts", Some(Json.obj("record" -> Signed.json(record), "name" -> Json.str(name))))
-      .map(stated)
+      .map(answer => if answer._1 == 202 then Right(None) else stated(answer).map(Some(_)))
+
+  def requests[R[_]: Has[Net]]: Vector[Asked] ! R = call[R]("GET", "/api/requests").map((_, j) =>
+    scala.util.Try(j("requests").list.map(q => Asked(q("id").string, q("name").string, q("of").string)))
+      .getOrElse(Vector.empty))
+
+  def invite[R[_]: Has[Net]]: String ! R = perform[Net](Net.Invite())
+
+  /** the communities of the hub this wallet is at */
+  def listed[R[_]: Has[Net]]: Vector[Listed] ! R = perform[Net](Net.AtHub("GET", "/api/nodes", None)).map((_, j) =>
+    scala.util.Try(j("nodes").list.map(n => Listed(n("slug").string, n("name").string, n("unit").string,
+      n("join").string == "open"))).getOrElse(Vector.empty))
+
+  /** a community made at the hub: its address there and its setup token */
+  def make[R[_]: Has[Net]](slug: String, name: String, unit: String, open: Boolean, credit: Long, ceiling: Long)
+    : Either[Refusal, (String, String)] ! R =
+    perform[Net](Net.AtHub("POST", "/api/nodes", Some(Json.obj("slug" -> Json.str(slug), "name" -> Json.str(name),
+      "unit" -> Json.str(unit), "join" -> Json.str(if open then "open" else "admitted"),
+      "credit" -> Json.num(credit), "ceiling" -> Json.num(ceiling))))).map((status, j) =>
+      if status == 200 then scala.util.Try((j("address").string, j("token").string)).toOption
+        .toRight(Refusal(200, "answer", "")) else Left(refusal(status, j)))
 
   def setup[R[_]: Has[Net]](record: Signed, name: String, token: String): Either[Refusal, State] ! R =
     call[R]("POST", "/api/setup", Some(Json.obj("record" -> Signed.json(record), "name" -> Json.str(name))), token)

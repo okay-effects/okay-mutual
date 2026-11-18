@@ -9,19 +9,39 @@ import okay.serverless.cloud.{MemoryCloud, Request, Response}
 import scala.concurrent.duration.*
 import scala.concurrent.{Await, ExecutionContext}
 
-/** A NODE IN A TEST: its app and objects on okay-serverless' `MemoryCloud`, its key a real one (the JDK's), a clock
- * that moves only when told */
-final class Net(join: String = "open"):
+/** A HUB IN A TEST: its app and objects on okay-serverless' `MemoryCloud`, a clock that moves only when told */
+final class Hubs(vars: (String, String)*):
   given ExecutionContext = Async.defaultContext
   var now: Long = 1795000000000L
   val cloud = MemoryCloud(() => now)
-  val node: Pair = SignerJdk.generate()
-  cloud.vars ++= Map("NODE_PUB" -> node.pub, "NODE_UNIT" -> "PLN", "NODE_NAME" -> "Test Town", "JOIN" -> join,
-    "DEFAULT_CREDIT" -> "10000", "DEFAULT_CEILING" -> "30000")
-  cloud.secrets ++= Map("NODE_KEY" -> node.secret, "SETUP_TOKEN" -> "setup-token")
+  cloud.vars ++= Map("HUB_OPEN" -> "1") ++ vars
   cloud.actors ++= NodeApp.actors
-
   def ask(r: Request): Response = Await.result(cloud.serve(NodeApp)(r), 10.seconds)
+  def get(path: String): Response = ask(Request.get(path))
+  def post(path: String, j: Json, headers: (String, String)*): Response =
+    ask(Request.post(path, Json.print(j)).copy(headers = headers.map((k, v) => k -> List(v)).toMap +
+      ("content-type" -> List("application/json"))))
+  def json(r: Response): Json = Descent.parse(r.body).toOption.getOrElse(Json.Null)
+  /** a node made here, as anyone makes one */
+  def make(slug: String, name: String, join: String = "open", from: String = "1.2.3.4"): Response =
+    post("/api/nodes", Json.obj("slug" -> Json.str(slug), "name" -> Json.str(name), "unit" -> Json.str("PLN"),
+      "join" -> Json.str(join), "credit" -> Json.num(10000), "ceiling" -> Json.num(30000)),
+      "cf-connecting-ip" -> from)
+
+/** A NODE IN A TEST: made on a hub (its own unless one is given), its calls under its place; its key the hub's
+ * making — a real one, by the JDK */
+final class Net(join: String = "open", val hub: Hubs = Hubs(), slug: String = "town", name: String = "Test Town"):
+  private val made = hub.json(hub.make(slug, name, join))
+  val prefix = s"/n/$slug"
+  /** the node's key (its secret half is the node's alone) */
+  val node: Pair = Pair(made("key").string, "")
+  val token: String = made("token").string
+  def cloud: MemoryCloud = hub.cloud
+  def now: Long = hub.now
+  def now_=(t: Long): Unit = hub.now = t
+  given ExecutionContext = Async.defaultContext
+
+  def ask(r: Request): Response = hub.ask(r.copy(path = prefix + r.path))
   def get(path: String): Response = ask(Request.get(path))
   def post(path: String, j: Json, headers: (String, String)*): Response =
     ask(Request.post(path, Json.print(j)).copy(headers = headers.map((k, v) => k -> List(v)).toMap +

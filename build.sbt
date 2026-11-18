@@ -91,6 +91,14 @@ lazy val siteTask = Def.task {
   IO.copyFile(base / "site" / "icon.svg", out / "icon.svg")
   IO.copyDirectory(base / "site" / "wallet", out / "wallet")
   IO.copyFile(from, out / "wallet" / "main.js")
+  // a wallet published apart from its hub (GitHub Pages) names it: `sbt -Dhub=https://… site`
+  sys.props.get("hub").filter(_.nonEmpty).foreach { hub =>
+    val page = out / "wallet" / "index.html"
+    val empty = "<meta name=\"okay-mutual-hub\" content=\"\">"
+    require(IO.read(page).contains(empty), "site/wallet/index.html names no hub to set")
+    IO.write(page, IO.read(page).replace(empty, "<meta name=\"okay-mutual-hub\" content=\"" + hub.stripSuffix("/") +
+      "\">"))
+  }
   // THE LANDING, a language a page: site/landing.html with the words of site/landing.<lang>.txt (`key = value` a
   // line) in its `{{key}}`s — English at the root, the others in their directories
   val template = IO.read(base / "site" / "landing.html")
@@ -113,7 +121,25 @@ lazy val siteTask = Def.task {
   out
 }
 
+/** THE HUB ON CLOUDFLARE WORKERS (docs/run-a-node.md): the same app and objects behind worker/entry.mjs; an ES module.
+ * `sbt dist` links it into worker/dist/ and puts the site into worker/assets/; `worker/deploy.sh` deploys */
+lazy val worker = (project in file("worker")).enablePlugins(ScalaJSPlugin).dependsOn(node.js)
+  .settings(name := "okay-mutual-worker", publish / skip := true,
+    scalaJSLinkerConfig ~= (_.withModuleKind(org.scalajs.linker.interface.ModuleKind.ESModule)),
+    libraryDependencies += "io.github.okay-effects" %%% "okay-serverless-cloudflare" % "0.2.0")
+
+val dist = taskKey[Unit]("the Worker: its script and the site as its assets")
+lazy val distTask = Def.task {
+  val base = (ThisBuild / baseDirectory).value
+  val linked = (worker / Compile / fullLinkJS).value.data.publicModules.head.jsFileName
+  val from = (worker / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value / linked
+  val made = siteTask.value
+  IO.delete(Seq(base / "worker" / "dist", base / "worker" / "assets"))
+  IO.copyFile(from, base / "worker" / "dist" / "main.js")
+  IO.copyDirectory(made, base / "worker" / "assets")
+}
+
 lazy val root = (project in file("."))
-  .aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js, node.jvm, node.js, wallet.jvm, wallet.js, host)
-  .settings(site := siteTask.value)
+  .aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js, node.jvm, node.js, wallet.jvm, wallet.js, host, worker)
+  .settings(site := siteTask.value, dist := distTask.value)
   .settings(publish / skip := true)

@@ -9,18 +9,30 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.scalajs.js
 import scala.scalajs.js.typedarray.{ArrayBuffer, Uint8Array}
 
-/** `Net` IN A PAGE: the browser's `fetch` to the node — the address the person named (kept by `Settings` under
- * `okay-mutual.node`), else the one the page was published with (`<meta name="okay-mutual-node">`), else the page's
- * own origin. No answer at all — offline, a wrong address — is status 0 */
+/**
+ * `Net` IN A PAGE: the browser's `fetch`. THE HUB is where the page says (`<meta name="okay-mutual-hub">`: a wallet
+ * published apart from any hub names one), else the page's own origin. THE NODE IN USE is what `Settings` keeps as
+ * `okay-mutual.node`: a place at the hub (`/n/<slug>`) or a whole address of a node elsewhere; none: the hub itself,
+ * which is no node — the wallet then asks which. No answer at all — offline, a wrong address — is status 0
+ */
 object NetInPage:
   val prefix = "okay-mutual."
-  private def base: String =
+  def hub: String =
+    val meta = js.Dynamic.global.document.querySelector("meta[name=okay-mutual-hub]")
+    if meta != null then meta.content.asInstanceOf[String].stripSuffix("/") else ""
+  /** the node in use, as an address to call */
+  def node: String =
     val kept = js.Dynamic.global.localStorage.getItem(prefix + "node")
-    val meta = js.Dynamic.global.document.querySelector("meta[name=okay-mutual-node]")
-    if kept != null && kept.asInstanceOf[String].nonEmpty then kept.asInstanceOf[String]
-    else if meta != null then meta.content.asInstanceOf[String].stripSuffix("/") else ""
+    val place = if kept == null then "" else kept.asInstanceOf[String]
+    if place.startsWith("/") then hub + place else if place.nonEmpty then place else hub
+  /** the wallet's own address with the node in use in it, whole: what is sent to one who is invited */
+  def invitation: String =
+    val location = js.Dynamic.global.location
+    val whole = if node.startsWith("http") then node else location.origin.asInstanceOf[String] + node
+    location.origin.asInstanceOf[String] + location.pathname.asInstanceOf[String] + "?node=" +
+      js.Dynamic.global.encodeURIComponent(whole).asInstanceOf[String]
 
-  private def call(method: String, path: String, body: Option[Json], token: String)(using ExecutionContext)
+  private def call(url: String, method: String, body: Option[Json], token: String)(using ExecutionContext)
     : Future[(Int, Json)] =
     val headers = js.Dictionary[String]()
     if body.isDefined then headers("content-type") = "application/json"
@@ -28,7 +40,7 @@ object NetInPage:
     val init = js.Dynamic.literal(method = method, headers = headers)
     body.foreach(b => init.body = Json.print(b))
     (for
-      answer <- js.Dynamic.global.fetch(base + path, init).asInstanceOf[js.Promise[js.Dynamic]].toFuture
+      answer <- js.Dynamic.global.fetch(url, init).asInstanceOf[js.Promise[js.Dynamic]].toFuture
       text <- answer.text().asInstanceOf[js.Promise[String]].toFuture
     yield (answer.status.asInstanceOf[Int], Descent.parse(text).toOption.getOrElse(Json.Null)))
       .recover { case _ => (0, Json.Null) }
@@ -37,7 +49,10 @@ object NetInPage:
     given ExecutionContext = Async.defaultContext
     handle(p, Handler.general[Net, Rest, A, A](pure)([X] => (op: Net[X], k: X => A ! Rest) => op match
       case Net.Call(method, path, body, token) =>
-        Async.fromFuture[(Int, Json), Rest](call(method, path, body, token)).flatMap(k)))
+        Async.fromFuture[(Int, Json), Rest](call(node + path, method, body, token)).flatMap(k)
+      case Net.AtHub(method, path, body) =>
+        Async.fromFuture[(Int, Json), Rest](call(hub + path, method, body, "")).flatMap(k)
+      case Net.Invite() => k(invitation)))
 
 /**
  * `Device` IN A PAGE: a P-256 key pair made by Web Crypto with its secret half UNEXTRACTABLE — no script, this one

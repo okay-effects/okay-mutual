@@ -5,3 +5,8 @@ target/
 .bloop/
 node_modules/
 .scala-build/
+worker/dist/
+worker/assets/
+worker/.wrangler/
+.env
+node-data/

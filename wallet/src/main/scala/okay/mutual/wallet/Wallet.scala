@@ -36,14 +36,22 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   // ---- what the wallet remembers: the accounts this device holds, the one in use
 
-  private def held: Vector[(String, String)] ! R = setting[R]("accounts").map(_.flatMap(t => Descent.parse(t).toOption)
+  /** what is remembered of the node in use, apart from every other node's: `<name>:<the node's address>` */
+  private def scoped(name: String): String ! R = setting[R]("node").map(n => s"$name:${n.getOrElse("")}")
+  private def here(name: String): Option[String] ! R = scoped(name).flatMap(setting[R](_)).map(_.filter(_.nonEmpty))
+  private def keepHere(name: String, value: String): Unit ! R = scoped(name).flatMap(keep[R](_, value))
+
+  private def held: Vector[(String, String)] ! R = here("accounts").map(_.flatMap(t => Descent.parse(t).toOption)
     .flatMap(j => scala.util.Try(j.list.map(a => a("id").string -> a("name").string)).toOption).getOrElse(Vector.empty))
+  private def listed(hs: Vector[(String, String)]): String =
+    Json.print(Json.Arr(hs.map((i, n) => Json.obj("id" -> Json.str(i), "name" -> Json.str(n)))))
   private def remember(id: String, name: String): Unit ! R = held.flatMap(hs =>
-    keep[R]("accounts", Json.print(Json.Arr((hs.filterNot(_._1 == id) :+ (id -> name)).map((i, n) =>
-      Json.obj("id" -> Json.str(i), "name" -> Json.str(n)))))).andThen(keep[R]("current", id)))
-  private def forget(id: String): Unit ! R = held.flatMap(hs => keep[R]("accounts", Json.print(Json.Arr(
-    hs.filterNot(_._1 == id).map((i, n) => Json.obj("id" -> Json.str(i), "name" -> Json.str(n))))))
-    .andThen(keep[R]("current", "")))
+    keepHere("accounts", listed(hs.filterNot(_._1 == id) :+ (id -> name))).andThen(keepHere("current", id)))
+  private def forget(id: String): Unit ! R = held.flatMap(hs =>
+    keepHere("accounts", listed(hs.filterNot(_._1 == id))).andThen(keepHere("current", "")))
+  /** the request to join that waits at this node: the account's id it will have, the name asked under */
+  private def pending: Option[(String, String)] ! R = here("pending").map(_.flatMap(t => Descent.parse(t).toOption)
+    .flatMap(j => scala.util.Try(j("id").string -> j("name").string).toOption))
 
   // ---- amounts and words
 
@@ -74,20 +82,75 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   // ---- the application, for as long as it is open
 
-  def main: Unit ! R = connected.flatMap(about => setting[R]("current").flatMap(current =>
+  def main: Unit ! R = connected.flatMap(about => here("current").flatMap(current =>
     held.flatMap { hs =>
       hs.find(h => current.contains(h._1)).orElse(hs.headOption) match
-        case None => welcome(about, first = true)
         case Some((id, name)) => home(about, id, name)
+        case None => pending.flatMap {
+            case Some((id, name)) => waiting(about, id, name)
+            case None => welcome(about, first = true)
+          }
     })).andThen(defer(main))
 
   /** the node this wallet talks to: the one it is served by, or the one the person names */
   private def connected: About ! R = Node.about[R].flatMap {
     case Some(about) => pure(about)
-    case None => edit[String](w.chooseNode, Form.one(said(Field.text(w.nodeAddress).hinted(w.nodeHint))),
-        Part.text(w.noNode)).flatMap {
-        case Some(url) => keep[R]("node", url.trim.stripSuffix("/")).andThen(defer(connected))
-        case None => defer(connected)
+    case None => find.andThen(defer(connected))
+  }
+
+  /** NO NODE IN USE: the communities of the hub this wallet is at, an address given by a community elsewhere, or a
+   * new community made */
+  private def find: Unit ! R = Node.listed[R].flatMap { nodes =>
+    val table = Table(nodes.toList)(Column.text(w.community)(_.name), Column.text(w.unitShort)(_.unit),
+      Column.text(w.joining)(n => if n.open then w.joinOpen else w.joinAdmitted)).keyedBy(_.slug)
+      .whenEmpty(w.noCommunities)
+    val form = Form.one(said(Field.text(w.nodeAddress).hinted(w.nodeHint)))
+    // the table a part of the screen itself (a button chooses its row), under its own line of a title
+    show(Screen[Option[String]](w.findCommunity)(Part.text(w.findText), Part.section(w.communitiesHere)(), table,
+      form)(Button.select(w.use, table)(n => Some(s"/n/${n.slug}")),
+      Button.submit(w.useAddress, form, Style.Plain)(a => Some(a.trim.stripSuffix("/"))),
+      Button(w.createCommunity)(None))).flatMap {
+      case Some(address) => keep[R]("node", address)
+      case None => create
+    }
+  }
+
+  /** A COMMUNITY MADE: its node at the hub, then its own account opened by this device's key — its founder's */
+  private def create: Unit ! R =
+    edit[(String, String, String, Boolean, BigDecimal, BigDecimal)](w.createCommunity, Form(
+      said(Field.text(w.communityName)), said(Field.text(w.place).hinted(w.placeHint)),
+      said(Field.text(w.unitLabel).initially("PLN")),
+      said(Field.choice(w.howJoin, w.byAdmission -> false, w.joinOpen -> true).initially(false)),
+      said(Field.decimal(w.newcomersLine).initially(BigDecimal(100)).check(w.notBelowZero)(_ >= 0)),
+      said(Field.decimal(w.newcomersCeiling).initially(BigDecimal(300)).check(w.notBelowZero)(_ >= 0))),
+      Part.text(w.createText)).flatMap {
+      case None => pure(())
+      case Some((name, place, unit, open, line, ceiling)) =>
+        Node.make[R](place.trim.toLowerCase, name, unit.trim, open, cents(line), cents(ceiling)).flatMap {
+          case Left(r) => inform(w.notSetUp, r.why match
+              case "taken" => w.placeTaken
+              case "body" => w.placeBad
+              case "limit" | "full" => w.hubLimit
+              case "token" => w.hubClosed
+              case _ => refusal(r, unit))
+          case Right((address, token)) => keep[R]("node", address).andThen(Node.about[R]).flatMap {
+              case None => inform(w.notSetUp, w.offline)
+              case Some(about) => opening(about, "community").flatMap(Node.setup[R](_, name, token)).flatMap {
+                  case Right(s) => remember(s.id, name).andThen(inform(w.communityCreated, w.communityCreatedText))
+                  case Left(r) => inform(w.notSetUp, refusal(r, about.unit))
+                }
+            }
+        }
+    }
+
+  /** asked to join, not yet admitted: the account taken up as soon as it is there */
+  private def waiting(about: About, id: String, name: String): Unit ! R = Node.account[R](id).flatMap {
+    case Some(_) => remember(id, name).andThen(keepHere("pending", ""))
+    case None => show(Screen[Int](w.asked)(Part.text(w.waitingText(about.name)))(
+        Button(w.checkAgain, Style.Primary)(1), Button(w.withdraw)(2), Button(w.anotherCommunity)(3))).flatMap {
+        case 2 => keepHere("pending", "")
+        case 3 => keep[R]("node", "")
+        case _ => pure(())
       }
   }
 
@@ -113,10 +176,14 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     edit[(String, String)](w.openAccount, Form(said(Field.text(w.yourName).hinted(w.nameHint)),
       said(Field.choice(w.accountKind, w.personal -> "personal", w.business -> "business")))).flatMap {
       case None => pure(())
-      case Some((name, of)) => opening(about, of).flatMap(Node.open[R](_, name)).flatMap {
-          case Right(s) => remember(s.id, name).andThen(inform(w.opened, w.openedText(money(-s.floor, about.unit))))
+      case Some((name, of)) => opening(about, of).flatMap(signed => Node.open[R](signed, name).flatMap {
+          case Right(Some(s)) => remember(s.id, name).andThen(inform(w.opened,
+              w.openedText(money(-s.floor, about.unit))))
+          // where joining is not open the record waits: the account's id will be its hash
+          case Right(None) => keepHere("pending", Json.print(Json.obj("id" -> Json.str(signed.hash),
+              "name" -> Json.str(name)))).andThen(inform(w.asked, w.waitingText(about.name)))
           case Left(r) => inform(w.notOpened, refusal(r, about.unit))
-        }
+        })
     }
 
   private def setUp(about: About): Unit ! R =
@@ -153,7 +220,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           .flatMap { governs =>
             val buttons = List(Button[Int](w.pay, Style.Primary)(1), Button[Int](w.history)(2),
               Button[Int](w.vouch)(3), Button[Int](w.devices)(4), Button[Int](w.checkNode)(5)) ++
-              (if governs then List(Button[Int](w.community)(6)) else Nil) :+ Button[Int](w.accounts)(7)
+              (if governs then List(Button[Int](w.community)(6)) else Nil) ++
+              List(Button[Int](w.invite)(8), Button[Int](w.accounts)(7))
             show(Screen[Int](name)(Part.details(w.balance -> Cell.Money(units(s.balance), about.unit),
               w.canSpend -> Cell.Money(units(s.balance - s.floor), about.unit),
               w.canReceive -> Cell.Money(units(s.ceiling - s.balance), about.unit),
@@ -164,6 +232,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               case 4 => devices(about, s, key)
               case 5 => check(about, s.id)
               case 6 => office(about, key)
+              case 8 => Node.invite[R].flatMap(link => show(Screen[Unit](w.invite)(Part.text(w.inviteText),
+                  Part.qr(link, w.invite), Part.code(link))(Button(w.back)(()))))
               case _ => accounts(about)
             }
           }
@@ -314,46 +384,79 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   // ---- the community's office: for a device that may manage the community's own account
 
-  private def office(about: About, key: String): Unit ! R = Node.members[R].flatMap { ms =>
+  /** a command of the community: its text signed by this device, given to the node */
+  private def command(key: String, cmd: String, fields: (String, Json)*): Either[Refusal, Unit] ! R =
+    Clock.now[R].flatMap { now =>
+      val text = Json.print(Json.Obj(Vector("cmd" -> Json.str(cmd), "at" -> Json.num(now)) ++ fields))
+      Device.sign[R](text).flatMap(sig => Node.command[R](text, key, sig))
+    }
+
+  /** who asks to join: admitted with the limits the community gives, or rejected */
+  private def asking(about: About, key: String): Unit ! R = Node.requests[R].flatMap { asked =>
+    val table = Table(asked.toList)(Column.text(w.yourName)(_.name), Column.text(w.accountKind)(a => w.kind(a.of)))
+      .keyedBy(_.id).whenEmpty(w.noRequests)
+    show(Screen[Option[(Asked, Boolean)]](w.requestsTitle)(table)(Button.select(w.admit, table)(a => Some(a -> true)),
+      Button.select(w.reject, table, Style.Danger)(a => Some(a -> false)), Button(w.back)(None))).flatMap {
+      case None => pure(())
+      case Some((a, false)) => command(key, "reject", "id" -> Json.str(a.id)).flatMap {
+          case Right(_) => inform(w.rejected, a.name)
+          case Left(r) => inform(w.notAdmitted, refusal(r, about.unit))
+        }.andThen(defer(asking(about, key)))
+      case Some((a, true)) => edit[(BigDecimal, BigDecimal)](w.admitOf(a.name), Form(
+          said(Field.money(w.creditLine, about.unit).initially(units(about.credit)).check(w.notBelowZero)(_ >= 0)),
+          said(Field.money(w.ceiling, about.unit).initially(units(about.ceiling)).check(w.notBelowZero)(_ >= 0))))
+          .flatMap {
+          case None => pure(())
+          case Some((credit, ceiling)) => command(key, "admit", "id" -> Json.str(a.id),
+              "credit" -> Json.num(cents(credit)), "ceiling" -> Json.num(cents(ceiling))).flatMap {
+              case Right(_) => inform(w.admitted, w.admittedText(a.name))
+              case Left(r) => inform(w.notAdmitted, refusal(r, about.unit))
+            }
+        }.andThen(defer(asking(about, key)))
+    }
+  }
+
+  private def office(about: About, key: String): Unit ! R = Node.requests[R].flatMap(asked =>
+    Node.members[R].flatMap { ms =>
     ms.foldLeft(pure[Vector[(Member, State)], R](Vector.empty))((acc, m) => acc.flatMap(all =>
       Node.account[R](m.id).map(_.fold(all)(s => all :+ (m -> s))))).flatMap { all =>
       val table = Table(all.toList)(Column.text(w.member)(_._1.name), Column.text(w.accountKind)(x => w.kind(x._1.of)),
         Column.money(w.balance, about.unit)(x => units(x._2.balance)),
         Column.money(w.creditLine, about.unit)(x => units(x._2.credit)),
         Column.money(w.ceiling, about.unit)(x => units(x._2.ceiling))).keyedBy(_._1.id).whenEmpty(w.noMembers)
-      show(Screen[Option[(Member, State)]](s"${w.community} · ${about.name}")(Part.details(
+      show(Screen[Option[Option[(Member, State)]]](s"${w.community} · ${about.name}")(Part.details(
         w.members -> Cell.Number(BigDecimal(all.size)),
         w.sum -> Cell.Money(units(all.map(_._2.balance).sum), about.unit)), Part.text(w.sumText), table)(
-        Button.select(w.setLimits, table)(Some(_)), Button(w.back)(None))).flatMap {
+        Button.select(w.setLimits, table)(x => Some(Some(x))), Button(w.requestsButton(asked.size))(Some(None)),
+        Button(w.back)(None))).flatMap {
         case None => pure(())
-        case Some((m, s)) => edit[(BigDecimal, BigDecimal)](w.limitsOf(m.name), Form(
+        case Some(None) => asking(about, key).andThen(defer(office(about, key)))
+        case Some(Some((m, s))) => edit[(BigDecimal, BigDecimal)](w.limitsOf(m.name), Form(
             said(Field.money(w.creditLine, about.unit).initially(units(s.credit)).check(w.notBelowZero)(_ >= 0)),
             said(Field.money(w.ceiling, about.unit).initially(units(s.ceiling)).check(w.notBelowZero)(_ >= 0))))
             .flatMap {
             case None => pure(())
-            case Some((credit, ceiling)) => Clock.now[R].flatMap { now =>
-                val text = Json.print(Json.obj("cmd" -> Json.str("limits"), "at" -> Json.num(now),
-                  "account" -> Json.str(m.id), "credit" -> Json.num(cents(credit)),
-                  "ceiling" -> Json.num(cents(ceiling))))
-                Device.sign[R](text).flatMap(sig => Node.command[R](text, key, sig)).flatMap {
-                  case Right(_) => inform(w.limitsSet, w.limitsSetText(m.name, money(cents(credit), about.unit),
-                      money(cents(ceiling), about.unit)))
-                  case Left(r) => inform(w.notSet, refusal(r, about.unit))
-                }
+            case Some((credit, ceiling)) => command(key, "limits", "account" -> Json.str(m.id),
+                "credit" -> Json.num(cents(credit)), "ceiling" -> Json.num(cents(ceiling))).flatMap {
+                case Right(_) => inform(w.limitsSet, w.limitsSetText(m.name, money(cents(credit), about.unit),
+                    money(cents(ceiling), about.unit)))
+                case Left(r) => inform(w.notSet, refusal(r, about.unit))
               }
           }.andThen(defer(office(about, key)))
       }
     }
-  }
+  })
 
   // ---- the accounts this device holds
 
   private def accounts(about: About): Unit ! R = held.flatMap { hs =>
     val table = Table(hs.toList)(Column.text(w.anAccount)(_._2), Column.text(w.id)(h => short(h._1))).keyedBy(_._1)
     show(Screen[Option[Option[String]]](w.accounts)(Part.text(w.accountsText), table)(
-      Button.select(w.use, table)(h => Some(Some(h._1))), Button(w.openOrAdd)(Some(None)), Button(w.back)(None)))
-      .flatMap {
-      case Some(Some(id)) => keep[R]("current", id)
+      Button.select(w.use, table)(h => Some(Some(h._1))), Button(w.openOrAdd)(Some(None)),
+      Button(w.anotherCommunity)(Some(Some(""))), Button(w.back)(None))).flatMap {
+      // another community: no node in use — the wallet asks which (what it holds at this one is kept)
+      case Some(Some("")) => keep[R]("node", "")
+      case Some(Some(id)) => keepHere("current", id)
       case Some(None) => welcome(about, first = false)
       case None => pure(())
     }

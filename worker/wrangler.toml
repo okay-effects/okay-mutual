@@ -1,0 +1,35 @@
+# A HUB OF OKAY MUTUAL NODES on Cloudflare Workers (docs/run-a-node.md): built by `sbt dist` (the Worker into dist/,
+# the site with the wallet into assets/), deployed by `./deploy.sh` — or, locally, `npx wrangler dev`.
+# A node's key pair is made when the node is and lives in its own Durable Object: there is no secret to set.
+# Optional secret: HUB_TOKEN (`wrangler secret put HUB_TOKEN`) — who has it makes nodes when HUB_OPEN is not "1".
+main = "entry.mjs"
+compatibility_date = "2026-10-01"
+workers_dev = true
+name = "okay-mutual"
+
+# the site and the wallet: served as they are; everything else is the hub's
+[assets]
+directory = "assets"
+
+[vars]
+# "1": anyone makes a community here; anything else: only who has HUB_TOKEN
+HUB_OPEN = "1"
+# how many communities one address may make a day, and how many there may be in all
+HUB_PER_DAY = "3"
+HUB_MAX = "500"
+
+[[durable_objects.bindings]]
+name = "ACCOUNTS"
+class_name = "AccountObject"
+
+[[durable_objects.bindings]]
+name = "NODE"
+class_name = "DirectoryObject"
+
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "HubObject"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AccountObject", "DirectoryObject", "HubObject"]

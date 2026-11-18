@@ -3,24 +3,29 @@ package okay.mutual.wallet
 import okay.business.scala3.*
 import okay.effects.json.{Descent, Json}
 import okay.mutual.chain.*
-import okay.mutual.node.Net as Town
+import okay.mutual.node.{Hubs, Net as Town}
 import okay.scala3.std.Clock
 import okay.serverless.cloud.Request
 
 /** A DEVICE IN A TEST: its own key (the JDK's), what its wallet remembers, the wallet played by a script against the
- * node itself in memory — the same program a page runs */
-final class Phone(town: Town, words: Words = Words.En):
+ * hub itself in memory — the same program a page runs. `node`: the node it starts at (none: it has to find one) */
+final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
   var pair: Option[Pair] = None
   val kept = scala.collection.mutable.Map.empty[String, String]
+  if node.nonEmpty then kept("node") = node
   type World[X] = (Ui + Settings + Clock + Net + Device + Signer)[X]
 
+  private def asked(method: String, path: String, body: Option[Json], headers: (String, String)*): (Int, Json) =
+    val r = hub.ask(Request(method, path).copy(body = body.fold("")(Json.print(_)), headers =
+      (headers :+ ("content-type" -> "application/json")).map((k, v) => k -> List(v)).toMap))
+    (r.status, Descent.parse(r.body).toOption.getOrElse(Json.Null))
+
   private def net[R[_], Rest[_], A](p: A ! R)(using Split[Net, R, Rest]): A ! Rest =
-    handle(p, Handler.Tail[Net, Rest, A, A](a => pure(a), [X] => (asked: Net[X]) => asked match
-      case Net.Call(method, path, body, token) =>
-        val r = town.ask(Request(method, path).copy(body = body.fold("")(Json.print(_)), headers =
-          Map("content-type" -> List("application/json")) ++ (if token.isEmpty then Map.empty else
-            Map("x-setup-token" -> List(token)))))
-        (r.status, Descent.parse(r.body).toOption.getOrElse(Json.Null))))
+    handle(p, Handler.Tail[Net, Rest, A, A](a => pure(a), [X] => (op: Net[X]) => op match
+      case Net.Call(method, path, body, token) => asked(method, kept.getOrElse("node", "") + path, body,
+          (if token.isEmpty then Nil else List("x-setup-token" -> token))*)
+      case Net.AtHub(method, path, body) => asked(method, path, body, "cf-connecting-ip" -> "1.2.3.4")
+      case Net.Invite() => s"https://wallet.example/?node=${kept.getOrElse("node", "")}"))
 
   private def device[R[_], Rest[_], A](p: A ! R)(using Split[Device, R, Rest]): A ! Rest =
     handle(p, Handler.Tail[Device, Rest, A, A](a => pure(a), [X] => (asked: Device[X]) => asked match
@@ -32,10 +37,16 @@ final class Phone(town: Town, words: Words = Words.En):
 
   /** the wallet from its start, the acts done in order: what was seen, and the screen it stopped at */
   def play(acts: Act*): Played[(Long, Unit)] =
-    Play(steps(keptIn(kept)(Clock.virtual(town.now)(SignerJdk.run(device(net(Wallet[World](words).main)))))), acts*)
+    Play(steps(keptIn(kept)(Clock.virtual(hub.now)(SignerJdk.run(device(net(Wallet[World](words).main)))))), acts*)
 
   def key: String = pair.get.pub
-  def account: String = kept("current")
+  /** the account in use at the node in use */
+  def account: String = kept(s"current:${kept("node")}")
+
+object Phone:
+  /** a device that starts at a node */
+  def apply(town: Town): Phone = new Phone(town.hub, node = town.prefix)
+  def apply(town: Town, words: Words): Phone = new Phone(town.hub, words, town.prefix)
 
 object Seen:
   /** a screen's words: its texts, notices, details and the cells of its tables */
@@ -46,6 +57,8 @@ object Seen:
     case Part.Details(rows) => rows.map((label, cell) => s"$label: ${cell.text}")
     case Part.Section(title, parts) => title :: parts.flatMap(part)
     case t: Table[r] => t.rows.map(row => t.cells(row).map(_.text).mkString(" | "))
+    // a text shown as it is (a key, a link): its lines
+    case c: Part.Code => c.productElement(0).asInstanceOf[List[String]]
     case _ => Nil
 
 /** THE WALLET (specs/protocol.md "The wallet"), played as a person would, against a real node in memory */
@@ -155,7 +168,7 @@ class WalletSuite extends munit.FunSuite:
       "Test Town", "Setup token" -> "guess"))
     assert(Seen.of(wrong).contains("not the setup token"), Seen.of(wrong))
     val set = founder.play(Act.press("Set up this community"), Act.press("Save", "The community's name" ->
-      "Test Town", "Setup token" -> "setup-token"), Act.press("OK"))
+      "Test Town", "Setup token" -> town.token), Act.press("OK"))
     assertEquals(set.at.map(_.title), Some("Test Town"), Seen.of(set))
     assert(set.at.get.buttons.exists(_.label == "Community"))
     val anna = joined(town, "Anna")
@@ -217,4 +230,71 @@ class WalletSuite extends munit.FunSuite:
     away.kept ++= anna.kept
     val lost = away.play()
     assert(Seen.of(lost).contains("This account is not at this node"), Seen.of(lost))
+  }
+
+  test("a community made from a blank wallet: its node at the hub, its account by this device, the link to invite") {
+    val hub = Hubs()
+    val founder = new Phone(hub)
+    val blank = founder.play()
+    assertEquals(blank.at.map(_.title), Some("Find your community"), Seen.of(blank))
+    assert(Seen.of(blank).contains("Communities here") && !Seen.of(blank).contains(" | "), Seen.of(blank))
+    def create(place: String) = founder.play(Act.press("Create a community"), Act.press("Save",
+      "The community's name" -> "Our Town", "Its place in the address" -> place))
+    assert(Seen.of(create("X")).contains("The place needs 3 to 40"), Seen.of(create("X")))
+    val made = create("our-town")
+    assertEquals(made.at.map(_.title), Some("The community is created"), Seen.of(made))
+    assertEquals(founder.kept("node"), "/n/our-town")
+    val home = founder.play()
+    assertEquals(home.at.map(_.title), Some("Our Town"), Seen.of(home))
+    assert(home.at.get.buttons.map(_.label).containsSlice(List("Community", "Invite", "Accounts")))
+    assert(Seen.of(founder.play(Act.press("Invite"))).contains("https://wallet.example/?node=/n/our-town"))
+    // the place is taken now
+    val second = new Phone(hub)
+    val taken = second.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "Again",
+      "Its place in the address" -> "our-town"))
+    assert(Seen.of(taken).contains("That place is taken"), Seen.of(taken))
+    // the hub lists it, by admission as its founder left it
+    val listed = second.play()
+    assert(Seen.of(listed).contains("Our Town | PLN | by the community's admission"), Seen.of(listed))
+    // an address typed works as a place chosen
+    val typed = new Phone(hub)
+    assertEquals(typed.play(Act.press("Use this address", "The node's address" -> "/n/our-town/")).at.map(_.title),
+      Some("Okay Mutual"))
+    assertEquals(typed.kept("node"), "/n/our-town")
+  }
+
+  test("joining where it is not open: asked from the wallet, admitted or rejected in the community's office") {
+    val hub = Hubs()
+    val founder = new Phone(hub)
+    founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "Our Town",
+      "Its place in the address" -> "our-town"), Act.press("OK"))
+    def asks(name: String): Phone =
+      val phone = new Phone(hub)
+      val asked = phone.play(Act.choose("Use", "Our Town"), Act.press("Open an account"), Act.press("Save",
+        "Your name" -> name, "Account" -> "Personal"), Act.press("OK"))
+      assertEquals(asked.at.map(_.title), Some("You asked to join"), Seen.of(asked))
+      assert(Seen.of(asked).contains("Our Town admits its members itself"), Seen.of(asked))
+      phone
+    val (anna, eve) = (asks("Anna"), asks("Eve"))
+    // nothing is hers yet: she waits, and checking again changes nothing
+    assertEquals(anna.play(Act.press("Check again")).at.map(_.title), Some("You asked to join"))
+    val office = founder.play(Act.press("Community"))
+    assert(office.at.get.buttons.exists(_.label == "Requests (2)"), office.at.get.buttons.map(_.label).toString)
+    val admitted = founder.play(Act.press("Community"), Act.press("Requests (2)"), Act.choose("Admit", "Anna"),
+      Act.press("Save", "Credit line" -> "150"))
+    assertEquals(admitted.at.map(_.title), Some("Admitted"), Seen.of(admitted))
+    val rejected = founder.play(Act.press("Community"), Act.press("Requests (1)"), Act.choose("Reject", "Eve"))
+    assertEquals(rejected.at.map(_.title), Some("Rejected"), Seen.of(rejected))
+    assert(founder.play(Act.press("Community")).at.get.buttons.exists(_.label == "Requests (0)"))
+    // Anna's wallet takes her account up, with the limits the community gave; her key was hers all along
+    val home = anna.play()
+    assertEquals(home.at.map(_.title), Some("Anna"), Seen.of(home))
+    assert(Seen.of(home).contains("You can still spend: 150.00"), Seen.of(home))
+    // Eve still waits; she forgets the request and is at the start again
+    assertEquals(eve.play().at.map(_.title), Some("You asked to join"))
+    assertEquals(eve.play(Act.press("Forget this request")).at.map(_.title), Some("Okay Mutual"))
+    // another community: Anna's account here is kept for when she comes back
+    val away = anna.play(Act.press("Accounts"), Act.press("Another community"))
+    assertEquals(away.at.map(_.title), Some("Find your community"), Seen.of(away))
+    assertEquals(anna.play(Act.choose("Use", "Our Town")).at.map(_.title), Some("Anna"))
   }
