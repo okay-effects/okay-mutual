@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Okay Mutual — trade when money is short</title>
+  <meta name="description" content="An open network of mutual credit: people and businesses sell to and buy from each other for units they issue to one another. Beside money, not instead of it.">
+  <link rel="icon" href="icon.svg">
+  <style>
+    :root { --ink: #1c2b26; --accent: #2f5d50; --paper: #f7f4ee; --card: #fffdf9; --line: #e2dccf; --muted: #5d6b65; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink);
+      background: var(--paper); }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+    header .wrap { display: flex; align-items: baseline; gap: 18px; padding-top: 18px; padding-bottom: 18px; }
+    .brand { font-weight: 700; letter-spacing: .08em; color: var(--ink); text-decoration: none; }
+    header nav { margin-left: auto; display: flex; gap: 16px; flex-wrap: wrap; }
+    a { color: var(--accent); }
+    h1 { font: 600 clamp(30px, 6vw, 46px)/1.12 Georgia, "Times New Roman", serif; margin: 34px 0 14px; }
+    h2 { font: 600 24px/1.25 Georgia, "Times New Roman", serif; margin: 44px 0 10px; }
+    .lead { font-size: 20px; color: var(--muted); max-width: 40em; }
+    .go { display: inline-block; margin: 18px 12px 0 0; padding: 13px 22px; border-radius: 12px; background: var(--ink);
+      color: #fff; text-decoration: none; font-weight: 600; }
+    .go.plain { background: none; color: var(--ink); border: 1px solid var(--line); }
+    table { border-collapse: collapse; margin: 14px 0; font-variant-numeric: tabular-nums; }
+    td, th { padding: 7px 14px; border-top: 1px solid var(--line); text-align: right; }
+    td:first-child, th:first-child { text-align: left; }
+    th { border-top: 0; color: var(--muted); font-weight: 600; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+    .card h3 { margin: 0 0 6px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .note { color: var(--muted); font-size: 15px; }
+    footer { margin-top: 60px; border-top: 1px solid var(--line); }
+    footer .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding-top: 16px;
+      padding-bottom: 28px; font-size: 15px; color: var(--muted); }
+    footer .more { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header><div class="wrap"><a class="brand" href="./">OKAY MUTUAL</a>
+    <nav><a href="wallet/">Wallet</a>
+      <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/how-it-works.md">How it works</a>
+      <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/faq.md">Questions</a>
+      <a href="https://github.com/okay-effects/okay-mutual">Code</a></nav></div></header>
+  <main class="wrap">
+    <h1>Trade when money is short but work, goods and needs are not.</h1>
+    <p class="lead">Okay Mutual is an open network of mutual credit. People and businesses sell to and buy from each
+      other for units they issue to one another. It runs beside ordinary money and replaces nothing.</p>
+    <a class="go" href="wallet/">Open the wallet</a>
+    <a class="go plain" href="https://github.com/okay-effects/okay-mutual/blob/main/docs/idea.md">Read the idea</a>
+
+    <h2>Keeping count is all it takes</h2>
+    <p>A tailor has free hours, a baker has bread, a programmer would build the tailor a booking page. Each waits for
+      money to arrive first. Give each an account that starts at zero, and let them trade:</p>
+    <table>
+      <tr><th>What happens</th><th>Baker</th><th>Tailor</th><th>Programmer</th></tr>
+      <tr><td>the tailor alters the baker's jacket for 80</td><td>−80</td><td>+80</td><td>0</td></tr>
+      <tr><td>the programmer builds the tailor's page for 200</td><td>−80</td><td>−120</td><td>+200</td></tr>
+      <tr><td>the baker supplies the programmer's office for 150</td><td>+70</td><td>−120</td><td>+50</td></tr>
+    </table>
+    <p>Three deals, and nobody needed money to start. The bottom row sums to zero, and always will: a unit is created
+      by the buyer when buying and disappears when that member sells. There is no issuer, no interest, nothing to
+      mine and nothing to invest in.</p>
+
+    <h2>What makes this one different</h2>
+    <div class="cards">
+      <div class="card"><h3>Your keys, on your devices</h3><p>Every payment is signed by a key made on your phone or
+        computer that never leaves it. Nobody, the operator included, can spend for you.</p></div>
+      <div class="card"><h3>No administrator of the whole</h3><p>Each community runs its own node with its own rules
+        and governs itself. Communities connect by trust lines they choose.</p></div>
+      <div class="card"><h3>You check the books</h3><p>The wallet verifies every record that concerns you and can
+        prove it if a node ever lies.</p></div>
+      <div class="card"><h3>Beside money</h3><p>Prices stay in the national currency. A deal can be part units, part
+        money. Taxes are paid in money, as for any sale.</p></div>
+    </div>
+
+    <h2>Where it stands</h2>
+    <p>The ledger rules, signed account chains, a community's node and this wallet run and are tested. Trust lines
+      between communities are designed and not yet built. No community uses it yet, and it has not been reviewed by a
+      lawyer or a tax adviser. The <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a>
+      separates what runs from what is designed.</p>
+    <p class="note">It is not a cryptocurrency, not network marketing and not a way around taxes. It proves who
+      promised what; it cannot make anyone keep a promise. That rests on people knowing each other, on vouching, and
+      on limits that grow with a record of keeping one's word.</p>
+
+    <h2>Run a node for your community</h2>
+    <p>The code is open (Apache-2.0). A node is one command on any machine with Java, or a small cloud worker. See the
+      <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/run-a-node.md">guide</a>.</p>
+  </main>
+  <footer><div class="wrap">
+    Built on <a href="https://github.com/okay-effects" target="_blank" rel="noopener noreferrer">okay-effects</a> —
+    algebraic effects for Scala
+    <a class="more" href="https://okay-effects.github.io/#author" target="_blank" rel="noopener noreferrer">Need more?</a>
+  </div></footer>
+</body>
+</html>
