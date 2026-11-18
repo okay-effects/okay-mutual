@@ -33,6 +33,26 @@ resumes from here: read `specs/protocol.md` first.
   prototype branch `mutual` (the 0.1.0 ledger inside the mall) is superseded and left unmerged; specs/mall.md says
   so. Deployed.
 
+## Sprint 2 — trust lines: communities trade with each other (protocol stage 4; operator, 2026-11-18: "continue")
+
+Design (specs/protocol.md "Trust lines between nodes", made exact): at node X ONE account for each peer Y — `L_X(Y)`,
+of `line`, HELD BY Y'S NODE KEY (so only Y debits it), its credit X's trust in Y (how far Y's community may owe
+X's), its ceiling unbounded (owing is no risk to the one who owes). A payment a@X → b@Y: a's `send {to: b@<Y's
+key>}` on a's chain; X, with its node key, signs a `send` to b on `L_Y(X)` at Y — an ordinary holder's record, which
+Y checks against the credit it gives X, co-signs and carries to b; then X credits `L_X(Y)`. Refused or bounced at Y:
+the amount back to a. The two line accounts mirror each other; each node's balances still sum to zero.
+
+- [ ] **lines in the node** — `line {address, credit}` command (the peer signs the opening record of its account
+  here; same unit only), `dir/line/<peer>`; `GET …/api/lines`, `GET …/api/line?node=`, `POST …/api/line/open`; a
+  flight to `id@<peer key>` carried across — a peer on the same hub by its objects, another by HTTPS; retried when
+  the peer's line moved meanwhile; the payment's name makes a retry pay once. Done when: NodeSuite — two nodes on
+  one hub and two hubs: paid, mirrored, sums zero, over the peer's credit bounced, no line bounced, the way back.
+- [ ] **lines in the wallet** — the office: "Trust lines" (open one by the other community's address, how far they
+  may owe us; change it); Pay: "To another community" → its members → pay; history names the community. Four
+  languages. Done when: played in WalletSuite; in Chromium against the jar.
+- [ ] **publish** — Worker and Pages redeployed; a second demo community with a line to the first; docs
+  (how-it-works, run-a-node, README, protocol) say what runs, in four languages.
+
 ## Later (BACKLOG)
 
 - The demo community `demo` on the public hub is not set up (no community account): its setup token is in the
