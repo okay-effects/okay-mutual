@@ -178,7 +178,7 @@ object Hub extends Actor:
       j("unit").string.trim.take(8), j("join").string == "open", j("credit").long, j("ceiling").long,
       j("who").string)).toOption match
       case Some((place, name, unit, open, credit, ceiling, who)) if slug(place) && name.nonEmpty &&
-        j.field("only").forall(o => o == Json.str("business") || o == Json.str("")) &&
+        j.field("only").forall(o => Set[Json](Json.str("business"), Json.str("earned"), Json.str(""))(o)) &&
         unit.matches("[A-Za-z]{2,8}") && credit >= 0 && ceiling >= 0 =>
         Clock.now[Live].flatMap { now =>
           val made = s"$scope/made/$who/${now / 86400000L}"

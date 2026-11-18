@@ -277,7 +277,7 @@ class WalletSuite extends munit.FunSuite:
     def asks(name: String): Phone =
       val phone = new Phone(hub)
       val asked = phone.play(Act.choose("Use", "Our Town"), Act.press("Open an account"), Act.press("I accept"),
-        Act.press("Save", "Your name" -> name), Act.press("OK"))
+        Act.press("Save", "Your name" -> name, "Account" -> "Business"), Act.press("OK"))
       assertEquals(asked.at.map(_.title), Some("You asked to join"), Seen.of(asked))
       assert(Seen.of(asked).contains("Our Town admits its members itself"), Seen.of(asked))
       phone
@@ -316,8 +316,8 @@ class WalletSuite extends munit.FunSuite:
       founder
     def member(place: String, name: String): Phone =
       val phone = new Phone(hub, node = s"/n/$place")
-      phone.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> name),
-        Act.press("OK"))
+      phone.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> name,
+        "Account" -> "Business"), Act.press("OK"))
       phone
     val (north, south) = (community("North", "north"), community("South", "south"))
     val (anna, olaf) = (member("north", "Anna"), member("south", "Olaf"))
@@ -366,7 +366,8 @@ class WalletSuite extends munit.FunSuite:
     val hub = Hubs()
     val founder = new Phone(hub)
     founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "The Guild",
-      "Its place in the address" -> "guild", "How one joins" -> "open to anyone"), Act.press("OK"))
+      "Its place in the address" -> "guild", "How one joins" -> "open to anyone", "Who may join" ->
+        "businesses and the self-employed only (simplest)"), Act.press("OK"))
     // a newcomer reads the rules first; not accepted, nothing is opened
     val anna = new Phone(hub, node = "/n/guild")
     val shown = anna.play(Act.press("Open an account"))
@@ -398,4 +399,53 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(anna.copied.last.linesIterator.toList, List(
       "\"Day\",\"What\",\"With\",\"Amount (PLN)\",\"For\"",
       "\"2026-11-18\",\"paid\",\"Olaf, tailor\",\"-40\",\"a jacket, \"\"blue\"\"\""))
+  }
+
+  test("private people take part: they earn, then spend — an account that never goes below zero") {
+    val hub = Hubs()
+    val founder = new Phone(hub)
+    // as a community is made unless its founder says otherwise
+    founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "The Market",
+      "Its place in the address" -> "market"), Act.press("OK"))
+    assertEquals(hub.json(hub.get("/n/market/.well-known/okay-mutual.json"))("only").string, "earned")
+    def asks(name: String, kind: String): Phone =
+      val phone = new Phone(hub, node = "/n/market")
+      phone.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> name,
+        "Account" -> kind), Act.press("OK"))
+      phone
+    val (shop, anna) = (asks("The shop", "Business"), asks("Anna", "Personal"))
+    // admitting a person, the office is told there is no credit line to give; whatever is typed, she gets none
+    val form = founder.play(Act.press("Community"), Act.press("Requests (2)"), Act.choose("Admit", "Anna"))
+    assert(Seen.of(form).contains("Info: A private person's account has no credit line"), Seen.of(form))
+    founder.play(Act.press("Community"), Act.press("Requests (2)"), Act.choose("Admit", "Anna"), Act.press("Save",
+      "Credit line" -> "500"))
+    founder.play(Act.press("Community"), Act.press("Requests (1)"), Act.choose("Admit", "The shop"), Act.press("Save"))
+    val home = anna.play()
+    assertEquals(home.at.map(_.title), Some("Anna"), Seen.of(home))
+    assert(Seen.of(home).contains("You can still spend: 0.00") && Seen.of(home).contains("You can still receive: " +
+      "300.00"), Seen.of(home))
+    assert(Seen.of(shop.play()).contains("You can still spend: 100.00"))
+    // she cannot buy yet; the shop pays her for work; then she spends what she earned, and no more
+    def pays(phone: Phone, to: String, amount: String) = phone.play(Act.press("Pay"), Act.press("Save", "To" -> to,
+      "Amount" -> amount), Act.press("Yes"))
+    assert(Seen.of(pays(anna, "The shop", "5")).contains("over your credit line"))
+    assertEquals(pays(shop, "Anna", "60").at.map(_.title), Some("Paid"))
+    assertEquals(pays(anna, "The shop", "45").at.map(_.title), Some("Paid"))
+    assert(Seen.of(pays(anna, "The shop", "15.01")).contains("over your credit line by 0.01"))
+    assert(Seen.of(anna.play()).contains("Balance: 15.00"))
+    // the office cannot give her a line either, and says why; a line lent to her comes back
+    val limited = founder.play(Act.press("Community"), Act.choose("Set limits", "Anna"), Act.press("Save",
+      "Credit line" -> "50"))
+    assert(Seen.of(limited).contains("has no credit line in this community"), Seen.of(limited))
+    val lent = shop.play(Act.press("Vouch"), Act.press("Save", "For" -> "Anna", "Part of your credit line" -> "10"))
+    assertEquals(lent.at.map(_.title), Some("It came back"), Seen.of(lent))
+    // where people only earn, a newcomer who is a person is told how the account starts
+    val open = Hubs()
+    val first = new Phone(open)
+    first.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "Open Market",
+      "Its place in the address" -> "open-market", "How one joins" -> "open to anyone"), Act.press("OK"))
+    val person = new Phone(open, node = "/n/open-market")
+    val opened = person.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" ->
+      "Ola"))
+    assert(Seen.of(opened).contains("starts at zero and does not go below it"), Seen.of(opened))
   }

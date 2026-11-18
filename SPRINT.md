@@ -77,6 +77,21 @@ services, crypto-assets, credit to consumers, deposits) become things the softwa
   with rules was not tried live: this address had made its three for the day) — Worker, Pages; README and the
   site link legal.md.
 
+## Sprint 4 — private people take part, without credit; "account", not "wallet" (operator, 2026-11-18)
+
+The operator: private people take part too, as decided at the start; and the app is to be called an account, not a
+wallet (docs/legal.md: not the vocabulary of crypto).
+
+- [ ] **people without credit** — a third answer to "who may join", and the default: businesses, and private
+  people whose accounts never go below zero. A person earns first — by work or goods sold to members, or units a
+  business gives — and then spends: no credit is given to a consumer, so consumer-credit rules do not arise. The
+  node keeps it: a personal account opens with no credit line, `limits` refuses one, a line lent (`vouch`) to it
+  comes back. Done when: NodeSuite and WalletSuite; docs/legal.md says so in four languages.
+- [ ] **account, not wallet** — the app's words, the site (its page at `/app/`, the old address redirected), the
+  documents in four languages, the okay-effects site. Code names (`wallet` module, `Wallet`) stay: nobody reads
+  them. Done when: no "wallet" in what a person sees; the browser check passes at `/app/`.
+- [ ] **publish** — Worker, Pages.
+
 ## Later (BACKLOG)
 
 - ONE LEGAL OPINION on docs/legal.md's seven questions (MiCA's reach and platform reporting first) before any

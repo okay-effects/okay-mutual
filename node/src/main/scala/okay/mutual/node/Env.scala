@@ -9,12 +9,15 @@ import okay.serverless.cloud.{Request, Response}
 /**
  * A NODE'S OWN (specs/protocol.md "A node"): its place in its hub (`slug`), its key pair, its unit and name, and its
  * policy of joining — `open`: whoever asks is opened an account with the default limits; else only those the
- * community's holders admit; `only`: whom it admits at all — `business`: businesses and the self-employed only
- * (docs/legal.md: no consumer law arises), empty: private people too. Data, made when the node is created and kept in the node's own directory: a deployment
+ * community's holders admit; `only`: whom it admits — `business`: businesses and the self-employed only; `earned`:
+ * private people too, whose accounts never go below zero (they earn, then spend: no credit is given to a consumer —
+ * docs/legal.md); empty: private people with credit lines as anyone's. Data, made when the node is created and kept in the node's own directory: a deployment
  * holds as many nodes as people make
  */
 final case class NodeEnv(slug: String, pub: String, secret: String, unit: String, name: String, open: Boolean,
-                         credit: Long, ceiling: Long, setup: String, only: String = "")
+                         credit: Long, ceiling: Long, setup: String, only: String = ""):
+  /** whether an account of this kind may have a credit line here */
+  def credited(of: String): Boolean = !(only == "earned" && of == "personal")
 
 object NodeEnv:
   def write(e: NodeEnv): Json.Obj = Json.obj("slug" -> Json.str(e.slug), "pub" -> Json.str(e.pub),

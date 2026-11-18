@@ -83,7 +83,10 @@ object AccountObject extends Actor:
       case ("POST", "/_acct/limits") => scala.util.Try((Http.body(r)("credit").long, Http.body(r)("ceiling").long))
           .toOption match
           case None => pure(Http.refused("body"))
-          case Some((credit, ceiling)) => byNode(env, Body.Limits(credit, ceiling)).map(done)
+          // no credit line for an account that may have none here
+          case Some((credit, ceiling)) => state.map(_.exists(s => credit > 0 && !env.credited(s.of))).flatMap(barred =>
+              if barred then pure(faulted(Fault.Forbidden("credit")))
+              else byNode(env, Body.Limits(credit, ceiling)).map(done))
       case _ => pure(Response.notFound())
 
   private def done(result: Either[Fault, (Signed, State)]): Response = result match
@@ -140,7 +143,9 @@ object AccountObject extends Actor:
                       Durable.put[Json, Step](envKey, NodeEnv.write(env))).flatMap {
                         case Left(fault) => pure(faulted(fault))
                         case Right(_) if credit == 0 && ceiling == 0 => state.map(s => done(Right((signed, s.get))))
-                        case Right(_) => byNode(env, Body.Limits(credit, ceiling)).map(done)
+                        // an account that may have no credit line here opens with none, whatever the default
+                        case Right(opened) => byNode(env, Body.Limits(if env.credited(opened._2.of) then credit else 0,
+                            ceiling)).map(done)
                       }
                 })
             }
@@ -223,7 +228,9 @@ object AccountObject extends Actor:
           case Some(_) => pure(Http.json(Json.obj("taken" -> Json.bool(true))))
           case None =>
             val body = if kind == "vouched" then Body.Vouched(from, ref, amount) else Body.Receive(from, ref, amount)
-            byNode(env, body).flatMap {
+            // a line lent to an account that may have none (a private person's, where people only earn): refused
+            state.map(_.exists(s => kind == "vouched" && !env.credited(s.of))).flatMap(barred =>
+              if barred then pure(Left(Fault.Forbidden("credit"))) else byNode(env, body)).flatMap {
               case Left(Fault.Unknown("account")) => pure(Http.refused("unknown", 404))
               case Left(fault) => pure(faulted(fault))
               case Right((taken, _)) => Durable.step[Step, Live, Unit](scope)(Durable.put[Json, Step](gotKey(ref),

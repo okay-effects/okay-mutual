@@ -71,6 +71,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("forbidden", "manage") => w.onlyManage
     case ("forbidden", "last") => w.lastManager
     case ("forbidden", "held") => w.heldAlready
+    case ("forbidden", "credit") => w.noCreditHere
     case ("place", _) => w.changedMeanwhile
     case ("named", _) => w.namedAlready
     case ("admitted", _) => w.admitsItself
@@ -123,9 +124,10 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       said(Field.text(w.communityName)), said(Field.text(w.place).hinted(w.placeHint)),
       said(Field.text(w.unitLabel).initially("PLN")),
       said(Field.choice(w.howJoin, w.byAdmission -> false, w.joinOpen -> true).initially(false)),
-      // businesses only is where a community starts (docs/legal.md): no consumer law arises
-      said(Field.choice(w.whoMayJoin, w.businessesOnly -> "business", w.businessesAndPeople -> "")
-        .initially("business")),
+      // private people take part, and where a community starts they earn before they spend (docs/legal.md: no
+      // credit is given to a consumer, so the rules on consumer credit do not arise)
+      said(Field.choice(w.whoMayJoin, w.peopleEarn -> "earned", w.businessesOnly -> "business", w.peopleCredit -> "")
+        .initially("earned")),
       said(Field.decimal(w.newcomersLine).initially(BigDecimal(100)).check(w.notBelowZero)(_ >= 0)),
       said(Field.decimal(w.newcomersCeiling).initially(BigDecimal(300)).check(w.notBelowZero)(_ >= 0)),
       said(Field.longText(w.rulesLabel).hinted(w.rulesHint).initially(w.standardRules))),
@@ -196,8 +198,9 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       said(Field.choice(w.accountKind, kinds*).initially(kinds.head._2)))).flatMap {
       case None => pure(())
       case Some((name, of)) => opening(about, of).flatMap(signed => Node.open[R](signed, name, rules).flatMap {
+          // an account with no credit line (a private person's, where people earn first) is told how it starts
           case Right(Some(s)) => remember(s.id, name).andThen(inform(w.opened,
-              w.openedText(money(-s.floor, about.unit))))
+              if s.floor == 0 then w.openedEarning else w.openedText(money(-s.floor, about.unit))))
           // where joining is not open the record waits: the account's id will be its hash
           case Right(None) => keepHere("pending", Json.print(Json.obj("id" -> Json.str(signed.hash),
               "name" -> Json.str(name)))).andThen(inform(w.asked, w.waitingText(about.name)))
@@ -456,10 +459,14 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           case Right(_) => inform(w.rejected, a.name)
           case Left(r) => inform(w.notAdmitted, refusal(r, about.unit))
         }.andThen(defer(asking(about, key)))
-      case Some((a, true)) => edit[(BigDecimal, BigDecimal)](w.admitOf(a.name), Form(
-          said(Field.money(w.creditLine, about.unit).initially(units(about.credit)).check(w.notBelowZero)(_ >= 0)),
-          said(Field.money(w.ceiling, about.unit).initially(units(about.ceiling)).check(w.notBelowZero)(_ >= 0))))
-          .flatMap {
+      case Some((a, true)) =>
+        // a private person where people earn first: no credit line to give, and the form says so
+        val earning = about.only == "earned" && a.of == "personal"
+        edit[(BigDecimal, BigDecimal)](w.admitOf(a.name), Form(
+          said(Field.money(w.creditLine, about.unit).initially(if earning then BigDecimal(0) else units(about.credit))
+            .check(w.notBelowZero)(_ >= 0)),
+          said(Field.money(w.ceiling, about.unit).initially(units(about.ceiling)).check(w.notBelowZero)(_ >= 0))),
+          (if earning then Seq(Part.info(w.noCreditHere)) else Nil)*).flatMap {
           case None => pure(())
           case Some((credit, ceiling)) => command(key, "admit", "id" -> Json.str(a.id),
               "credit" -> Json.num(cents(credit)), "ceiling" -> Json.num(cents(ceiling))).flatMap {

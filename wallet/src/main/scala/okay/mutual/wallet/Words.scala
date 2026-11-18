@@ -102,7 +102,8 @@ trait Words:
   def lineOpened: String; def lineOpenedText(community: String, credit: String): String; def lineNotOpened: String
   def lineUnit: String; def noSuchNode: String; def lineSame: String
   // ---- a community's rules, whom it admits, a statement for the books (docs/legal.md)
-  def whoMayJoin: String; def businessesOnly: String; def businessesAndPeople: String
+  def whoMayJoin: String; def businessesOnly: String; def peopleEarn: String; def peopleCredit: String
+  def openedEarning: String; def noCreditHere: String
   def rulesLabel: String; def rulesHint: String; def standardRules: String
   def rulesOf(community: String): String; def accept: String; def rulesButton: String; def rulesSaved: String
   def rulesChanged: String; def onlyBusinesses: String
@@ -124,7 +125,7 @@ object Words:
     val tagline = "mutual credit, beside money"; val about = "About"
     val chooseNode = "Choose a community's node"; val nodeAddress = "The node's address"
     val nodeHint = "as the community gave it: https://…"
-    val noNode = "This wallet works with any node of the network. No node answers at the address it has."
+    val noNode = "This app works with any node of the network. No node answers at the address it has."
     def intro(unit: String) = "A network of mutual credit: members sell to and buy from each other for units " +
       s"they issue to one another. A unit counts as 1 $unit and is never exchanged for money. Your key is made on " +
       "this device and never leaves it."
@@ -143,7 +144,7 @@ object Words:
     val setupText = "The community's own account is opened with this device's key. Whoever holds a key that may " +
       "manage it sets the members' limits; more such keys are added under Devices."
     val setUpDone = "The community is set up"
-    val setUpDoneText = "Its account is in this wallet. Open your own account too: Accounts, then Open an account."
+    val setUpDoneText = "Its account is in this app. Open your own account too: Accounts, then Open an account."
     val notSetUp = "Not set up"
     val addThisDeviceTitle = "Add this device"
     val addDeviceHow = "On a device that holds the account: Devices, Add a device, and enter this device's key."
@@ -152,7 +153,7 @@ object Words:
     val holds = "This device holds the account"; val holdsText = "It can act within the limits it was given."
     val notYet = "Not yet"; val notYetText = "The account does not name this device's key."
     val notFound = "Not found"; val notFoundText = "No such account at this node."; val anAccount = "Account"
-    val notAtNode = "This account is not at this node. Take it off this wallet?"
+    val notAtNode = "This account is not at this node. Take it off this device?"
     val balance = "Balance"; val canSpend = "You can still spend"; val canReceive = "You can still receive"
     val pay = "Pay"; val history = "History"; val vouch = "Vouch"; val devices = "Devices"
     val checkNode = "Check the node"; val accounts = "Accounts"
@@ -244,10 +245,10 @@ object Words:
     val byAdmission = "by your admission (safer)"
     val newcomersLine = "A newcomer's credit line"; val newcomersCeiling = "A newcomer's ceiling"
     val communityCreated = "The community is created"
-    val communityCreatedText = "Its account is in this wallet. Invite people with the link under Invite, and open " +
+    val communityCreatedText = "Its account is in this app. Invite people with the link under Invite, and open " +
       "your own account too: Accounts, then Open or add another."
     val invite = "Invite"
-    val inviteText = "Send this link to someone you want in the community. It opens the wallet at this community."
+    val inviteText = "Send this link to someone you want in the community. It opens the app at this community."
     val asked = "You asked to join"
     def waitingText(name: String) = s"$name admits its members itself. Your request waits for its decision; your key " +
       "stays on this device."
@@ -280,7 +281,11 @@ object Words:
     val lineUnit = "That community counts in another unit: lines between units are not built yet."
     val noSuchNode = "No community answers at that address."; val lineSame = "That is this community itself."
     val whoMayJoin = "Who may join"; val businessesOnly = "businesses and the self-employed only (simplest)"
-    val businessesAndPeople = "businesses and private people"
+    val peopleEarn = "businesses, and private people who earn before they spend (recommended)"
+    val peopleCredit = "businesses and private people, all with credit lines"
+    val openedEarning = "Your account starts at zero and does not go below it. Sell something or do some work " +
+      "for a member, and then spend what you earned."
+    val noCreditHere = "A private person's account has no credit line in this community: it earns, then spends."
     val rulesLabel = "The community's rules"
     val rulesHint = "a starting text: every newcomer accepts it to join. Have a lawyer read it before you rely on it."
     val standardRules = "1. This community keeps a shared account of what its members give to and take from each " +

@@ -428,3 +428,43 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(plain.command(town.one.key, "cmd" -> Json.str("rules"), "at" -> Json.num(plain.now),
       "text" -> Json.str("Mine.")).status, 403)
   }
+
+  test("private people who earn, then spend: a personal account never goes below zero; a business's does") {
+    val hub = Hubs()
+    assertEquals(hub.make("market", "The Market", only = "earned").status, 200)
+    val market = new Net(hub = hub, slug = "market2", name = "Market Two")
+    val net = Community(market, "Shop").net
+    // the same on a node made so: use it through its own place
+    def at(path: String) = s"/n/market$path"
+    val about = hub.json(hub.get(at("/.well-known/okay-mutual.json")))
+    assertEquals(about("only").string, "earned")
+    final class Member(of: String, name: String):
+      val key = SignerJdk.generate()
+      def sign(r: Record) = { val text = Record.text(r); Signed.json(Signed(text, Vector(key.pub ->
+        SignerJdk.sign(key.secret, text)))) }
+      val opened = hub.json(hub.post(at("/api/accounts"), Json.obj("record" -> sign(Record("", 1, "", hub.now,
+        Body.Open(about("key").string, of, key.pub, "PLN"))), "name" -> Json.str(name))))
+      val id = opened("state")("id").string
+      def state = hub.json(hub.get(at(s"/api/accounts/$id")))
+      def say(body: Body) = hub.post(at(s"/api/accounts/$id/records"), Json.obj("record" -> sign(Record(id,
+        state("seq").long + 1, state("head").string, hub.now, body))))
+    val (shop, anna) = (Member("business", "Shop"), Member("personal", "Anna"))
+    // the default line is the business's; the person's account opens with none, its ceiling as anyone's
+    assertEquals((shop.state("floor").long, anna.state("floor").long, anna.state("ceiling").long),
+      (-10000L, 0L, 30000L))
+    val refused = anna.say(Body.Send(shop.id, 1, "", ""))
+    assertEquals((refused.status, hub.json(refused)("error").string), (409, "credit"))
+    // she earns — the shop pays her for work — and then spends within what she earned
+    assertEquals(shop.say(Body.Send(anna.id, 5000, "", "")).status, 200)
+    assertEquals(anna.say(Body.Send(shop.id, 3000, "", "")).status, 200)
+    assertEquals((anna.state("balance").long, hub.json(anna.say(Body.Send(shop.id, 2001, "", "")))("error").string),
+      (2000L, "credit"))
+    // a line lent to her comes back to its lender: nobody gives a person credit here
+    assertEquals(shop.say(Body.Vouch(anna.id, 1000)).status, 200)
+    assertEquals((anna.state("floor").long, shop.state("lent").long), (0L, 0L))
+    // one business vouches for another as before
+    val other = Member("business", "Bakery")
+    assertEquals(shop.say(Body.Vouch(other.id, 1000)).status, 200)
+    assertEquals(other.state("floor").long, -11000L)
+    assert(net.prefix.nonEmpty)
+  }

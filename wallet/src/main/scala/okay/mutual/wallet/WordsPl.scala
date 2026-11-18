@@ -16,7 +16,7 @@ object WordsPl extends Words:
   val tagline = "kredyt wzajemny — obok pieniędzy"; val about = "O systemie"
   val chooseNode = "Wybierz węzeł społeczności"; val nodeAddress = "Adres węzła"
   val nodeHint = "taki, jaki podała społeczność: https://…"
-  val noNode = "Portfel działa z każdym węzłem sieci. Pod adresem, który ma, żaden węzeł nie odpowiada."
+  val noNode = "Aplikacja działa z każdym węzłem sieci. Pod adresem, który ma, żaden węzeł nie odpowiada."
   def intro(unit: String) = "Sieć kredytu wzajemnego: uczestnicy sprzedają sobie i kupują od siebie za jednostki, " +
     s"które sami sobie nawzajem wystawiają. Jednostka liczy się jak 1 $unit i nigdy nie jest wymieniana na " +
     "pieniądze. Twój klucz powstaje na tym urządzeniu i nigdy go nie opuszcza."
@@ -40,7 +40,7 @@ object WordsPl extends Words:
   val setupText = "Własne konto społeczności otwiera się kluczem tego urządzenia. Kto ma klucz, który może nim " +
     "zarządzać, ustala limity uczestników; kolejne takie klucze dodaje się w „Urządzeniach”."
   val setUpDone = "Społeczność założona"
-  val setUpDoneText = "Jej konto jest w tym portfelu. Otwórz też własne: „Konta”, potem „Otwórz konto”."
+  val setUpDoneText = "Jej konto jest w tej aplikacji. Otwórz też własne: „Konta”, potem „Otwórz konto”."
   val notSetUp = "Społeczność nie została założona"
   val addThisDeviceTitle = "Dodaj to urządzenie"
   val addDeviceHow = "Na urządzeniu, które już ma to konto: „Urządzenia”, „Dodaj urządzenie” — i wpisz klucz " +
@@ -51,7 +51,7 @@ object WordsPl extends Words:
   val holds = "To urządzenie ma dostęp do konta"; val holdsText = "Może działać w ramach przyznanych mu limitów."
   val notYet = "Jeszcze nie"; val notYetText = "Konto nie wymienia klucza tego urządzenia."
   val notFound = "Nie znaleziono"; val notFoundText = "Na tym węźle nie ma takiego konta."; val anAccount = "Konto"
-  val notAtNode = "Tego konta nie ma na tym węźle. Usunąć je z portfela?"
+  val notAtNode = "Tego konta nie ma na tym węźle. Usunąć je z tego urządzenia?"
   val balance = "Saldo"; val canSpend = "Możesz jeszcze wydać"; val canReceive = "Możesz jeszcze przyjąć"
   val pay = "Zapłać"; val history = "Historia"; val vouch = "Poręcz"; val devices = "Urządzenia"
   val checkNode = "Sprawdź węzeł"; val accounts = "Konta"
@@ -151,10 +151,10 @@ object WordsPl extends Words:
   val byAdmission = "za Twoją zgodą (bezpieczniej)"
   val newcomersLine = "Linia kredytowa nowego uczestnika"; val newcomersCeiling = "Pułap nowego uczestnika"
   val communityCreated = "Społeczność utworzona"
-  val communityCreatedText = "Jej konto jest w tym portfelu. Zapraszaj ludzi linkiem z „Zaproś” i otwórz też własne " +
+  val communityCreatedText = "Jej konto jest w tej aplikacji. Zapraszaj ludzi linkiem z „Zaproś” i otwórz też własne " +
     "konto: „Konta”, potem „Otwórz lub dodaj kolejne”."
   val invite = "Zaproś"
-  val inviteText = "Wyślij ten link osobie, którą chcesz widzieć w społeczności. Otwiera portfel od razu w tej " +
+  val inviteText = "Wyślij ten link osobie, którą chcesz widzieć w społeczności. Otwiera aplikację od razu w tej " +
     "społeczności."
   val asked = "Prośba o przyjęcie wysłana"
   def waitingText(name: String) = s"$name sama przyjmuje uczestników. Twoja prośba czeka na jej decyzję; Twój klucz " +
@@ -189,7 +189,11 @@ object WordsPl extends Words:
   val noSuchNode = "Pod tym adresem żadna społeczność nie odpowiada."; val lineSame = "To nasza własna społeczność."
   val whoMayJoin = "Kto może dołączyć"
   val businessesOnly = "tylko firmy i samozatrudnieni (najprościej)"
-  val businessesAndPeople = "firmy i osoby prywatne"
+  val peopleEarn = "firmy oraz osoby prywatne, które najpierw zarabiają, potem wydają (zalecane)"
+  val peopleCredit = "firmy i osoby prywatne, wszyscy z liniami kredytowymi"
+  val openedEarning = "Twoje konto zaczyna się od zera i nie schodzi poniżej. Sprzedaj coś albo wykonaj pracę " +
+    "dla uczestnika — i wydawaj to, co zarobisz."
+  val noCreditHere = "Konto osoby prywatnej nie ma w tej społeczności linii kredytowej: najpierw zarobić, potem wydać."
   val rulesLabel = "Zasady społeczności"
   val rulesHint = "tekst na początek: przyjmuje go każdy nowy uczestnik. Zanim się na nim oprzesz, pokaż go prawnikowi."
   val standardRules = "1. Społeczność prowadzi wspólny rachunek tego, co jej uczestnicy sobie nawzajem dają i od " +
