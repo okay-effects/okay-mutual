@@ -32,8 +32,9 @@ final class Hubs(vars: (String, String)*):
 
 /** A NODE IN A TEST: made on a hub (its own unless one is given), its calls under its place; its key the hub's
  * making — a real one, by the JDK */
-final class Net(join: String = "open", val hub: Hubs = Hubs(), slug: String = "town", name: String = "Test Town"):
-  private val made = hub.json(hub.make(slug, name, join))
+final class Net(join: String = "open", val hub: Hubs = Hubs(), slug: String = "town", name: String = "Test Town",
+                only: String = ""):
+  private val made = hub.json(hub.make(slug, name, join, only = only))
   val prefix = s"/n/$slug"
   /** the node's key (its secret half is the node's alone) */
   val node: Pair = Pair(made("key").string, "")

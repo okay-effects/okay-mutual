@@ -12,7 +12,8 @@ final case class Proposal(hash: String, by: String, to: String, amount: Long, me
  * `head`: the hash of its last. `sent`: its sends not bounced, by their hash; `lends`: the lines it lent, by the
  * hash of their `vouch`; `spent`: the holders' spending still inside a limit's window; `recovering`: a recovery
  * announced and not yet in force — the key and the time from which it holds the account; `two`: above this amount a
- * payment needs two holders (0: one); `proposed`: the payments that wait for their second
+ * payment needs two holders (0: one); `proposed`: the payments that wait for their second; `earned`: all it was
+ * ever paid (bounced payments apart) — what a community may ask of a person before it gives a line
  */
 final case class State(id: String, node: String, of: String, unit: String, seq: Long, head: String, at: Long,
                        credit: Long = 0L, ceiling: Long = 0L, balance: Long = 0L, vouched: Long = 0L,
@@ -20,7 +21,7 @@ final case class State(id: String, node: String, of: String, unit: String, seq: 
                        sent: Map[String, Long] = Map.empty, names: Set[String] = Set.empty,
                        lends: Map[String, Long] = Map.empty, spent: Vector[Spent] = Vector.empty,
                        recovering: Option[(String, Long)] = None, two: Long = 0L,
-                       proposed: Vector[Proposal] = Vector.empty):
+                       proposed: Vector[Proposal] = Vector.empty, earned: Long = 0L):
   /** the lowest balance it may reach: its own line, what was lent to it, less what it lent */
   def floor: Long = -(credit + vouched - lent)
   def grant(key: String): Option[Grant] = grants.find(_.key == key)
@@ -139,7 +140,7 @@ object Chain:
     case Body.Receive(_, _, amount) =>
       if amount <= 0 then Left(Fault.Amount)
       else if s.balance + amount > s.ceiling then Left(Fault.Ceiling(s.balance + amount - s.ceiling))
-      else Right(s.copy(balance = s.balance + amount))
+      else Right(s.copy(balance = s.balance + amount, earned = s.earned + amount))
 
     case Body.Bounce(ref, amount) => s.sent.get(ref) match
         case Some(a) if a == amount => Right(s.copy(balance = s.balance + amount, sent = s.sent - ref))

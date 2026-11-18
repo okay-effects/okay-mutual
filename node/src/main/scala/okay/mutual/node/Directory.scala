@@ -76,6 +76,11 @@ object Directory extends Actor:
 
   private def answer(env: NodeEnv, r: Request): Response ! Live = (r.method, r.path) match
     case ("GET", "/_dir/env") => pure(Http.json(NodeEnv.write(env)))
+    // the community's policy changed: what it allows from now on — never its key, its place, its unit
+    case ("POST", "/_dir/policy") => NodeEnv.changed(env, Http.body(r)) match
+        case None => pure(Http.refused("policy"))
+        case Some(next) => step(Durable.put[Json, Step](envKey, NodeEnv.write(next))).as(Http.json(Json.Obj(
+            NodeEnv.policy(next))))
     case ("POST", "/_dir/head") =>
       val j = Http.body(r)
       val held: Unit ! Step = j.field("holders") match
@@ -219,13 +224,20 @@ object Hub extends Actor:
     case ("POST", "/_hub/create") => HubEnv.read[Live].flatMap(create(_, Http.body(r)))
     case _ => pure(Response.notFound()))
 
+  /** the policy a node is asked to be made with: what is not said is the default — a person's line as a
+   * business's where people have lines */
+  private def policy(place: String, name: String, unit: String, open: Boolean, credit: Long, ceiling: Long, j: Json)
+    : Option[NodeEnv] = NodeEnv.changed(NodeEnv(place, "", "", unit.toUpperCase, name, open, credit, ceiling, "",
+      personalCredit = credit), Json.Obj(j.record.filter(f => Set("only", "personalCredit", "personalMax", "after",
+      "shared", "wait")(f._1))))
+
   private def create(hub: HubEnv, j: Json): Response ! Live =
     scala.util.Try((j("slug").string.trim.toLowerCase, j("name").string.replaceAll("\\s+", " ").trim.take(80),
       j("unit").string.trim.take(8), j("join").string == "open", j("credit").long, j("ceiling").long,
       j("who").string)).toOption match
       case Some((place, name, unit, open, credit, ceiling, who)) if slug(place) && name.nonEmpty &&
-        j.field("only").forall(o => Set[Json](Json.str("business"), Json.str("earned"), Json.str(""))(o)) &&
-        unit.matches("[A-Za-z]{2,8}") && credit >= 0 && ceiling >= 0 =>
+        unit.matches("[A-Za-z]{2,8}") && policy(place, name, unit, open, credit, ceiling, j).exists(
+          _.allowed(hub).isEmpty) =>
         Clock.now[Live].flatMap { now =>
           val made = s"$scope/made/$who/${now / 86400000L}"
           // its place and the limits taken in one step; then the node made
@@ -243,8 +255,8 @@ object Hub extends Actor:
             case Some(why) => pure(Http.refused(why, if why == "taken" then 409 else 429))
             case None => Signer.generate[Live].flatMap { pair =>
                 val token = Sha256.hex(pair.secret + ":setup").take(32)
-                val env = NodeEnv(place, pair.pub, pair.secret, unit.toUpperCase, name, open, credit, ceiling, token,
-                  j.field("only").collect { case Json.Str(o) => o }.getOrElse(""))
+                val env = policy(place, name, unit, open, credit, ceiling, j).get.copy(pub = pair.pub,
+                  secret = pair.secret, setup = token)
                 val made = okay.serverless.cloud.Objects.call[Live](Directory.namespace, place,
                   Http.post("/_dir/env", NodeEnv.write(env)))
                 // its rules, when its maker wrote some

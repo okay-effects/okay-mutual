@@ -161,3 +161,24 @@ live hub — a shared account opened from the app by a new member's account in `
 two-holder threshold set by a record signed for the holder account; accounts kept before this sprint still read.
 Found on the way and fixed: History failed on an account with a recovery record. The check left test accounts in
 `demo` ("Marta", "Marta's home"). Pages serves a new build about a minute after the push: check after that.
+
+## Sprint 7 — policies set at every level (operator, 2026-11-18: "make all these policies configurable at each
+level: hubs, communities, groups, organisations, families")
+
+Until now a community's policy was fixed when it was made, the hub's was three numbers, and "whether a private
+person has credit" had three answers. One rule for all levels: EACH LEVEL SETS ITS OWN POLICY INSIDE WHAT THE
+LEVEL ABOVE ALLOWS — the hub's operator says what communities here may be; a community says how one joins and who
+is given what credit, and may change it; an account shared by a family or a team says who holds it, how much each
+may spend, and above what two must sign (sprint 6).
+
+- [x] **the node** — a community's policy as data it changes by its own command (`policy {…}`): joining; private
+  people — `business` (none) | `earned` (no line) | `vouched` (only a line a member lends) | `record` (a line the
+  community gives once the person has earned `after`) | `` (a line as anyone's); the default lines of a business
+  and of a person; the most a person may owe (`personalMax`); shared accounts allowed or not; the recovery's wait.
+  The hub's bounds (`HUB_PERSONAL`, `HUB_MAX_CREDIT`, `HUB_MAX_PERSONAL`) hold at making and at every change. An
+  account's object asks the policy in force, not the one it was opened under. `earned` in the fold. Done when:
+  ChainSuite, NodeSuite.
+- [ ] **the app** — the office's "Policy" screen; making a community offers what the hub allows; four languages.
+  Done when: WalletSuite.
+- [ ] **publish** — Worker, Pages; docs ×4 (how-it-works, run-a-node, legal: which choices take on which
+  questions), README, protocol.

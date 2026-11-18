@@ -57,7 +57,9 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  * Commands (`{cmd, at, …}`, signed as their text, good for ten minutes, taken once): `limits {account, credit,
  * ceiling}`; `admit {id, credit, ceiling}` — one who asked is opened an account; `reject {id}`; `line {address,
  * credit}` — an account kept for another node (a trust line): how far that community may owe this one; `rules
- * {text}` — the community's rules, from then on the ones a newcomer accepts; `recover {account}` — the community
+ * {text}` — the community's rules, from then on the ones a newcomer accepts; `policy {join, only, credit, ceiling,
+ * personalCredit, personalMax, after, shared, wait}` — the community's policy (what is not said stays), inside what
+ * its hub allows: in force for every account from then on, the lines given before left as they are; `recover {account}` — the community
  * knows who asks that account back: the recovery announced on its chain, in force after the waiting period
  * (`NodeApp.waiting`) unless a device that still holds the account cancels it; `forget {account}` — the asking dropped
  */
@@ -66,14 +68,17 @@ object NodeApp extends App:
     Hub.namespace -> Hub)
   type Live[X] = (Cloud + Signer)[X]
   val fresh: Long = 10 * 60 * 1000L
-  /** how long a recovery is announced before it is in force: time for the account's own holder to say no */
-  val waiting: Long = 7L * 24 * 60 * 60 * 1000
+  private val day: Long = 24L * 60 * 60 * 1000
+  /** how long a recovery is announced before it is in force where a community's policy says nothing else: time for
+   * the account's own holder to say no */
+  val waiting: Long = 7 * day
 
   override def fetch(r: Request): Response ! Cloud =
     if r.method == "OPTIONS" then pure(Response(204, Http.cors, ""))
     else SignerHere.run((r.method, r.path.split('/').toList.filter(_.nonEmpty)) match
-      case ("GET", List(".well-known", "okay-mutual-hub.json")) => HubEnv.read[Live].map(hub => Http.json(Json.obj(
-          "v" -> Json.num(Record.version), "making" -> Json.str(if hub.open then "open" else "token"))))
+      case ("GET", List(".well-known", "okay-mutual-hub.json")) => HubEnv.read[Live].map(hub => Http.json(Json.Obj(Vector(
+          "v" -> Json.num(Record.version), "making" -> Json.str(if hub.open then "open" else "token")) ++
+          HubEnv.bounds(hub))))
       case ("GET", List("api", "nodes")) => hub(Request.get("/_hub/nodes")).map(answered)
       case ("POST", List("api", "nodes")) => HubEnv.read[Live].flatMap { h =>
           if !h.open && (h.token.isEmpty || !r.header("x-hub-token").contains(h.token)) then
@@ -107,10 +112,9 @@ object NodeApp extends App:
 
   private def route(env: NodeEnv, r: Request, method: String, path: List[String]): Response ! Live =
     (method, path) match
-      case ("GET", List(".well-known", "okay-mutual.json")) => pure(Http.json(Json.obj(
+      case ("GET", List(".well-known", "okay-mutual.json")) => pure(Http.json(Json.Obj(Vector(
           "v" -> Json.num(Record.version), "key" -> Json.str(env.pub), "unit" -> Json.str(env.unit),
-          "name" -> Json.str(env.name), "join" -> Json.str(if env.open then "open" else "admitted"),
-          "credit" -> Json.num(env.credit), "ceiling" -> Json.num(env.ceiling), "only" -> Json.str(env.only))))
+          "name" -> Json.str(env.name)) ++ NodeEnv.policy(env))))
       case ("GET", List("api", "members")) => directory(env, Request.get("/_dir/members")).map(answered)
       case ("GET", List("api", "head")) => directory(env, Request.get("/_dir/head")).map(answered)
       case ("GET", List("api", "community")) => directory(env, Request.get("/_dir/community")).map(answered)
@@ -126,7 +130,8 @@ object NodeApp extends App:
           else if env.only == "business" && asking(body).exists(_._3 != "business") then
             pure(Http.refused("business", 409))
           else if hash.nonEmpty && !body.field("rules").contains(Json.str(hash)) then pure(Http.refused("rules", 409))
-          else if env.open then joined(env, body, env.credit, env.ceiling) else requested(env, body)
+          else if env.open then joined(env, body, asking(body).fold(0L)(a => env.opening(a._3)), env.ceiling)
+          else requested(env, body)
         }
       case ("GET", List("api", "accounts", a)) if id(a) => account(env, a, Request.get("/_acct/state")).map(answered)
       case ("GET", List("api", "accounts", a, "chain")) if id(a) => account(env, a,
@@ -193,6 +198,7 @@ object NodeApp extends App:
    * community. A team's is a business's to open; whether the opener's device signed is the account object's check */
   private def shared(env: NodeEnv, j: Json): Response ! Live =
     asking(j).flatMap(a => Record.parse(a._1.text).map(_.body)) match
+      case Some(_) if !env.shared => pure(Http.refused("shared", 409))
       case Some(Body.Open(_, of, opener, _)) if id(opener) =>
         account(env, opener, Request.get("/_acct/state")).flatMap { st =>
           StateJson.read(Http.answer(st)).filter(_ => st.status == 200) match
@@ -275,7 +281,7 @@ object NodeApp extends App:
           case Some(a) => directory(env, Request.get(s"/_dir/recovery?account=$a")).flatMap { q =>
               if q.status != 200 then pure(Http.refused("no such request", 404))
               else Clock.now[Live].flatMap(now => account(env, a, Http.post("/_acct/recover", Json.obj(
-                "key" -> Http.answer(q)("key"), "after" -> Json.num(now + waiting))))).flatMap(done =>
+                "key" -> Http.answer(q)("key"), "after" -> Json.num(now + env.days * day))))).flatMap(done =>
                 if done.status != 200 then pure(answered(done))
                 else directory(env, Http.post("/_dir/recovery/done", Json.obj("account" -> Json.str(a))))
                   .as(answered(done)))
@@ -284,6 +290,12 @@ object NodeApp extends App:
           case None => pure(Http.refused("command"))
           case Some(a) => directory(env, Http.post("/_dir/recovery/done", Json.obj("account" -> Json.str(a))))
               .map(answered)
+      // the community's policy: its own to change, inside what the hub it is at allows
+      case "policy" => HubEnv.read[Live].flatMap(hub => NodeEnv.changed(env, c) match
+          case None => pure(Http.refused("policy"))
+          case Some(next) => next.allowed(hub) match
+              case Some(why) => pure(Http.refused("policy", 409, "detail" -> Json.str(why)))
+              case None => directory(env, Http.post("/_dir/policy", c)).map(answered))
       case "rules" => scala.util.Try(c("text").string).toOption match
           case Some(text) => directory(env, Http.post("/_dir/rules", Json.obj("text" -> Json.str(text)))).map(answered)
           case None => pure(Http.refused("command"))

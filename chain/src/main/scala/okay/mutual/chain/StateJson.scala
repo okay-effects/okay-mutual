@@ -23,7 +23,7 @@ object StateJson:
       "after" -> Json.num(after))), "two" -> Json.num(s.two),
     "proposed" -> Json.Arr(s.proposed.map(p => Json.obj("hash" -> Json.str(p.hash), "by" -> Json.str(p.by),
       "to" -> Json.str(p.to), "amount" -> Json.num(p.amount), "memo" -> Json.str(p.memo),
-      "name" -> Json.str(p.name), "at" -> Json.num(p.at)))))
+      "name" -> Json.str(p.name), "at" -> Json.num(p.at)))), "earned" -> Json.num(s.earned))
 
   def read(j: Json): Option[State] = scala.util.Try {
     def map(name: String): Map[String, Long] = j(name).record.map((k, v) => k -> v.long).toMap
@@ -38,5 +38,5 @@ object StateJson:
       // a state kept before these were: none of either
       j.field("two").fold(0L)(_.long), j.field("proposed").fold(Vector.empty)(_.list.map(p => Proposal(
         p("hash").string, p("by").string, p("to").string, p("amount").long, p("memo").string, p("name").string,
-        p("at").long))))
+        p("at").long))), j.field("earned").fold(0L)(_.long))
   }.toOption

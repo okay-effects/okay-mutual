@@ -621,3 +621,70 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(net.json(net.get("/api/members"))("members").list.map(m => net.json(net.get(
       s"/api/accounts/${m("id").string}"))("balance").long).sum, 0L)
   }
+
+  test("policies at every level: a hub bounds its communities; a community changes its own policy inside them") {
+    val hub = Hubs("HUB_PERSONAL" -> "business,earned,vouched,record", "HUB_MAX_CREDIT" -> "20000",
+      "HUB_MAX_PERSONAL" -> "5000")
+    val bounds = hub.json(hub.get("/.well-known/okay-mutual-hub.json"))
+    assertEquals((bounds("personal").list.map(_.string).toSet, bounds("maxCredit").long, bounds("maxPersonal").long),
+      (Set("business", "earned", "vouched", "record"), 20000L, 5000L))
+    // the operator hosts no community that gives private people lines from the start
+    assertEquals(hub.make("free", "Free", only = "").status, 400)
+    val net = Net(hub = hub, slug = "guild", name = "Guild", only = "earned")
+    val c = Community(net, "Olaf")
+    val (shop, anna) = (Wallet(net), Wallet(net))
+    assertEquals((shop.join("Shop", "business").status, anna.join("Anna").status), (200, 200))
+    def policy(by: Pair, fields: (String, Json)*) =
+      net.now += 1
+      net.command(by, (Vector("cmd" -> Json.str("policy"), "at" -> Json.num(net.now)) ++ fields)*)
+    def limits(of: Wallet, credit: Long) =
+      net.now += 1
+      net.command(c.founder.key, "cmd" -> Json.str("limits"), "at" -> Json.num(net.now),
+        "account" -> Json.str(of.id), "credit" -> Json.num(credit), "ceiling" -> Json.num(30000))
+    def said = net.json(net.get("/.well-known/okay-mutual.json"))
+    def floor(w: Wallet) = w.state("floor").long
+    // people earn first: no line, none lent
+    assertEquals(shop.say(Body.Vouch(anna.id, 1000)).status, 200)
+    assertEquals((floor(anna), said("only").string), (0L, "earned"))
+    // not by one who does not govern; not past the hub's bounds; not what is no policy
+    assertEquals(policy(shop.key, "only" -> Json.str("vouched")).status, 403)
+    assertEquals(error(net, policy(c.founder.key, "only" -> Json.str(""))), (409, "policy", Json.str("hub:only")))
+    assertEquals(error(net, policy(c.founder.key, "credit" -> Json.num(30000)))._3, Json.str("hub:credit"))
+    assertEquals(error(net, policy(c.founder.key, "only" -> Json.str("vouched")))._3, Json.str("hub:personal"))
+    assertEquals(error(net, policy(c.founder.key, "wait" -> Json.num(0)))._3, Json.str("wait"))
+    assertEquals(error(net, policy(c.founder.key, "only" -> Json.str("anything")))._3, Json.str("only"))
+    assertEquals(said("only").string, "earned")
+    // the community lets members lend a person a line, 30.00 at most: in force for the account that was there
+    assertEquals(policy(c.founder.key, "only" -> Json.str("vouched"), "personalMax" -> Json.num(3000)).status, 200)
+    assertEquals((said("only").string, said("personalMax").long), ("vouched", 3000L))
+    assertEquals(shop.say(Body.Vouch(anna.id, 2000)).status, 200)
+    assertEquals(floor(anna), -2000L)
+    assertEquals(shop.say(Body.Vouch(anna.id, 2000)).status, 200)
+    assertEquals((floor(anna), shop.state("lent").long), (-2000L, 2000L))
+    assertEquals(error(net, limits(anna, 1000)), (409, "forbidden", Json.str("credit")))
+    // a line of the community's own once the person has earned 50.00 — and never past the most a person may owe
+    assertEquals(policy(c.founder.key, "only" -> Json.str("record"), "after" -> Json.num(5000)).status, 200)
+    assertEquals(error(net, limits(anna, 1000))._2, "forbidden")
+    assertEquals(shop.say(Body.Send(anna.id, 5000, "", "")).status, 200)
+    assertEquals(anna.state("earned").long, 5000L)
+    assertEquals(limits(anna, 1000).status, 200)
+    assertEquals(floor(anna), -3000L)
+    assertEquals(error(net, limits(anna, 3001))._2, "forbidden")
+    // the rest of a policy: a new business's line, who joins, shared accounts, the recovery's wait
+    assertEquals(policy(c.founder.key, "credit" -> Json.num(15000), "shared" -> Json.bool(false),
+      "wait" -> Json.num(2)).status, 200)
+    val bakery = Wallet(net)
+    assertEquals(bakery.join("Bakery", "business").status, 200)
+    assertEquals((floor(bakery), floor(shop), said("wait").long), (-15000L, -8000L, 2L))
+    val text = Record.text(Record("", 1, "", net.now, Body.Open(net.node.pub, "family", anna.id, "PLN")))
+    assertEquals(error(net, net.post("/api/accounts", Json.obj("record" -> Signed.json(Signed(text, Vector(
+      anna.key.pub -> SignerJdk.sign(anna.key.secret, text)), Vector(Acting(anna.key.pub, anna.id, 0)))),
+      "name" -> Json.str("Home"))))._2, "shared")
+    assertEquals(policy(c.founder.key, "join" -> Json.str("admitted")).status, 200)
+    assertEquals(Wallet(net).join("Late", "business").status, 202)
+    // a node kept before its policy had these reads as it was
+    val old = NodeEnv.read(Json.obj("slug" -> Json.str("a"), "pub" -> Json.str("k"), "secret" -> Json.str("s"),
+      "unit" -> Json.str("PLN"), "name" -> Json.str("A"), "open" -> Json.bool(true), "credit" -> Json.num(100),
+      "ceiling" -> Json.num(300), "setup" -> Json.str("t"))).get
+    assertEquals((old.only, old.personalCredit, old.personalMax, old.shared, old.days), ("", 100L, 0L, true, 7))
+  }

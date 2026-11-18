@@ -51,6 +51,12 @@ object AccountObject extends Actor:
 
   private def state: Option[State] ! Live = Http.read[Live](stateKey).map(_.flatMap(StateJson.read))
 
+  /** THE NODE'S POLICY IN FORCE: asked of its directory now — the node an account was opened under is kept for its
+   * key and its place; what the community allows is the community's to change */
+  private def inForce(env: NodeEnv): NodeEnv ! Live =
+    Objects.call[Live](Directory.namespace, env.slug, Request.get("/_dir/env")).map(r =>
+      NodeEnv.read(Http.answer(r)).filter(e => r.status == 200 && e.pub == env.pub).getOrElse(env))
+
   /** a call: the first record brings the node with it; every other is the account's own node's — and is refused
    * (as an account that is not there) when it comes by another node (`x-node`, the caller's node's key): accounts of
    * different nodes meet only by trust lines, and there are none yet */
@@ -93,7 +99,8 @@ object AccountObject extends Actor:
           .toOption match
           case None => pure(Http.refused("body"))
           // no credit line for an account that may have none here
-          case Some((credit, ceiling)) => state.map(_.exists(s => credit > 0 && !env.credited(s.of))).flatMap(barred =>
+          case Some((credit, ceiling)) => inForce(env).flatMap(now => state.map(_.exists(s =>
+            !now.line(s, credit)))).flatMap(barred =>
               if barred then pure(faulted(Fault.Forbidden("credit")))
               else byNode(env, Body.Limits(credit, ceiling)).map(done))
       case _ => pure(Response.notFound())
@@ -176,7 +183,7 @@ object AccountObject extends Actor:
                         case Left(fault) => pure(faulted(fault))
                         case Right(_) if credit == 0 && ceiling == 0 => state.map(s => done(Right((signed, s.get))))
                         // an account that may have no credit line here opens with none, whatever the default
-                        case Right(opened) => byNode(env, Body.Limits(if env.credited(opened._2.of) then credit else 0,
+                        case Right(opened) => byNode(env, Body.Limits(if env.line(opened._2, credit) then credit else 0,
                             ceiling)).map(done)
                       }
                 })
@@ -268,7 +275,8 @@ object AccountObject extends Actor:
           case None =>
             val body = if kind == "vouched" then Body.Vouched(from, ref, amount) else Body.Receive(from, ref, amount)
             // a line lent to an account that may have none (a private person's, where people only earn): refused
-            state.map(_.exists(s => kind == "vouched" && !env.credited(s.of))).flatMap(barred =>
+            inForce(env).flatMap(now => state.map(_.exists(s => kind == "vouched" && !now.lent(s, amount))))
+              .flatMap(barred =>
               if barred then pure(Left(Fault.Forbidden("credit"))) else byNode(env, body)).flatMap {
               case Left(Fault.Unknown("account")) => pure(Http.refused("unknown", 404))
               case Left(fault) => pure(faulted(fault))
