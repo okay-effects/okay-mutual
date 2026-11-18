@@ -44,5 +44,12 @@ lazy val chain = crossProject(JVMPlatform, JSPlatform).crossType(CrossType.Pure)
     Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-js",
     Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "test" / "scala-js")
 
-lazy val root = (project in file(".")).aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js)
+/** A NODE (specs/protocol.md, stage 2): an object an account — its chain, the node's signature, a payment carried to
+ * its receiver or bounced —, the directory with the node's signed head, the calls a wallet and another node make. On
+ * okay-serverless: a Cloudflare Worker, or one JVM process */
+lazy val node = crossProject(JVMPlatform, JSPlatform).crossType(CrossType.Pure).in(file("node")).dependsOn(chain)
+  .settings(name := "okay-mutual-node",
+    libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-serverless" % "0.2.0", munit.value))
+
+lazy val root = (project in file(".")).aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js, node.jvm, node.js)
   .settings(publish / skip := true)

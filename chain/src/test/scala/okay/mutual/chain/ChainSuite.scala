@@ -213,3 +213,29 @@ class ChainSuite extends munit.FunSuite:
     assertEquals(fork(signed(a, node), signed(b.copy(seq = b.seq + 1), node)), Set.empty[String])
     assertEquals(fork(signed(a, node), Signed(Record.text(b), Vector(node.pub -> "00"))), Set.empty[String])
   }
+
+  test("a node's head: the root over the accounts' heads, a proof for each, false for any other head") {
+    assertEquals(Merkle.root(Map.empty), Merkle.empty)
+    for n <- Seq(1, 2, 3, 4, 5, 8, 13) do
+      val heads = (1 to n).map(i => s"account$i" -> Sha256.hex(s"head$i")).toMap
+      val root = Merkle.root(heads)
+      for (account, head) <- heads do
+        val proof = Merkle.proof(heads, account).get
+        assert(Merkle.holds(root, account, head, proof), s"$n: $account")
+        assert(!Merkle.holds(root, account, Sha256.hex("another"), proof), s"$n: $account, another head")
+        assert(!Merkle.holds(root, "stranger", head, proof), s"$n: $account, another account")
+      assertEquals(Merkle.proof(heads, "stranger"), None)
+      assertNotEquals(Merkle.root(heads.updated("account1", Sha256.hex("changed"))), root)
+    // the order the accounts came in does not matter
+    assertEquals(Merkle.root(Map("a" -> "1", "b" -> "2")), Merkle.root(Map("b" -> "2", "a" -> "1")))
+  }
+
+  test("a state is written and read back the same") {
+    val w = account()
+    w.by(phone)(Body.Granted(Grant(tablet.pub, spend = true, manage = false, 5000, 12000, 7 * day)))
+    w.by(tablet)(Body.Send("b", 4000, "", "k1"))
+    w.by(phone)(Body.Vouch("n", 1000))
+    w.node(Body.Vouched("v", "r", 500))
+    assertEquals(StateJson.read(StateJson.write(w.state.get)), w.state)
+    assertEquals(StateJson.read(okay.effects.json.Json.obj()), None)
+  }
