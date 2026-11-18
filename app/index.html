@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Okay Mutual — your account</title>
+  <meta name="robots" content="noindex">
+  <!-- the hub this page lists and makes communities at: empty — the page's own origin (`sbt -Dhub=… site` says
+       another: the app published apart from its hub) -->
+  <meta name="okay-mutual-hub" content="https://okay-mutual.okay-effects.workers.dev">
+  <meta name="theme-color" content="#1c2b26">
+  <link rel="icon" href="../icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    /* THE APP'S OWN RULES over okay-ui's calm skin (Laminar.run installs it) */
+    body > footer .bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+    body > footer .more { margin-left: auto; }
+    body > header a.guide, body > header .langs a { color: #cfe5dc; }
+    body > header .langs { display: flex; gap: 8px; font-size: 13px; margin-left: auto; }
+    body > header .langs a[aria-current] { color: #fff; font-weight: 700; text-decoration: none; }
+    .okay-code, pre { overflow-wrap: anywhere; white-space: pre-wrap; }
+    @media (max-width: 640px) { body .okay-table { font-size: 0.85em; }
+      body .okay-table td, body .okay-table th { overflow-wrap: anywhere; padding: 8px 5px; } }
+  </style>
+</head>
+<body>
+  <!-- the tag line, "About" and the page's language are set by the app from its words (`?lang=`, kept) -->
+  <header><div class="bar"><a class="brand" href="./">OKAY MUTUAL</a><span class="tag" id="tag"></span><span class="langs"><a href="?lang=en">EN</a> <a href="?lang=pl">PL</a> <a href="?lang=uk">UA</a> <a href="?lang=ru">RU</a></span><a class="guide" id="about" href="../"></a></div></header>
+  <div id="app"></div>
+  <footer><div class="bar">
+    Built on <a href="https://github.com/okay-effects" target="_blank" rel="noopener noreferrer">okay-effects</a> —
+    algebraic effects for Scala
+    <a class="more" href="https://okay-effects.github.io/#author" target="_blank" rel="noopener noreferrer">Need more?</a>
+  </div></footer>
+  <script src="main.js"></script>
+</body>
+</html>
