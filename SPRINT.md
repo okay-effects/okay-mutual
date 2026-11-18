@@ -151,7 +151,13 @@ His requirement from the start ("families and organisations with shared budgets"
 - [x] **the app** — Accounts → shared accounts: made, used as one's own from every device of the person; holders
   (members, with limits), the threshold, payments that wait for a second holder; checked from the first record with
   the holders' chains; four languages. Done when: WalletSuite.
-- [ ] **publish** — Worker, Pages, docs in four languages, README, protocol.
+- [x] **publish** — Worker, Pages, docs in four languages, README, protocol.
 
 Not in it: a holder that is itself a shared account (a department under a company holds by `vouch`, not by
 holding); a shared account on the board; taking a lent line back (`release`).
+
+Sprint 6 closed 2026-11-18: hub redeployed, Pages republished (gh-pages 454237e); checked in a browser against the
+live hub — a shared account opened from the app by a new member's account in `demo`, its holders shown, the
+two-holder threshold set by a record signed for the holder account; accounts kept before this sprint still read.
+Found on the way and fixed: History failed on an account with a recovery record. The check left test accounts in
+`demo` ("Marta", "Marta's home"). Pages serves a new build about a minute after the push: check after that.
