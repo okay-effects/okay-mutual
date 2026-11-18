@@ -26,6 +26,21 @@ community up to its credit line, a community by another up to a trust line. The 
 the limits others chose to give it. That, not consensus, is the security of the whole (Ripple's original design, the
 Credit Commons, Sardex's circuits, correspondent banking).
 
+## Beside money, not instead of it
+
+The network runs parallel to ordinary money and gives a choice; it replaces nothing.
+
+- **Prices stay in the national currency.** A unit is counted as one unit of it (1 unit = 1 zł in a Polish node), so
+  nobody learns a new price list, and accounting and taxes are done as for any sale — in money, to the state.
+- **A deal can be part units, part money.** A seller says for each offer what share it takes in units — all, a
+  half, none. The money part is paid as it always was; the network neither holds nor moves money.
+- **Nobody is obliged.** A member accepts units only up to its own ceiling and only for what it offered; it can
+  stop, and it can leave by bringing its balance to zero (in goods and services, or in money if it owes).
+- **Units are never sold or exchanged for money** inside the network. That is what keeps it a means of exchange
+  among people who produce something, not a thing to speculate on.
+- **What it adds** is room to trade when money is short but work, goods and needs are not: a firm between
+  invoices, a person between jobs, a new business before its first revenue.
+
 ## The parts
 
 ```
@@ -38,17 +53,48 @@ Credit Commons, Sardex's circuits, correspondent banking).
  witnesses ──────────────── anyone: keep nodes' heads, show two that contradict
 ```
 
-### 1. Keys
+### 1. Keys, devices and who may act
 
-- A key pair is **ECDSA P-256**, hashes **SHA-256**. Why not Ed25519: P-256 is in every browser's WebCrypto for a
-  decade, in every phone's secure hardware, and is what passkeys sign with — so a member's key can be unextractable
-  on the device, and later a passkey (biometric, synced by the phone's maker) with no seed phrase to lose. A key
-  carries its algorithm's name, so another can be added.
-- An account has a **set of keys** (devices). The set is changed by a record signed by a key already in it.
-- **Recovery** when every key is lost: the member's node, after a waiting period announced on the chain, adds a new
-  key — the old keys can cancel during the wait. This is possible because members are known people, not anonymous
-  addresses: the community that gave the credit can also restore the access. The node cannot spend for the member
-  without this visible, delayed step.
+**A device makes its own key and never gives it away.** A phone, a laptop, a work computer: three keys, none ever
+copied. A key pair is **ECDSA P-256**, hashes **SHA-256**. Why not Ed25519: P-256 is in every browser's WebCrypto for
+a decade, in every phone's secure hardware, and is what passkeys sign with — so a key can be unextractable on the
+device, and later a passkey (a fingerprint, no seed phrase to lose). A key carries its algorithm's name, so another
+can be added.
+
+**An account names its holders.** A holder is a key — or another account. Each holder has a grant:
+
+```
+holder    a key, or an account's id
+name      "phone", "Anna", "accounting"          (kept beside the chain, not on it)
+may       spend | manage                         manage: change holders and limits of spending
+limit     at most this much a payment, and this much a period (a week, a month); none: the account's own limits
+under     the holder that gave this grant
+```
+
+- **The hierarchy is who gave what.** A grant is given by a holder that may `manage`, and never gives more than the
+  giver has. Whoever gave a grant can take it back, with everything given under it: a lost phone is cut off from
+  the laptop in one record, and what the phone had handed on goes with it.
+- **A person** is an account held by its devices' keys: the first device opens it and may `manage`; the next device
+  shows its new key (a QR code), an old one signs it in.
+- **A family, a team, a company** is an account held by ACCOUNTS: the family's account names Anna's and Jan's
+  accounts as holders, their child's with a limit of 50 a week. Anna signs for the family with whatever device she
+  has in her hand — her own account says which keys are hers. A new phone is added once, to her account, and works
+  everywhere she is a holder. A record signed this way says both: the key, and the account it acted for.
+- **A budget** is an account with its own limits. A company gives a department a budget as a member vouches for a
+  newcomer: it lends part of its own credit line (`vouch`), and takes it back (`release`). The department's holders
+  are its people's accounts.
+- **Two signatures** for large amounts: an account may say "above this amount, two holders" — the first signs, the
+  node keeps the payment waiting, the second signs. One threshold, no more: enough for a company's cashier and
+  director, small enough to explain.
+- The chain of who-acts-for-whom is at most three steps (a key → a person → a department → a company), so every
+  check ends.
+- **A holder's limit is checked from the chain itself**: what that holder sent in the period is a sum over records,
+  the same in the node and in the wallet.
+
+**Recovery** when every key of a person is lost: holders the person named for it (family, a friend's account) or
+the member's node add a new key — after a waiting period announced on the chain, during which any old key can
+cancel. This is possible because members are known people, not anonymous addresses: the community that gave the
+credit can also restore the access. Nobody spends for the member without this visible, delayed step.
 
 ### 2. An account's chain
 
@@ -58,14 +104,16 @@ Every account has its own chain of records. A record:
 account   the account's id: the hash of its opening record (its node, its first key)
 seq       1, 2, 3, …
 prev      the hash of the record before it
-kind      open | send | receive | bounce | limits | vouch | release | keys | recover | close
+kind      open | send | receive | bounce | limits | vouch | release | grant | revoke | recover | close
 body      the kind's fields (amounts in hundredths of the node's unit)
 at        the time the signer says
-by, sig   the key that signed, the signature over the canonical bytes of all above
+by, sig   the key that signed — and, when it acts for a holder account, that account and the place in its
+          chain where the key is its holder — and the signature over the canonical bytes of all above;
+          a second `by, sig` when the account asks two
 node sig  the node's signature: "I ordered this as seq N of this account and my rules allowed it"
 ```
 
-- **A debit needs the member's key**: `send`, `vouch`, `keys`, `close`. Nobody, the node included, moves a member's
+- **A debit needs a holder's key**: `send`, `vouch`, `grant`, `revoke`, `close`. Nobody, the node included, moves a member's
   credit without it.
 - **A credit and a rule are the node's**: `receive`, `bounce`, `limits`, `recover`, signed by the node alone — a
   member need not be online to be paid, and credit policy is the community's.
@@ -181,7 +229,7 @@ the member, in vouching, in limits that grow with history.
 
 ## Open questions
 
-1. Recovery's waiting period, and whether vouchers (not only the node) can restore a key.
+1. Recovery's waiting period; a holder account on another node (its chain must be read across nodes).
 2. The head's batching (every change, or every minute) against the cost on Cloudflare.
 3. What a node must publish about itself for another to give it a line (legal person, rules, measures).
 4. Leaving: a member moving to another node with its history; a node closing with debts on its lines.
