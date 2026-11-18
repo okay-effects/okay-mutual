@@ -82,12 +82,12 @@ services, crypto-assets, credit to consumers, deposits) become things the softwa
 The operator: private people take part too, as decided at the start; and the app is to be called an account, not a
 wallet (docs/legal.md: not the vocabulary of crypto).
 
-- [ ] **people without credit** — a third answer to "who may join", and the default: businesses, and private
+- [x] **people without credit** (DONE: `NodeEnv.only = earned` (the default in the create form): a personal account opens with no line, `limits` refuses one, a lent line comes back; NodeSuite 17, WalletSuite 13; docs/legal.md and the FAQ in four languages. Found on the way, in Chromium against the jar, and fixed with a test: a record was built on the account as the screen had it, so a payment received while the app was open made the next one fail ("changed meanwhile")) — a third answer to "who may join", and the default: businesses, and private
   people whose accounts never go below zero. A person earns first — by work or goods sold to members, or units a
   business gives — and then spends: no credit is given to a consumer, so consumer-credit rules do not arise. The
   node keeps it: a personal account opens with no credit line, `limits` refuses one, a line lent (`vouch`) to it
   comes back. Done when: NodeSuite and WalletSuite; docs/legal.md says so in four languages.
-- [ ] **account, not wallet** — the app's words, the site (its page at `/app/`, the old address redirected), the
+- [x] **account, not wallet** (DONE: the app's words, the landing, the page at `/app/` with `/wallet/` sending on, README, run-a-node in four languages (the other documents never said wallet)) — the app's words, the site (its page at `/app/`, the old address redirected), the
   documents in four languages, the okay-effects site. Code names (`wallet` module, `Wallet`) stay: nobody reads
   them. Done when: no "wallet" in what a person sees; the browser check passes at `/app/`.
 - [ ] **publish** — Worker, Pages.
@@ -96,8 +96,6 @@ wallet (docs/legal.md: not the vocabulary of crypto).
 
 - ONE LEGAL OPINION on docs/legal.md's seven questions (MiCA's reach and platform reporting first) before any
   community admits people its founder does not know. Then: terms for a hub's operator, a processing agreement.
-- The word "wallet" belongs to the world docs/legal.md advises not to sound like: consider "account" in the
-  app and the site (the operator's call).
 - The rules' acceptance recorded on the member's chain; members asked again when the rules change.
 - A payment through a third community (a path); lines between different units (a rate); a line lent across
   nodes; closing a line; a flight across a line retried by the alarm under test.

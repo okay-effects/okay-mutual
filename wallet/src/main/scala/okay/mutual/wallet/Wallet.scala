@@ -262,10 +262,15 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       })
   }
 
-  /** a holder's record: the chain's next as the account is now, signed here, given to the node */
-  private def say(s: State, body: Long => Body, memo: String = ""): Either[Refusal, State] ! R =
-    Clock.now[R].flatMap(now => Device.signed[R](Record(s.id, s.seq + 1, s.head, now.max(s.at), body(now)))
-      .flatMap(Node.append[R](s.id, _, memo)))
+  /** a holder's record: the chain's next AS THE ACCOUNT IS NOW — asked of the node at this moment, not as it was
+   * when the screen was drawn: a payment received while the app was open has moved the chain on —, signed here,
+   * given to the node. Answered: the account just before the record, and after it */
+  private def say(s: State, body: Long => Body, memo: String = ""): Either[Refusal, (State, State)] ! R =
+    Node.account[R](s.id).flatMap { fresh =>
+      val now0 = fresh.getOrElse(s)
+      Clock.now[R].flatMap(now => Device.signed[R](Record(now0.id, now0.seq + 1, now0.head, now.max(now0.at),
+        body(now))).flatMap(Node.append[R](s.id, _, memo))).map(_.map(now0 -> _))
+    }
 
   /** the other members here; another community's account is none of them — its members are paid through it */
   private def others(s: State): Vector[Member] ! R =
@@ -308,9 +313,9 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           else say(s, now => Body.Send(line.fold(to)(l => s"$to@${l.node}"), cents(amount),
             if memo.isEmpty then "" else Sha256.hex(memo), Sha256.hex(s"${s.id}:${s.seq}:$now").take(24)), memo)
             .flatMap {
-            case Right(after) if after.balance == s.balance => inform(w.cameBack,
+            case Right((was, after)) if after.balance == was.balance => inform(w.cameBack,
                 line.fold(w.cameBackText(who))(l => w.cameBackElsewhere(l.name)))
-            case Right(after) => inform(w.paid, w.paidText(money(cents(amount), about.unit), who,
+            case Right((_, after)) => inform(w.paid, w.paidText(money(cents(amount), about.unit), who,
                 money(after.balance, about.unit)))
             case Left(r) => inform(w.notPaid, refusal(r, about.unit))
           }
@@ -323,7 +328,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       said(Field.money(w.partOfLine, about.unit).check(w.moreThanZero)(_ > 0))), Part.text(w.vouchText)).flatMap {
       case None => pure(())
       case Some((to, amount)) => say(s, _ => Body.Vouch(to, cents(amount))).flatMap {
-          case Right(after) if after.lent == s.lent => inform(w.cameBack, w.hasVoucher)
+          case Right((was, after)) if after.lent == was.lent => inform(w.cameBack, w.hasVoucher)
           case Right(_) => inform(w.vouched, w.vouchedText(money(cents(amount), about.unit)))
           case Left(r) => inform(w.notVouched, refusal(r, about.unit))
         }

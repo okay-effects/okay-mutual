@@ -16,18 +16,18 @@ jej podatki. Formę prawną i przepisy o usługach płatniczych w swoim kraju us
 
 Hub to jedno wdrożenie, które utrzymuje węzły wielu społeczności. Nasz jest publiczny:
 
-1. Otwórz portfel: https://okay-mutual.okay-effects.workers.dev/wallet/
-2. Wybierz **Utwórz społeczność**: jej nazwa, jej miejsce w adresie, jej jednostka, sposób dołączania, limity
-   nowego uczestnika.
+1. Otwórz aplikację: https://okay-mutual.okay-effects.workers.dev/app/
+2. Wybierz **Utwórz społeczność**: jej nazwa, jej miejsce w adresie, jej jednostka, sposób dołączania, kto może
+   dołączyć, limity nowego uczestnika, jej zasady.
 3. To wszystko. Klucz twojego urządzenia otworzył własne konto społeczności: jesteś jej założycielem.
-4. **Zaproś** pokazuje link. Kto go otworzy, trafia do portfela w twojej społeczności i może poprosić o przyjęcie.
+4. **Zaproś** pokazuje link. Kto go otworzy, trafia do aplikacji w twojej społeczności i może poprosić o przyjęcie.
 5. **Społeczność** to twoje biuro: kto prosi o przyjęcie (przyjmij z limitami albo odrzuć), uczestnicy, ich limity.
 
 Co masz ty, a co hub: klucz społeczności — ten, który pozwala przyjmować uczestników i ustalać limity — jest na
 twoim urządzeniu i nigdzie indziej. Własny klucz węzła, który współpodpisuje każdy zapis, przechowuje hub. Operator
-huba nie może więc wydawać za nikogo ani zarządzać twoją społecznością, ale mógłby przestać ją obsługiwać. Portfel
-każdego uczestnika stale sprawdza węzeł i pokazałby, gdyby zapisy zostały zmienione. Jeśli to za mało, uruchom
-własny hub.
+huba nie może więc wydawać za nikogo ani zarządzać twoją społecznością, ale mógłby przestać ją obsługiwać.
+Aplikacja każdego uczestnika stale sprawdza węzeł i pokazałaby, gdyby zapisy zostały zmienione. Jeśli to za mało,
+uruchom własny hub.
 
 Publiczny hub ogranicza liczbę społeczności, które można utworzyć z jednego adresu w ciągu dnia.
 
@@ -42,7 +42,7 @@ printf 'CLOUDFLARE_API_TOKEN=…\nCLOUDFLARE_ACCOUNT_ID=…\n' > .env && chmod 6
 ```
 
 Token musi mieć uprawnienie do edycji Workers. Skrypt buduje hub i stronę, a potem je wdraża; wypisuje twój adres,
-`https://okay-mutual.<your-account>.workers.dev`. Otwórz pod nim `/wallet/` i utwórz swoją społeczność.
+`https://okay-mutual.<your-account>.workers.dev`. Otwórz pod nim `/app/` i utwórz swoją społeczność.
 
 Nie trzeba ustawiać żadnego sekretu: para kluczy każdego węzła powstaje razem z węzłem, wewnątrz Cloudflare, i nigdy
 go nie opuszcza. Ustawienia są w `worker/wrangler.toml`:
@@ -62,11 +62,11 @@ Potrzebne są Java 21 lub nowsza i sbt.
 
 ```sh
 git clone https://github.com/okay-effects/okay-mutual && cd okay-mutual
-sbt site host/assembly                       # the site with the wallet, and the hub's jar
+sbt site host/assembly                       # the site with the app, and the hub's jar
 java -jar target/okay-mutual-node.jar
 ```
 
-Otwórz http://127.0.0.1:8787/wallet/ i utwórz społeczność.
+Otwórz http://127.0.0.1:8787/app/ i utwórz społeczność.
 
 Wszystko, co hub wie — łącznie z kluczem każdego węzła — jest w `node-data/okay.sqlite`. Rób kopie zapasowe tego
 katalogu i nikomu go nie udostępniaj: kto go ma, może podpisywać jako twoje węzły.
@@ -78,13 +78,13 @@ katalogu i nikomu go nie udostępniaj: kto go ma, może podpisywać jako twoje w
 | `HUB_OPEN`, `HUB_TOKEN`, `HUB_PER_DAY`, `HUB_MAX` | jak wyżej | `1`, brak, `20`, `500` |
 | `SITE` | katalog strony, którą ma serwować | `target/site` |
 
-Żeby był dostępny dla innych, postaw go za serwerem WWW z HTTPS (klucze portfela wymagają bezpiecznej strony)
+Żeby był dostępny dla innych, postaw go za serwerem WWW z HTTPS (klucze aplikacji wymagają bezpiecznej strony)
 i ustaw `HOST=0.0.0.0` albo przekieruj do niego ruch przez proxy.
 
 ## Kto zarządza społecznością
 
 Nikt z zewnątrz i żadne hasło. Własne konto społeczności jest kontem jak każde inne: urządzenia, których klucze
-mogą nim *zarządzać*, to zarząd społeczności. W portfelu, kiedy używasz tego konta:
+mogą nim *zarządzać*, to zarząd społeczności. W aplikacji, kiedy używasz tego konta:
 
 - **Społeczność** — kto prosi o przyjęcie, uczestnicy, suma wszystkich sald (zawsze zero), limity każdego
   uczestnika.

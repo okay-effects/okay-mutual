@@ -36,9 +36,13 @@ i zwyczajne, oraz księgi stowarzyszenia albo spółdzielni.
 
 Jeszcze dwie, które są wyborami społeczności, a nie właściwościami kodu:
 
-- **Najpierw firmy.** Społeczność może przyjmować tylko firmy i osoby samozatrudnione (oprogramowanie egzekwuje ten
-  wybór). Przepisy chroniące konsumentów — przede wszystkim te o kredycie — wtedy się nie pojawiają. Społeczność,
-  która przyjmuje osoby prywatne, bierze te przepisy na siebie.
+- **Osoby prywatne najpierw zarabiają, potem wydają.** Społeczność przyjmuje firmy, osoby samozatrudnione i osoby
+  prywatne, a konto osoby prywatnej nigdy nie schodzi poniżej zera. Oprogramowanie to egzekwuje: takie konto
+  otwiera się bez linii kredytowej, nie można mu jej przyznać, a linia, którą pożyczy mu inny uczestnik, wraca.
+  Osoba najpierw zarabia jednostki — pracą albo towarami sprzedanymi uczestnikom, albo jednostkami, które da jej
+  firma — a potem je wydaje. Konsumentowi nie udziela się kredytu, więc przepisy o kredycie konsumenckim się nie
+  pojawiają. Społeczność może wybrać inaczej: przyjmować tylko firmy albo dawać linie kredytowe także osobom
+  prywatnym i wziąć te przepisy na siebie.
 - **Osoba prawna dla społeczności** — stowarzyszenie albo spółdzielnia, których uczestnicy prowadzą rachunki między
   sobą — a nie operator, który „prowadzi walutę”.
 
@@ -63,6 +67,8 @@ nie wymaga zezwolenia (licencji):
   konto.
 - **Zwykła odpowiedzialność.** Uczestnik, który nie dostarcza tego, co miał dostarczyć, albo nie spłaca długu,
   odpowiada wobec pozostałych tak jak z każdej umowy.
+- **Prawa kupującego.** Firma, która sprzedaje osobie prywatnej, jest jej winna to samo, co każdemu konsumentowi —
+  rzetelną informację, rękojmię, prawo zwrotu — bez względu na to, w czym liczona jest cena.
 
 ## Czego nie jesteśmy pewni
 
@@ -80,24 +86,30 @@ Uczciwa niepewność, w kolejności wagi:
 2. **Kredyt dla osób prywatnych.** Linia kredytowa udzielona konsumentowi może podlegać przepisom o kredycie
    konsumenckim nawet bez odsetek; znowelizowana dyrektywa UE, stosowana od końca 2026 roku, zawęża dawne
    wyłączenia. To, czy kredyt wzajemny społeczności jest „kredytem udzielanym w ramach działalności gospodarczej”,
-   nie jest rozstrzygnięte. Przyjmowanie wyłącznie firm pozwala ominąć to pytanie.
-3. **Raportowanie przez platformy (DAC7)**, jak wyżej.
-4. **Każdy kraj.** Powyższe przepisy są europejskie; każde państwo stosuje je po swojemu, a niektóre dodają własne.
+   nie jest rozstrzygnięte. Tam, gdzie osoby prywatne tylko zarabiają, a potem wydają, nie dostają żadnego
+   kredytu i to pytanie się nie pojawia; społeczność, która daje im linie kredytowe, bierze je na siebie.
+3. **Kiedy sprzedaż prowadzona przez osobę staje się działalnością gospodarczą.** Ktoś, kto od czasu do czasu
+   sprzedaje pracę albo towary, jest osobą prywatną; ktoś, kto robi to regularnie, może w oczach urzędu skarbowego
+   prowadzić działalność gospodarczą, zarejestrowaną albo nie, a każdy kraj wyznacza tę granicę w innym miejscu.
+   Tak samo jest przy sprzedaży za pieniądze; wyciąg, który daje aplikacja, ułatwia prowadzenie rachunku.
+4. **Raportowanie przez platformy (DAC7)**, jak wyżej.
+5. **Każdy kraj.** Powyższe przepisy są europejskie; każde państwo stosuje je po swojemu, a niektóre dodają własne.
 
 ## Profil na początek
 
 Wszystko powyżej wskazuje jeden kierunek dla pierwszej prawdziwej społeczności:
 
 - jeden kraj i jedna jednostka;
-- tylko firmy i osoby samozatrudnione;
+- firmy, osoby samozatrudnione i osoby prywatne, które najpierw zarabiają, a potem wydają;
 - stowarzyszenie albo spółdzielnia jako osoba prawna społeczności, z zasadami spisanymi i przyjętymi przez każdego
   uczestnika;
 - przyjmowanie przez decyzję, małe linie kredytowe, które rosną razem z historią uczestnika;
 - składka, jeśli jest, w pieniądzu, na fakturę;
 - żadnych linii zaufania do innych społeczności, dopóki pierwsza nie zadziała.
 
-Przy takim profilu otwarte pytania kurczą się do dwóch — zasięgu MiCA i raportowania przez platformy — a na oba
-może odpowiedzieć jedna opinia prawna.
+Przy takim profilu otwarte pytania kurczą się do trzech — zasięgu MiCA, raportowania przez platformy i tego, gdzie
+sprzedaż prowadzona przez osobę prywatną staje się działalnością gospodarczą — a odpowiedzieć na nie może jedna
+opinia prawna.
 
 ## O co raz zapytać prawnika
 
@@ -110,7 +122,10 @@ może odpowiedzieć jedna opinia prawna.
    którego odchodzący uczestnik nie rozliczy?
 4. VAT i podatek dochodowy od transakcji w jednostkach oraz od transakcji, która jest częściowo w jednostkach,
    a częściowo w pieniądzu: moment powstania przychodu, faktura.
-5. Jeśli przyjmuje się osoby prywatne: czy do ich linii kredytowych stosują się przepisy o kredycie konsumenckim?
+5. Osoby prywatne, które tylko zarabiają i wydają, bez linii kredytowej: czy z prawa konsumenckiego stosuje się
+   cokolwiek poza zwykłymi prawami kupującego? Od jakiej skali sprzedaż prowadzona przez osobę jest tu
+   działalnością gospodarczą? A jeśli społeczność daje osobom prywatnym linie kredytowe: czy stosują się do nich
+   przepisy o kredycie konsumenckim?
 6. Co musi mieć operator huba, który tylko hostuje: umowę powierzenia przetwarzania danych, regulamin, nic więcej?
 7. Czy coś się zmienia, kiedy dwie społeczności otwierają sobie nawzajem linie zaufania przez granicę?
 

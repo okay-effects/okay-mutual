@@ -61,6 +61,14 @@ Odcina go inne twoje urządzenie. Jeśli stracisz wszystkie, osoby, które wskaz
 dostępu, albo twój węzeł mogą dodać nowy klucz — po jawnie ogłoszonym okresie oczekiwania, który każde ocalałe
 urządzenie może anulować.
 
+**Czy mogą brać udział osoby prywatne, czy tylko firmy?**
+Jedni i drudzy. Społeczność decyduje, kogo przyjmuje, a zwykły wybór to: firmy, osoby samozatrudnione i osoby
+prywatne, których konta nigdy nie schodzą poniżej zera. Firma może kupić, zanim cokolwiek sprzeda, w granicach
+swojej linii kredytowej. Osoba prywatna najpierw zarabia — pracą albo czymś, co sprzeda uczestnikowi, albo
+jednostkami, które da jej firma — a potem wydaje to, co zarobiła. Dzięki temu system pozostaje poza przepisami
+o kredycie dla konsumentów; w ten sposób takie sieci już wcześniej włączały osoby prywatne. Społeczność może
+zamiast tego przyjmować tylko firmy albo dawać linie kredytowe także osobom prywatnym.
+
 **Czy moja rodzina albo firma może mieć wspólne konto?**
 Tak: posiadaczami konta mogą być konta kilku osób, każde z własnym limitem, a przy dużych kwotach konto może
 wymagać dwóch podpisów. Budżet działu albo dziecka to konto z linią pożyczoną z konta nadrzędnego.

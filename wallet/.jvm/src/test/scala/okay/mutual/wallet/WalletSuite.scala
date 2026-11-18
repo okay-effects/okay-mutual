@@ -12,6 +12,8 @@ import okay.serverless.cloud.Request
 final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
   var pair: Option[Pair] = None
   val kept = scala.collection.mutable.Map.empty[String, String]
+  /** done just before this device gives the node a record: what happens meanwhile, in a test */
+  var meanwhile: () => Unit = () => ()
   if node.nonEmpty then kept("node") = node
   /** what the wallet copied: its statements */
   val copied = scala.collection.mutable.Buffer.empty[String]
@@ -24,7 +26,10 @@ final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
 
   private def net[R[_], Rest[_], A](p: A ! R)(using Split[Net, R, Rest]): A ! Rest =
     handle(p, Handler.Tail[Net, Rest, A, A](a => pure(a), [X] => (op: Net[X]) => op match
-      case Net.Call(method, path, body, token) => asked(method, kept.getOrElse("node", "") + path, body,
+      case Net.Call(method, path, body, token) =>
+        // what the test says happens while a form is open: before the account is asked for anew
+        if method == "GET" && path.matches("/api/accounts/[0-9a-f]{64}") then { val m = meanwhile; meanwhile = () => (); m() }
+        asked(method, kept.getOrElse("node", "") + path, body,
           (if token.isEmpty then Nil else List("x-setup-token" -> token))*)
       case Net.AtHub(method, path, body) => asked(method, path, body, "cf-connecting-ip" -> "1.2.3.4")
       // another node of this hub by its place; one elsewhere is not reached from a test
@@ -448,4 +453,30 @@ class WalletSuite extends munit.FunSuite:
     val opened = person.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" ->
       "Ola"))
     assert(Seen.of(opened).contains("starts at zero and does not go below it"), Seen.of(opened))
+  }
+
+  test("a payment received while the app is open does not spoil the next one: the record is the chain's next as it is NOW") {
+    val town = Town()
+    val (anna, jan) = (joined(town, "Anna"), joined(town, "Jan"))
+    // Anna has her Pay form open; meanwhile Jan pays her; then she presses Save — her chain has moved on by a record
+    var paidMeanwhile = false
+    val acts = Seq(Act.press("Pay"), Act.press("Save", "To" -> "Jan", "Amount" -> "30"), Act.press("Yes"))
+    // the first time the app asks for her account is the home screen; the hook is armed after it is drawn
+    val home = anna.play()
+    assertEquals(home.at.map(_.title), Some("Anna"))
+    var asked = 0
+    anna.meanwhile = () => ()
+    val paid = {
+      // arm on the second asking for the account in this play: the first draws the home, the second is `say`'s
+      def arm(): Unit = anna.meanwhile = () => { asked += 1; if asked == 1 then arm() else if !paidMeanwhile then {
+        paidMeanwhile = true
+        assertEquals(jan.play(Act.press("Pay"), Act.press("Save", "To" -> "Anna", "Amount" -> "20"), Act.press("Yes"))
+          .at.map(_.title), Some("Paid")) } }
+      arm()
+      anna.play(acts*)
+    }
+    assert(paidMeanwhile)
+    assertEquals(paid.at.map(_.title), Some("Paid"), Seen.of(paid))
+    assert(Seen.of(anna.play()).contains("Balance: -10.00"), Seen.of(anna.play()))
+    assertEquals(town.checked(anna.account).map(_.balance), Right(-1000L))
   }
