@@ -16,6 +16,7 @@ import okay.serverless.cloud.{Actor, InActor, Request, Response}
  *   dir/request/<id>    one who asked to join where joining is not open: the signed first record, the name
  *   dir/head/<id>       the hash of the account's last record
  *   dir/number          how many times the heads changed: the head's number
+ *   dir/line/<peer key> the account this node keeps for another node: its id, the peer's address and name
  *   dir/community       the id of the community's own account — its holders that may manage govern the node
  *   dir/command/<hash>  a command taken (never twice)
  *
@@ -32,6 +33,7 @@ object Directory extends Actor:
   private val heads = s"$scope/head/"
   private val number = s"$scope/number"
   private val community = s"$scope/community"
+  private val lines = s"$scope/line/"
 
   type Live[X] = (InActor + Signer)[X]
   private type Step[X] = (Live + Durable)[X]
@@ -100,6 +102,20 @@ object Directory extends Actor:
         _.fold(Http.refused("unknown", 404))(Http.json(_)))
     case ("POST", "/_dir/reject") =>
       step(Durable.delete[Step](requests + Http.body(r)("id").string)).as(Http.json(Json.obj()))
+// ---- trust lines (specs/protocol.md "Trust lines between nodes")
+    case ("GET", "/_dir/lines") => Http.all[Live](lines).map(ls => Http.json(Json.obj("lines" ->
+        Json.Arr(ls.map(_._2).sortBy(_("name").string.toLowerCase)))))
+    case ("GET", "/_dir/line") => Http.read[Live](lines + r.param("node").getOrElse("")).map(
+        _.fold(Http.refused("unknown", 404))(Http.json(_)))
+    case ("POST", "/_dir/line") =>
+      val j = Http.body(r)
+      step(Durable.put[Json, Step](lines + j("node").string, j)).as(Http.json(Json.obj()))
+    // the opening record of this node's own account at the node that asks, signed: nothing but this node's word
+    // that the key is its own — the account is the asker's to open, and only this node's key will debit it
+    case ("POST", "/_dir/line/sign") => scala.util.Try(Http.body(r)("node").string).toOption.filter(_.nonEmpty) match
+        case None => pure(Http.refused("body"))
+        case Some(asker) => Check.signed[Live](Peers.opening(asker, env.pub, env.unit), Pair(env.pub, env.secret))
+            .map(signed => Http.json(Signed.json(signed)))
     case ("GET", "/_dir/community") => Http.read[Live](community).map(c => Http.json(Json.obj("community" ->
         c.getOrElse(Json.Null))))
     // the community's account named — once

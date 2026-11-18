@@ -237,6 +237,8 @@ object AccountObject extends Actor:
    * (`bounce`, or `released` for a line); no answer — it stays, for the alarm */
   private def fly(env: NodeEnv, hash: String, f: Json): Unit ! Live = state.flatMap {
     case None => unit[Live]
+    // to an account of another node (`<account>@<that node's key>`): across the trust line
+    case Some(s) if f("to").string.contains("@") => across(env, s, hash, f)
     case Some(s) =>
       val (kind, to, amount) = (f("kind").string, f("to").string, f("amount").long)
       Objects.call[Live](namespace, to, Http.post("/_acct/deliver", Json.obj("kind" -> Json.str(kind),
@@ -252,6 +254,65 @@ object AccountObject extends Actor:
         else unit[Live]
       }
   }
+
+  private def landed(hash: String): Unit ! Live =
+    Durable.step[Step, Live, Unit](scope)(Durable.delete[Step](flightKey(hash)))
+  private def back(env: NodeEnv, hash: String, kind: String, amount: Long): Unit ! Live =
+    byNode(env, if kind == "vouched" then Body.Released(hash, amount) else Body.Bounce(hash, amount))
+      .flatMap(_ => landed(hash))
+
+  /**
+   * A PAYMENT TO A MEMBER OF ANOTHER NODE (specs/protocol.md "Trust lines between nodes"). This node keeps an
+   * account for the peer, and the peer one for this node — held by this node's key. With that key the node signs a
+   * `send` to the receiver on its account THERE: an ordinary holder's record, which the peer checks against the
+   * credit it gives this node, co-signs and carries to its member. Taken: the peer's account HERE is credited —
+   * the two mirror each other, and each node's balances still sum to zero. Refused, bounced there, no line: the
+   * amount back to its sender. No answer: the flight stays for the alarm — the payment's name (this send's hash)
+   * makes the same record of it there, so tried again it is paid once. A line is not lent across nodes
+   */
+  private def across(env: NodeEnv, s: State, hash: String, f: Json): Unit ! Live =
+    val (kind, amount, memo) = (f("kind").string, f("amount").long, f.field("memo").fold("")(_.string))
+    val (account, peer) = { val to = f("to").string; (to.takeWhile(_ != '@'), to.dropWhile(_ != '@').drop(1)) }
+    def refused: Unit ! Live = back(env, hash, kind, amount)
+    if kind != "receive" then refused
+    else Objects.call[Live](Directory.namespace, env.slug, Request.get(s"/_dir/line?node=$peer")).flatMap { mine =>
+      scala.util.Try((Http.answer(mine)("id").string, Http.answer(mine)("address").string)).toOption
+        .filter(_ => mine.status == 200) match
+        case None => refused
+        case Some((ours, address)) => Peers.line[Live](address, env.pub).flatMap {
+            case None => refused
+            case Some(theirs) =>
+              // the record on this node's account there: the next of that chain as it is now; again when another
+              // payment of this node took the place meanwhile
+              def attempt(tries: Int): Option[Boolean] ! Live = Peers.state[Live](address, peer, theirs).flatMap {
+                case None => pure(Some(false))
+                case Some(there) => Clock.now[Live].flatMap { now =>
+                    val record = Record(theirs, there.seq + 1, there.head, now.max(there.at), Body.Send(account, amount,
+                      if memo.isEmpty then "" else Sha256.hex(memo), hash.take(32)))
+                    Check.signed[Live](record, Pair(env.pub, env.secret)).flatMap(signed =>
+                      Peers.append[Live](address, peer, theirs, signed, memo)).flatMap { (status, answer) =>
+                      val placed = status == 409 && scala.util.Try(answer("error").string).toOption.contains("place")
+                      if status == 200 then pure(Some(
+                        // taken by the receiver unless it came back there: a send not bounced stays in `sent`
+                        scala.util.Try(Signed.parse(answer("record")).get.hash).toOption.exists(h =>
+                          StateJson.read(answer("state")).exists(_.sent.contains(h)))))
+                      else if placed && tries > 1 then attempt(tries - 1)
+                      else if status >= 400 && status < 500 then pure(Some(false))
+                      else pure(None)
+                    }
+                  }
+              }
+              attempt(5).flatMap {
+                case None => unit[Live]
+                case Some(false) => refused
+                case Some(true) => Objects.call[Live](namespace, ours, Http.post("/_acct/deliver", Json.obj(
+                    "kind" -> Json.str("receive"), "from" -> Json.str(s.id), "ref" -> Json.str(hash),
+                    "amount" -> Json.num(amount), "memo" -> Json.str(memo))).copy(headers = Map(
+                    "x-node" -> List(env.pub), "content-type" -> List("application/json")))).flatMap(credited =>
+                    if credited.status == 200 then landed(hash) else unit[Live])
+              }
+          }
+    }
 
   /** the alarm: every flight still here tried again; another alarm while any is left */
   private def flights(env: NodeEnv): Unit ! Live = Http.all[Live](s"$scope/flight/").flatMap { all =>

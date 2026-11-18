@@ -292,3 +292,105 @@ class NodeSuite extends munit.FunSuite:
     val full = Hubs("HUB_MAX" -> "1")
     assertEquals((full.make("one", "One").status, full.make("two", "Two", from = "9.9.9.9").status), (200, 429))
   }
+
+  /** a community set up by a founder's device, with a member; its line opened by the founder's command */
+  private final class Community(val net: Net, member: String):
+    val founder = Wallet(net)
+    assertEquals(net.post("/api/setup", Json.obj("record" -> founder.signed(founder.opening("community")),
+      "name" -> Json.str(member + "'s town")), "x-setup-token" -> net.token).status, 200)
+    val one = Wallet(net)
+    assertEquals(one.join(member).status, 200)
+    def line(address: String, credit: Long) = net.command(founder.key, "cmd" -> Json.str("line"),
+      "at" -> Json.num(net.now), "address" -> Json.str(address), "credit" -> Json.num(credit))
+    /** the account this node keeps for the node of `other` */
+    def lineTo(other: Net): Json =
+      val id = net.json(net.get(s"/api/line?node=${other.node.pub}"))("id").string
+      net.json(net.get(s"/api/accounts/$id"))
+    def sum: Long = net.json(net.get("/api/members"))("members").list.map(m =>
+      net.json(net.get(s"/api/accounts/${m("id").string}"))("balance").long).sum
+    def pay(to: Wallet, at: Net, amount: Long) = one.say(Body.Send(s"${to.id}@${at.node.pub}", amount, "", ""))
+
+  /** two communities with lines to each other: each lets the other owe it 500.00 */
+  private def trading(north: Net, south: Net, northAddress: String, southAddress: String): (Community, Community) =
+    val (n, s) = (Community(north, "Anna"), Community(south, "Olaf"))
+    assertEquals(n.line(southAddress, 50000).status, 200, n.line(southAddress, 50000).body)
+    assertEquals(s.line(northAddress, 50000).status, 200)
+    (n, s)
+
+  private def traded(n: Community, s: Community): Unit =
+    val (north, south) = (n.net, s.net)
+    // Anna (north) pays Olaf (south) 40.00: her chain, north's key on north's account at south, Olaf's chain
+    assertEquals(n.pay(s.one, south, 4000).status, 200)
+    assertEquals((n.one.balance, s.one.balance), (-4000L, 4000L))
+    // the two line accounts mirror each other; each community's balances still sum to zero
+    assertEquals((n.lineTo(south)("balance").long, s.lineTo(north)("balance").long), (4000L, -4000L))
+    assertEquals((n.sum, s.sum), (0L, 0L))
+    // every chain holds by its signatures: the line at south is held by north's key and ordered by south's
+    val atSouth = s.lineTo(north)
+    assertEquals(atSouth("grants").list.map(_("key").string), Vector(north.node.pub))
+    assertEquals(south.checked(atSouth("id").string).map(st => (st.node, st.balance)), Right((south.node.pub, -4000L)))
+    assertEquals(north.checked(n.one.id).map(_.balance), Right(-4000L))
+    assertEquals(south.checked(s.one.id).map(_.balance), Right(4000L))
+    // Olaf sees whom it came from: the other community, listed among his own
+    assert(south.json(south.get("/api/members"))("members").list.exists(m => m("of").string == "line" &&
+      m("name").string == "North"))
+    // the way back: Olaf pays Anna 10.00
+    assertEquals(s.pay(n.one, north, 1000).status, 200)
+    assertEquals((n.one.balance, s.one.balance), (-3000L, 3000L))
+    assertEquals((n.lineTo(south)("balance").long, s.lineTo(north)("balance").long), (3000L, -3000L))
+    // past what south lets north owe (500.00): refused there, back to Anna here — whose own line would allow it
+    north.command(n.founder.key, "cmd" -> Json.str("limits"), "at" -> Json.num(north.now),
+      "account" -> Json.str(n.one.id), "credit" -> Json.num(9000000), "ceiling" -> Json.num(30000))
+    assertEquals(n.pay(s.one, south, 47001).status, 200)
+    assertEquals((n.one.balance, s.lineTo(north)("balance").long, n.lineTo(south)("balance").long),
+      (-3000L, -3000L, 3000L))
+    // a receiver at its ceiling there: bounced there, back here
+    assertEquals(n.pay(s.one, south, 28000).status, 200)
+    assertEquals((n.one.balance, s.one.balance, s.lineTo(north)("balance").long), (-3000L, 3000L, -3000L))
+    // nobody of that id there; no such node at all
+    assertEquals(n.pay(Wallet(north), south, 100).status, 200)
+    assertEquals(n.one.say(Body.Send(s"${s.one.id}@nobody", 100, "", "")).status, 200)
+    assertEquals((n.one.balance, n.sum, s.sum), (-3000L, 0L, 0L))
+    // a line's credit is changed by the same command, and its ceiling is never bounded
+    assertEquals(n.line(n.net.json(n.net.get("/api/lines"))("lines").list.head("address").string, 100).status, 200)
+    assertEquals((n.lineTo(south)("credit").long, n.lineTo(south)("ceiling").long), (100L, Peers.unbounded))
+    north.command(n.founder.key, "cmd" -> Json.str("limits"), "at" -> Json.num(north.now + 1),
+      "account" -> Json.str(n.lineTo(south)("id").string), "credit" -> Json.num(200), "ceiling" -> Json.num(1))
+    assertEquals((n.lineTo(south)("credit").long, n.lineTo(south)("ceiling").long), (200L, Peers.unbounded))
+    // south may now owe north only 2.00: Olaf's payment of 31.00 more to Anna (south already owes... no: north owes
+    // south 30.00, so 32.00 more would put south 2.00 in debt, the most it may) passes, one more unit does not
+    assertEquals(s.pay(n.one, north, 3200).status, 200)
+    assertEquals(n.lineTo(south)("balance").long, -200L)
+    assertEquals(s.pay(n.one, north, 1).status, 200)
+    assertEquals((n.lineTo(south)("balance").long, s.lineTo(north)("balance").long, n.sum, s.sum), (-200L, 200L, 0L, 0L))
+
+  test("trust lines on one hub: a payment across two communities, mirrored, bounded by the receiver's trust") {
+    val hub = Hubs("HUB_PER_DAY" -> "9")
+    val (north, south) = (Net(hub = hub, slug = "north", name = "North"), Net(hub = hub, slug = "south", name = "South"))
+    // no line yet: the payment comes back
+    val (n0, s0) = (Wallet(north), Wallet(south))
+    n0.join("Early"); s0.join("Late")
+    assertEquals(n0.say(Body.Send(s"${s0.id}@${south.node.pub}", 100, "", "")).status, 200)
+    assertEquals(n0.balance, 0L)
+    val (n, s) = trading(north, south, "/n/north", "/n/south")
+    // a line is the community's to open: not a stranger's command, not to itself, not to a place that is no node
+    assertEquals(north.command(n.one.key, "cmd" -> Json.str("line"), "at" -> Json.num(north.now),
+      "address" -> Json.str("/n/south"), "credit" -> Json.num(1)).status, 403)
+    assertEquals(n.line("/n/north", 1).status, 409)
+    assertEquals(n.line("/n/nowhere", 1).status, 404)
+    assertEquals(n.line("ftp://x", 1).status, 400)
+    traded(n, s)
+  }
+
+  test("trust lines between two hubs: the same, over the network") {
+    val (a, b) = (Hubs(), Hubs())
+    def wire(from: Hubs, host: String, to: Hubs): Unit =
+      val before = from.cloud.internet
+      from.cloud.internet = (url, r) => if url.startsWith(host) then to.ask(okay.serverless.cloud.Request(r.method,
+        url.stripPrefix(host)).copy(body = r.body, headers = r.headers)) else before(url, r)
+    wire(a, "https://south.example", b)
+    wire(b, "https://north.example", a)
+    val (north, south) = (Net(hub = a, slug = "north", name = "North"), Net(hub = b, slug = "south", name = "South"))
+    val (n, s) = trading(north, south, "https://north.example/n/north", "https://south.example/n/south")
+    traded(n, s)
+  }

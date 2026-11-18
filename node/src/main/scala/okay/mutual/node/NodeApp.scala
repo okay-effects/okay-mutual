@@ -30,6 +30,9 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *   GET  /api/accounts/<id>/proof           the proof that its head is under the node's head
  *   POST /api/accounts/<id>/records         {record, memo?}: a holder's signed record — `send`, `vouch`, `grant`,
  *                                           `revoke`; a payment's memo, when its hash is the record's
+ *   GET  /api/lines                         the nodes this one keeps an account for: key, address, name, account
+ *   GET  /api/line?node=<key>               the account it keeps for that node
+ *   POST /api/line/open                     {node}: the opening record of its own account at that node, signed
  *   POST /api/setup                         {record, name}: the community's own account, once (`x-setup-token`)
  *   POST /api/command                       {command, key, sig}: a command of one who may manage the community
  *
@@ -39,7 +42,8 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  * of a node or of the hub's nodes: the hub's operator keeps the machine, not the communities.
  *
  * Commands (`{cmd, at, …}`, signed as their text, good for ten minutes, taken once): `limits {account, credit,
- * ceiling}`; `admit {id, credit, ceiling}` — one who asked is opened an account; `reject {id}`
+ * ceiling}`; `admit {id, credit, ceiling}` — one who asked is opened an account; `reject {id}`; `line {address,
+ * credit}` — an account kept for another node (a trust line): how far that community may owe this one
  */
 object NodeApp extends App:
   val actors: Map[String, Actor] = Map(AccountObject.namespace -> AccountObject, Directory.namespace -> Directory,
@@ -106,6 +110,12 @@ object NodeApp extends App:
       case ("POST", List("api", "accounts", a, "records")) if id(a) =>
         account(env, a, Http.post("/_acct/append", Json.obj("record" -> Http.body(r)("record"),
           "memo" -> Http.body(r).field("memo").getOrElse(Json.str(""))))).map(answered)
+      case ("GET", List("api", "lines")) => directory(env, Request.get("/_dir/lines")).map(answered)
+      case ("GET", List("api", "line")) => directory(env, Request.get(s"/_dir/line?node=${r.param("node")
+          .getOrElse("")}")).map(l => if l.status != 200 then answered(l) else
+          Http.json(Json.obj("id" -> Http.answer(l)("id"))))
+      case ("POST", List("api", "line", "open")) =>
+        directory(env, Http.post("/_dir/line/sign", Json.obj("node" -> Http.body(r)("node")))).map(answered)
       case ("POST", List("api", "setup")) => setup(env, r)
       case ("POST", List("api", "command")) => command(env, Http.body(r))
       case _ => pure(Response.notFound())
@@ -184,8 +194,15 @@ object NodeApp extends App:
   private def commanded(env: NodeEnv, c: Json): Response ! Live =
     scala.util.Try(c("cmd").string).getOrElse("") match
       case "limits" => scala.util.Try((c("account").string, c("credit").long, c("ceiling").long)).toOption match
-          case Some((a, credit, ceiling)) if id(a) => account(env, a, Http.post("/_acct/limits", Json.obj(
-              "credit" -> Json.num(credit), "ceiling" -> Json.num(ceiling)))).map(answered)
+          // a line's ceiling stays unbounded, whatever is asked: only how far the peer may owe is this node's to say
+          case Some((a, credit, ceiling)) if id(a) => account(env, a, Request.get("/_acct/state")).flatMap { st =>
+              val line = StateJson.read(Http.answer(st)).exists(_.of == "line")
+              account(env, a, Http.post("/_acct/limits", Json.obj("credit" -> Json.num(credit),
+                "ceiling" -> Json.num(if line then Peers.unbounded else ceiling)))).map(answered)
+            }
+          case _ => pure(Http.refused("command"))
+      case "line" => scala.util.Try((c("address").string.trim.stripSuffix("/"), c("credit").long)).toOption match
+          case Some((address, credit)) if Peers.valid(address) && credit >= 0 => lined(env, address, credit)
           case _ => pure(Http.refused("command"))
       // one who asked, opened an account with the limits the community gives
       case "admit" => scala.util.Try((c("id").string, c("credit").long, c("ceiling").long)).toOption match
@@ -200,3 +217,30 @@ object NodeApp extends App:
               .map(answered)
           case _ => pure(Http.refused("command"))
       case _ => pure(Http.refused("command"))
+
+  /** A TRUST LINE OPENED (or its credit changed): the peer asked who it is and to sign the opening record of its
+   * account here — of the same unit only —, the account opened with the credit this community gives, its ceiling
+   * unbounded; listed among the members under the peer's name, and kept as this node's line to that peer */
+  private def lined(env: NodeEnv, address: String, credit: Long): Response ! Live =
+    Peers.about[Live](address).flatMap {
+      case None => pure(Http.refused("no such node", 404))
+      case Some(peer) if peer.pub == env.pub => pure(Http.refused("same", 409))
+      case Some(peer) if peer.unit != env.unit => pure(Http.refused("unit", 409, "detail" -> Json.str(peer.unit)))
+      case Some(peer) => Peers.signedOpening[Live](address, env.pub).flatMap {
+          case Some(signed) if signed.text == Record.text(Peers.opening(env.pub, peer.pub, env.unit)) =>
+            open(env, signed.hash, Signed.json(signed), credit, Peers.unbounded).flatMap { made =>
+              // there already: its credit set
+              (if made.status == 409 then account(env, signed.hash, Http.post("/_acct/limits", Json.obj(
+                "credit" -> Json.num(credit), "ceiling" -> Json.num(Peers.unbounded)))) else pure(made)).flatMap {
+                done =>
+                  if done.status != 200 then pure(answered(done))
+                  else directory(env, Http.post("/_dir/line", Json.obj("node" -> Json.str(peer.pub),
+                    "id" -> Json.str(signed.hash), "address" -> Json.str(address), "name" -> Json.str(peer.name))))
+                    .flatMap(_ => directory(env, Http.post("/_dir/member", Json.obj("id" -> Json.str(signed.hash),
+                      "name" -> Json.str(peer.name), "of" -> Json.str("line"), "at" -> Json.num(0)))))
+                    .as(answered(done))
+              }
+            }
+          case _ => pure(Http.refused("peer", 502))
+        }
+    }
