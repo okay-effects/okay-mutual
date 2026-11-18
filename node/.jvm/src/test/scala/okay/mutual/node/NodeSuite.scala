@@ -688,3 +688,61 @@ class NodeSuite extends munit.FunSuite:
       "ceiling" -> Json.num(300), "setup" -> Json.str("t"))).get
     assertEquals((old.only, old.personalCredit, old.personalMax, old.shared, old.days), ("", 100L, 0L, true, 7))
   }
+
+  test("stamp cards: a shop's card; a stamp and a reward by the shop's signed token, claimed once by the customer") {
+    val (net, anna, jan) = town()
+    def word(by: Wallet, path: String, fields: (String, Json)*) =
+      net.now += 1
+      val text = Json.print(Json.Obj(fields.toVector :+ ("at" -> Json.num(net.now))))
+      net.post(path, Json.obj("command" -> Json.str(text), "key" -> Json.str(by.key.pub),
+        "sig" -> Json.str(SignerJdk.sign(by.key.secret, text))))
+    def card(by: Wallet, need: Long) = word(by, "/api/cards", "cmd" -> Json.str("card"), "account" -> Json.str(jan.id),
+      "title" -> Json.str("Coffee card"), "need" -> Json.num(need), "reward" -> Json.str("a free coffee"))
+    // a card is its shop's own word; a card of two stamps at least
+    assertEquals(card(anna, 3).status, 403)
+    assertEquals(error(net, card(jan, 1))._2, "card")
+    assertEquals(card(jan, 3).status, 200)
+    assertEquals(net.json(net.get("/api/cards"))("cards").list.map(c => (c("account").string, c("title").string,
+      c("need").long, c("reward").string)), Vector((jan.id, "Coffee card", 3L, "a free coffee")))
+    // the shop's device signs a token; the customer's device claims it
+    def token(kind: String, by: Wallet = jan, shop: Wallet = jan): Json =
+      net.now += 1
+      val text = Json.print(Json.obj("cmd" -> Json.str(kind), "account" -> Json.str(shop.id),
+        "at" -> Json.num(net.now), "n" -> Json.str(s"n${net.now}")))
+      Json.obj("command" -> Json.str(text), "key" -> Json.str(by.key.pub),
+        "sig" -> Json.str(SignerJdk.sign(by.key.secret, text)))
+    def claim(t: Json, who: Wallet = anna, by: Wallet = anna) =
+      val hash = Sha256.hex(t("command").string)
+      net.post("/api/cards/claim", Json.obj("token" -> t, "account" -> Json.str(who.id),
+        "key" -> Json.str(by.key.pub), "sig" -> Json.str(SignerJdk.sign(by.key.secret, s"claim:$hash:${who.id}"))))
+    val first = token("stamp")
+    val got = claim(first)
+    assertEquals(got.status, 200, got.body)
+    assertEquals((net.json(got)("stamps").long, net.json(got)("need").long, net.json(got)("title").string),
+      (1L, 3L, "Coffee card"))
+    // a token is taken once; not by a token the shop did not sign; not for an account the claimer does not hold
+    assertEquals(error(net, claim(first))._2, "used")
+    assertEquals(error(net, claim(token("stamp", by = anna)))._1, 403)
+    assertEquals(error(net, claim(token("stamp"), who = jan, by = anna))._1, 409)
+    val stranger = Wallet(net)
+    assertEquals(stranger.join("Eve").status, 200)
+    assertEquals(error(net, claim(token("stamp"), who = stranger, by = anna))._1, 403)
+    // a token grows old in ten minutes
+    val old = token("stamp")
+    net.now += 11 * 60 * 1000L
+    assertEquals(error(net, claim(old))._2, "time")
+    // no reward before the card is full; then the reward, and the card starts again
+    assertEquals(error(net, claim(token("redeem")))._2, "short")
+    assertEquals(claim(token("stamp")).status, 200)
+    assertEquals(net.json(claim(token("stamp")))("stamps").long, 3L)
+    val reward = net.json(claim(token("redeem")))
+    assertEquals((reward("stamps").long, reward("used").long, reward("reward").string), (0L, 1L, "a free coffee"))
+    def mine(w: Wallet) = net.json(net.get(s"/api/cards?of=${w.id}"))("stamps").list.map(s =>
+      (s("shop").string, s("stamps").long, s("used").long))
+    assertEquals((mine(anna), mine(stranger)), (Vector((jan.id, 0L, 1L)), Vector.empty))
+    // a stamp is no unit: no chain moved, nobody's balance changed
+    assertEquals((anna.state("seq").long, jan.state("seq").long, anna.balance, jan.balance), (2L, 2L, 0L, 0L))
+    // the card taken off by its shop: no stamps given on it
+    assertEquals(word(jan, "/api/cards", "cmd" -> Json.str("uncard"), "account" -> Json.str(jan.id)).status, 200)
+    assertEquals(error(net, claim(token("stamp")))._2, "no card")
+  }

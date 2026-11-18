@@ -46,6 +46,13 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *   POST /api/board                         {command, key, sig}: a member's own word, signed by a key that holds
  *                                           its account — `list {account, kind, title, text, price, share}`,
  *                                           `unlist {account, id}`
+ *   GET  /api/cards[?of=<account>]          the shops' stamp cards; with `of`, that customer's stamps at each
+ *   POST /api/cards                         {command, key, sig}: a shop's own word — `card {account, title, need,
+ *                                           reward}`, `uncard {account}`
+ *   POST /api/cards/claim                   {token: {command, key, sig}, account, key, sig}: a stamp or a reward
+ *                                           the shop's device signed (`stamp` / `redeem {account, at, n}`, good ten
+ *                                           minutes, taken once), claimed by a key that holds `account` (`sig`: its
+ *                                           signature of `claim:<the command's hash>:<account>`)
  *   POST /api/setup                         {record, name}: the community's own account, once (`x-setup-token`)
  *   POST /api/command                       {command, key, sig}: a command of one who may manage the community
  *
@@ -176,6 +183,10 @@ object NodeApp extends App:
       case ("GET", List("api", "recoveries")) => directory(env, Request.get("/_dir/recoveries")).map(answered)
       case ("GET", List("api", "board")) => directory(env, Request.get("/_dir/listings")).map(answered)
       case ("POST", List("api", "board")) => posted(env, Http.body(r))
+      case ("GET", List("api", "cards")) => directory(env, Request.get(s"/_dir/cards?of=${r.param("of").filter(id)
+          .getOrElse("")}")).map(answered)
+      case ("POST", List("api", "cards")) => posted(env, Http.body(r))
+      case ("POST", List("api", "cards", "claim")) => claimed(env, Http.body(r))
       case ("POST", List("api", "setup")) => setup(env, r)
       case ("POST", List("api", "command")) => command(env, Http.body(r))
       case _ => pure(Response.notFound())
@@ -346,6 +357,41 @@ object NodeApp extends App:
         }
     }
 
+  /**
+   * A STAMP OR A REWARD CLAIMED (specs/protocol.md "Stamp cards"). The shop's device signs a token — `stamp` or
+   * `redeem`, its account, the time, a number of its own — and shows it as a code; the customer's device brings it
+   * with its own signature over the token's hash and the customer's account. Checked: the token fresh, signed by a
+   * key that holds the shop's account and may spend from it; the claim signed by a key that holds the customer's;
+   * the token never taken before. A stamp is no unit: nothing of any chain changes
+   */
+  private def claimed(env: NodeEnv, j: Json): Response ! Live =
+    scala.util.Try((j("token")("command").string, j("token")("key").string, j("token")("sig").string,
+      j("account").string, j("key").string, j("sig").string)).toOption.flatMap(t =>
+      Descent.parse(t._1).toOption.flatMap(c => scala.util.Try((c("cmd").string, c("account").string, c("at").long))
+        .toOption).map(t -> _)) match
+      case Some(((text, shopKey, shopSig, customer, key, sig), (cmd, shop, at)))
+        if id(shop) && id(customer) && Set("stamp", "redeem")(cmd) =>
+        def holds(account: String, k: String, spend: Boolean): Boolean ! Live =
+          this.account(env, account, Request.get("/_acct/state")).map(st => StateJson.read(Http.answer(st))
+            .flatMap(_.grant(k)).exists(g => !spend || g.spend))
+        Clock.now[Live].flatMap { now =>
+          if shop == customer then pure(Http.refused("same", 409))
+          else if math.abs(at - now) > fresh then pure(Http.refused("time", 409))
+          else Signer.verify[Live](shopKey, text, shopSig).flatMap(a => Signer.verify[Live](key,
+            s"claim:${Sha256.hex(text)}:$customer", sig).map(a && _)).flatMap { signed =>
+            if !signed then pure(Http.refused("unsigned", 403))
+            else holds(shop, shopKey, spend = true).flatMap(s => holds(customer, key, spend = false).map(s && _))
+              .flatMap { may =>
+                if !may then pure(Http.refused("forbidden", 403))
+                else directory(env, Http.post("/_dir/command", Json.obj("hash" -> Json.str(Sha256.hex(text)))))
+                  .flatMap(taken => if taken.status != 200 then pure(Http.refused("used", 409))
+                    else directory(env, Http.post("/_dir/stamp", Json.obj("shop" -> Json.str(shop),
+                      "customer" -> Json.str(customer), "kind" -> Json.str(cmd)))).map(answered))
+              }
+          }
+        }
+      case _ => pure(Http.refused("body"))
+
   /** A MEMBER'S OWN WORD ON THE BOARD: its text signed by a key that holds the account it names and may spend from
    * it, its time near now, taken once. Kept beside the chains: an entry is no record, it is taken off without a
    * trace. `list`: what is offered or wanted, its price (0: by agreement), the share of it taken in units */
@@ -373,6 +419,16 @@ object NodeApp extends App:
                           "text" -> Json.str(more), "price" -> Json.num(price), "share" -> Json.num(share),
                           "at" -> Json.num(now)))).map(answered)
                       case _ => pure(Http.refused("listing"))
+                  // a shop's stamp card: so many stamps, then the reward it names
+                  case "card" => scala.util.Try((c("title").string.replaceAll("\\s+", " ").trim.take(80),
+                      c("need").long, c("reward").string.replaceAll("\\s+", " ").trim.take(120))).toOption match
+                      case Some((title, need, reward)) if title.nonEmpty && reward.nonEmpty && need >= 2 &&
+                        need <= 50 => directory(env, Http.post("/_dir/card", Json.obj("account" -> Json.str(a),
+                          "title" -> Json.str(title), "need" -> Json.num(need), "reward" -> Json.str(reward),
+                          "at" -> Json.num(now)))).map(answered)
+                      case _ => pure(Http.refused("card"))
+                  case "uncard" => directory(env, Http.post("/_dir/card/remove", Json.obj("account" -> Json.str(a))))
+                      .map(answered)
                   case "unlist" => scala.util.Try(c("id").string).toOption match
                       case Some(entry) => directory(env, Http.post("/_dir/listing/remove", Json.obj(
                           "id" -> Json.str(entry), "account" -> Json.str(a)))).map(answered)

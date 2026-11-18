@@ -19,6 +19,8 @@ import okay.serverless.cloud.{Actor, InActor, Request, Response}
  *   dir/line/<peer key> the account this node keeps for another node: its id, the peer's address and name
  *   dir/recovery/<id>   one who asks back an account whose devices are lost: the new device's key, when
  *   dir/listing/<id>    an offer or a want of a member: what, for how much, what share of it in units
+ *   dir/card/<id>       a shop's stamp card: its title, how many stamps make a reward, the reward
+ *   dir/stamps/<shop>/<customer>  a customer's card at a shop: the stamps on it, the rewards taken
  *   dir/rules           the community's rules: the text its members accept to join, and its hash
  *   dir/holders/<id>    the accounts that hold the account <id> (a family's, a team's): their ids
  *   dir/community       the id of the community's own account — its holders that may manage govern the node
@@ -42,6 +44,8 @@ object Directory extends Actor:
   private val recoveries = s"$scope/recovery/"
   private val listings = s"$scope/listing/"
   private val holders = s"$scope/holders/"
+  private val cards = s"$scope/card/"
+  private val stamps = s"$scope/stamps/"
 
   type Live[X] = (InActor + Signer)[X]
   private type Step[X] = (Live + Durable)[X]
@@ -142,6 +146,39 @@ object Directory extends Actor:
         case Some(l) if l("account") == j("account") => Durable.delete[Step](listings + j("id").string).as(true)
         case _ => pure(false)
       }).map(gone => if gone then Http.json(Json.obj()) else Http.refused("unknown", 404))
+    // ---- stamp cards (specs/protocol.md "Stamp cards"): beside the chains — a stamp is no unit
+    // the shops' cards, and with `of` that customer's stamps at each
+    case ("GET", "/_dir/cards") =>
+      val of = r.param("of").getOrElse("")
+      Http.all[Live](cards).flatMap(cs => (if of.isEmpty then pure[Vector[(String, Json)], Live](Vector.empty)
+        else Http.all[Live](stamps).map(_.filter(_._1.endsWith("/" + of)))).map(mine => Http.json(Json.obj(
+        "cards" -> Json.Arr(cs.map(_._2).sortBy(_("title").string.toLowerCase)),
+        "stamps" -> Json.Arr(mine.map((k, v) => Json.Obj(("shop" -> Json.str(k.stripPrefix(stamps).takeWhile(
+          _ != '/'))) +: v.record)))))))
+    case ("POST", "/_dir/card") =>
+      val j = Http.body(r)
+      step(Durable.put[Json, Step](cards + j("account").string, j)).as(Http.json(j))
+    case ("POST", "/_dir/card/remove") =>
+      step(Durable.delete[Step](cards + Http.body(r)("account").string)).as(Http.json(Json.obj()))
+    // a stamp put on a customer's card, or a reward taken off it: against the shop's card as it is now
+    case ("POST", "/_dir/stamp") =>
+      val j = Http.body(r)
+      val (shop, customer, kind) = (j("shop").string, j("customer").string, j("kind").string)
+      val at = stamps + shop + "/" + customer
+      step(Durable.get[Json, Step](cards + shop).flatMap {
+        case None => pure(Left("no card" -> 404))
+        case Some(card) => Durable.get[Json, Step](at).flatMap { kept =>
+            val (have, used) = kept.fold((0L, 0L))(k => (k("stamps").long, k("used").long))
+            val need = card("need").long
+            val next = if kind == "redeem" then (have - need, used + 1) else (have + 1, used)
+            if kind == "redeem" && have < need then pure(Left("short" -> 409))
+            else if next._1 > need * Directory.cardsKept then pure(Left("full" -> 409))
+            else Durable.put[Json, Step](at, Json.obj("stamps" -> Json.num(next._1), "used" -> Json.num(next._2)))
+              .as(Right(Json.obj("kind" -> Json.str(kind), "shop" -> Json.str(shop), "title" -> card("title"),
+                "reward" -> card("reward"), "need" -> Json.num(need), "stamps" -> Json.num(next._1),
+                "used" -> Json.num(next._2))))
+          }
+      }).map(_.fold((why, status) => Http.refused(why, status), Http.json(_)))
     // ---- recovery asked (specs/protocol.md "Keys"): kept until the community confirms or drops it
     case ("POST", "/_dir/recovery") =>
       val j = Http.body(r)
@@ -189,6 +226,8 @@ object Directory extends Actor:
       }).map(fresh => if fresh then Http.json(Json.obj()) else Http.refused("used", 409))
     case _ => pure(Response.notFound())
 
+  /** how many full cards a customer may hold unspent at a shop */
+  val cardsKept = 5
   /** how many entries a member may have on the board, and the board in all */
   val own = 20
   val board = 2000
