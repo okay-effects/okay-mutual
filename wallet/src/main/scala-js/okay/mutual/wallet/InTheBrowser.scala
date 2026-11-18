@@ -19,10 +19,33 @@ object InTheBrowser:
   type Browser[X] = (Async + Ui + Settings + Clock + Net + Device + Signer)[X]
   val skin: Skin = Skin.calm(accent = "#2f5d50", deep = "#1c2b26")
 
+  /** THE LANGUAGE: the one asked for (`?lang=`, kept from then on), else the one kept, else the browser's */
+  private def language: String =
+    val asked = Option(new dom.URLSearchParams(dom.window.location.search).get("lang")).filter(_.nonEmpty)
+    asked.foreach(dom.window.localStorage.setItem(NetInPage.prefix + "lang", _))
+    asked.orElse(Option(dom.window.localStorage.getItem(NetInPage.prefix + "lang")))
+      .getOrElse(dom.window.navigator.language)
+
+  /** the page around the application in the wallet's words: its language, the tag line, "About" (the landing of
+   * that language), the language in use marked */
+  private def dressed(words: Words): Unit =
+    dom.document.documentElement.setAttribute("lang", words.code)
+    Option(dom.document.getElementById("tag")).foreach(_.textContent = words.tagline)
+    Option(dom.document.getElementById("about")).foreach { a =>
+      a.textContent = words.about
+      a.setAttribute("href", if words.code == "en" then "../" else s"../${words.code}/")
+    }
+    Option(dom.document.querySelector(s"header .langs a[href='?lang=${words.code}']"))
+      .foreach(_.setAttribute("aria-current", "true"))
+
   def main(args: Array[String]): Unit =
+    val words = Words.of(language)
+    dressed(words)
+    // okay-faces' own words (Back, Help…) in the same language
+    val skin = this.skin.copy(look = this.skin.look.copy(words = okay.faces.Words.of(words.code)))
     val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
     val running = Async.start(Laminar.run(root, skin)(InThePage.kept(NetInPage.prefix)(ClockInPage.run(
-      SignerWeb.run(DeviceInPage.run(NetInPage.run(Wallet[Browser].main)))))))
+      SignerWeb.run(DeviceInPage.run(NetInPage.run(Wallet[Browser](words).main)))))))
     running.future.failed.foreach {
       case _: Cancelled => ()
       case e => dom.console.error(e.toString)

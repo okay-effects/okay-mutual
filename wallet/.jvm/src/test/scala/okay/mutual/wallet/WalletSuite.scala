@@ -9,7 +9,7 @@ import okay.serverless.cloud.Request
 
 /** A DEVICE IN A TEST: its own key (the JDK's), what its wallet remembers, the wallet played by a script against the
  * node itself in memory — the same program a page runs */
-final class Phone(town: Town):
+final class Phone(town: Town, words: Words = Words.En):
   var pair: Option[Pair] = None
   val kept = scala.collection.mutable.Map.empty[String, String]
   type World[X] = (Ui + Settings + Clock + Net + Device + Signer)[X]
@@ -32,7 +32,7 @@ final class Phone(town: Town):
 
   /** the wallet from its start, the acts done in order: what was seen, and the screen it stopped at */
   def play(acts: Act*): Played[(Long, Unit)] =
-    Play(steps(keptIn(kept)(Clock.virtual(town.now)(SignerJdk.run(device(net(Wallet[World].main)))))), acts*)
+    Play(steps(keptIn(kept)(Clock.virtual(town.now)(SignerJdk.run(device(net(Wallet[World](words).main)))))), acts*)
 
   def key: String = pair.get.pub
   def account: String = kept("current")
@@ -175,6 +175,35 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(own.at.map(_.title), Some("Marek"), Seen.of(own))
     val both = founder.play(Act.press("Accounts"))
     assert(Seen.of(both).contains("Test Town") && Seen.of(both).contains("Marek"), Seen.of(both))
+  }
+
+  test("the wallet in Russian, Ukrainian and Polish: the same program, its words another value") {
+    val town = Town()
+    joined(town, "Jan", "Business")
+    for (words, name) <- List(WordsRu -> "Анна", WordsUk -> "Оксана", WordsPl -> "Zofia") do
+      val phone = Phone(town, words)
+      val first = phone.play()
+      assert(Seen.of(first).contains(s"${words.community}: Test Town") && Seen.of(first).contains(words.joinOpen),
+        Seen.of(first))
+      // a form's own complaint is said in the language too
+      val empty = phone.play(Act.press(words.openAccount), Act.press(words.save))
+      assertEquals(empty.problems.map(_.message).distinct, List(words.problem("required")), words.code)
+      assertNotEquals(words.problem("required"), "required")
+      val home = phone.play(Act.press(words.openAccount), Act.press(words.save, words.yourName -> name,
+        words.accountKind -> words.personal), Act.press(words.ok))
+      assertEquals(home.at.map(_.title), Some(name), Seen.of(home))
+      val paid = phone.play(Act.press(words.pay), Act.press(words.save, words.to -> "Jan", words.amount -> "15",
+        words.forWhat -> "chleb"), Act.press(words.yes))
+      assertEquals(paid.at.map(_.title), Some(words.paid), Seen.of(paid))
+      val over = phone.play(Act.press(words.pay), Act.press(words.save, words.to -> "Jan", words.amount -> "500"),
+        Act.press(words.yes))
+      assert(Seen.of(over).contains(words.overCredit("415.00 PLN")), Seen.of(over))
+      val checked = phone.play(Act.press(words.checkNode))
+      assert(Seen.of(checked).contains(words.recordsHold(3, "-15.00 PLN")), Seen.of(checked))
+      val history = phone.play(Act.press(words.history))
+      assert(Seen.of(history).contains(s"${words.paidKind} | Jan | -15.00 PLN | chleb"), Seen.of(history))
+    assertEquals((Words.of("ru-RU"), Words.of("uk"), Words.of("pl_PL"), Words.of("de")),
+      (WordsRu, WordsUk, WordsPl, Words.En))
   }
 
   test("vouching from the wallet; a node that does not answer is asked for by its address") {

@@ -1,3 +1,5 @@
+**English** · [Русский](ru/faq.md) · [Українська](uk/faq.md) · [Polski](pl/faq.md)
+
 # Questions
 
 **Is this a cryptocurrency?**

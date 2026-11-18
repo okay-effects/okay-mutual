@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Okay Mutual — {{title}}</title>
+  <meta name="description" content="{{description}}">
+  <link rel="icon" href="{{root}}icon.svg">
+  <style>
+    :root { --ink: #1c2b26; --accent: #2f5d50; --paper: #f7f4ee; --card: #fffdf9; --line: #e2dccf; --muted: #5d6b65; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink);
+      background: var(--paper); }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+    header .wrap { display: flex; align-items: baseline; gap: 18px; padding-top: 18px; padding-bottom: 18px;
+      flex-wrap: wrap; }
+    .brand { font-weight: 700; letter-spacing: .08em; color: var(--ink); text-decoration: none; }
+    header nav { margin-left: auto; display: flex; gap: 16px; flex-wrap: wrap; }
+    .langs { display: flex; gap: 10px; font-size: 14px; }
+    .langs a[aria-current] { color: var(--ink); font-weight: 700; text-decoration: none; }
+    a { color: var(--accent); }
+    h1 { font: 600 clamp(30px, 6vw, 46px)/1.12 Georgia, "Times New Roman", serif; margin: 34px 0 14px; }
+    h2 { font: 600 24px/1.25 Georgia, "Times New Roman", serif; margin: 44px 0 10px; }
+    .lead { font-size: 20px; color: var(--muted); max-width: 40em; }
+    .go { display: inline-block; margin: 18px 12px 0 0; padding: 13px 22px; border-radius: 12px; background: var(--ink);
+      color: #fff; text-decoration: none; font-weight: 600; }
+    .go.plain { background: none; color: var(--ink); border: 1px solid var(--line); }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; margin: 14px 0; font-variant-numeric: tabular-nums; }
+    td, th { padding: 7px 14px; border-top: 1px solid var(--line); text-align: right; }
+    td:first-child, th:first-child { text-align: left; }
+    th { border-top: 0; color: var(--muted); font-weight: 600; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+    .card h3 { margin: 0 0 6px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .note { color: var(--muted); font-size: 15px; }
+    footer { margin-top: 60px; border-top: 1px solid var(--line); }
+    footer .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding-top: 16px;
+      padding-bottom: 28px; font-size: 15px; color: var(--muted); }
+    footer .more { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header><div class="wrap"><a class="brand" href="./">OKAY MUTUAL</a>
+    <span class="langs">{{langs}}</span>
+    <nav><a href="{{wallet}}">{{nav_wallet}}</a>
+      <a href="{{docs}}/how-it-works.md">{{nav_how}}</a>
+      <a href="{{docs}}/faq.md">{{nav_questions}}</a>
+      <a href="https://github.com/okay-effects/okay-mutual">{{nav_code}}</a></nav></div></header>
+  <main class="wrap">
+    <h1>{{h1}}</h1>
+    <p class="lead">{{lead}}</p>
+    <a class="go" href="{{wallet}}">{{go_wallet}}</a>
+    <a class="go plain" href="{{docs}}/idea.md">{{go_idea}}</a>
+
+    <h2>{{h_count}}</h2>
+    <p>{{p_count}}</p>
+    <div class="scroll"><table>
+      <tr><th>{{th_what}}</th><th>{{th_baker}}</th><th>{{th_tailor}}</th><th>{{th_programmer}}</th></tr>
+      <tr><td>{{row1}}</td><td>−80</td><td>+80</td><td>0</td></tr>
+      <tr><td>{{row2}}</td><td>−80</td><td>−120</td><td>+200</td></tr>
+      <tr><td>{{row3}}</td><td>+70</td><td>−120</td><td>+50</td></tr>
+    </table></div>
+    <p>{{p_zero}}</p>
+
+    <h2>{{h_diff}}</h2>
+    <div class="cards">
+      <div class="card"><h3>{{c1_h}}</h3><p>{{c1_p}}</p></div>
+      <div class="card"><h3>{{c2_h}}</h3><p>{{c2_p}}</p></div>
+      <div class="card"><h3>{{c3_h}}</h3><p>{{c3_p}}</p></div>
+      <div class="card"><h3>{{c4_h}}</h3><p>{{c4_p}}</p></div>
+    </div>
+
+    <h2>{{h_stands}}</h2>
+    <p>{{p_stands}}</p>
+    <p class="note">{{note}}</p>
+
+    <h2>{{h_node}}</h2>
+    <p>{{p_node}}</p>
+  </main>
+  <footer><div class="wrap">
+    {{foot_built}} <a href="https://github.com/okay-effects" target="_blank" rel="noopener noreferrer">okay-effects</a> —
+    {{foot_what}}
+    <a class="more" href="https://okay-effects.github.io/#author" target="_blank" rel="noopener noreferrer">{{foot_more}}</a>
+  </div></footer>
+</body>
+</html>

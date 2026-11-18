@@ -1,3 +1,5 @@
+**English** · [Русский](ru/run-a-node.md) · [Українська](uk/run-a-node.md) · [Polski](pl/run-a-node.md)
+
 # Run a node
 
 A node is a community's computer: it admits members, keeps each account's chain, co-signs every record and publishes

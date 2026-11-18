@@ -1,3 +1,5 @@
+**English** · [Русский](ru/idea.md) · [Українська](uk/idea.md) · [Polski](pl/idea.md)
+
 # The idea
 
 ## The problem

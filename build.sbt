@@ -88,8 +88,28 @@ lazy val siteTask = Def.task {
   val linked = (wallet.js / Compile / fullLinkJS).value.data.publicModules.head.jsFileName
   val from = (wallet.js / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value / linked
   IO.delete(out)
-  IO.copyDirectory(base / "site", out)
+  IO.copyFile(base / "site" / "icon.svg", out / "icon.svg")
+  IO.copyDirectory(base / "site" / "wallet", out / "wallet")
   IO.copyFile(from, out / "wallet" / "main.js")
+  // THE LANDING, a language a page: site/landing.html with the words of site/landing.<lang>.txt (`key = value` a
+  // line) in its `{{key}}`s — English at the root, the others in their directories
+  val template = IO.read(base / "site" / "landing.html")
+  val languages = List("en" -> "EN", "pl" -> "PL", "uk" -> "UA", "ru" -> "RU")
+  for ((lang, _) <- languages) {
+    val root = if (lang == "en") "" else "../"
+    val words = IO.readLines(base / "site" / s"landing.$lang.txt").filter(_.contains(" = ")).map { line =>
+      val at = line.indexOf(" = ")
+      line.take(at).trim -> line.drop(at + 3).trim
+    }.toMap ++ Map("root" -> root, "wallet" -> s"${root}wallet/?lang=$lang",
+      "langs" -> languages.map { case (l, label) =>
+        val href = if (l == "en") (if (root.isEmpty) "./" else root) else s"$root$l/"
+        val current = if (l == lang) """ aria-current="true"""" else ""
+        "<a href=\"" + href + "\"" + current + ">" + label + "</a>"
+      }.mkString(" "))
+    val page = words.foldLeft(template) { case (t, (k, v)) => t.replace(s"{{$k}}", v) }
+    require(!page.contains("{{"), s"landing.$lang.txt lacks a word: " + "\\{\\{[a-z0-9_]+\\}\\}".r.findFirstIn(page))
+    IO.write(if (lang == "en") out / "index.html" else out / lang / "index.html", page)
+  }
   out
 }
 

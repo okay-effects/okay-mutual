@@ -14,14 +14,17 @@
     /* THE WALLET'S OWN RULES over okay-ui's calm skin (Laminar.run installs it) */
     body > footer .bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
     body > footer .more { margin-left: auto; }
-    body > header a.guide { color: #cfe5dc; }
+    body > header a.guide, body > header .langs a { color: #cfe5dc; }
+    body > header .langs { display: flex; gap: 8px; font-size: 13px; margin-left: auto; }
+    body > header .langs a[aria-current] { color: #fff; font-weight: 700; text-decoration: none; }
     .okay-code, pre { overflow-wrap: anywhere; white-space: pre-wrap; }
     @media (max-width: 640px) { body .okay-table { font-size: 0.85em; }
       body .okay-table td, body .okay-table th { overflow-wrap: anywhere; padding: 8px 5px; } }
   </style>
 </head>
 <body>
-  <header><div class="bar"><a class="brand" href="./" title="The wallet's start">OKAY MUTUAL</a><span class="tag">mutual credit, beside money</span><a class="guide" href="../">About</a></div></header>
+  <!-- the tag line, "About" and the page's language are set by the wallet from its words (`?lang=`, kept) -->
+  <header><div class="bar"><a class="brand" href="./">OKAY MUTUAL</a><span class="tag" id="tag"></span><span class="langs"><a href="?lang=en">EN</a> <a href="?lang=pl">PL</a> <a href="?lang=uk">UA</a> <a href="?lang=ru">RU</a></span><a class="guide" id="about" href="../"></a></div></header>
   <div id="app"></div>
   <footer><div class="bar">
     Built on <a href="https://github.com/okay-effects" target="_blank" rel="noopener noreferrer">okay-effects</a> —

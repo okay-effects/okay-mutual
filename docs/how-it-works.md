@@ -1,3 +1,5 @@
+**English** · [Русский](ru/how-it-works.md) · [Українська](uk/how-it-works.md) · [Polski](pl/how-it-works.md)
+
 # How it works
 
 Read [the idea](idea.md) first. This page follows a member through the system and says, at each step, what protects
