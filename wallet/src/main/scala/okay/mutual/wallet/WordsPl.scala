@@ -239,3 +239,15 @@ object WordsPl extends Words:
   def recoveryAnnouncedText(name: String) = s"Nowe urządzenie uczestnika $name przejmie konto za tydzień, chyba że " +
     "stare urządzenie anuluje."
   val dropAsking = "To nie ta osoba: odrzuć"
+  val board = "Tablica"
+  val boardText = "Co uczestnicy oferują i czego szukają. Cena jest w walucie krajowej; udział mówi, jaką jej część " +
+    "rozlicza się w jednostkach — resztę płaci się pieniędzmi, poza systemem."
+  val boardKind = "Rodzaj"; val offers = "oferuje"; val wants = "szuka"; val boardEmpty = "jeszcze pusto: zacznij"
+  val openEntry = "Otwórz"; val addOffer = "Oferuję"; val addWant = "Szukam"
+  val entryText = "Więcej o tym"; val price = "Cena"; val priceHint = "zostaw puste: do uzgodnienia"
+  val byAgreement = "do uzgodnienia"; val inUnits = "W jednostkach, %"
+  val inUnitsHint = "jaką część ceny przyjmujesz lub płacisz w jednostkach: 100 — całość, 50 — połowę"
+  val shareRange = "od 0 do 100"
+  val posted = "Ogłoszenie jest na tablicy"; val notPosted = "Nie udało się"
+  val boardFull = "Na tablicy nie ma miejsca na kolejne Twoje ogłoszenie: najpierw zdejmij jedno."
+  val takeOffEntry = "Zdejmij z tablicy"

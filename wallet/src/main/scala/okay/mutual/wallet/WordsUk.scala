@@ -241,3 +241,15 @@ object WordsUk extends Words:
   def recoveryAnnouncedText(name: String) = s"Новий пристрій учасника $name отримає рахунок через тиждень, якщо " +
     "старий пристрій не скасує."
   val dropAsking = "Не він (вона): відхилити"
+  val board = "Дошка"
+  val boardText = "Що учасники пропонують і що шукають. Ціна — в національній валюті; частка каже, яка її частина " +
+    "береться одиницями, — решта сплачується грошима, поза системою."
+  val boardKind = "Вид"; val offers = "пропонує"; val wants = "шукає"; val boardEmpty = "поки що порожньо: будьте першим"
+  val openEntry = "Відкрити"; val addOffer = "Пропоную"; val addWant = "Шукаю"
+  val entryText = "Докладніше"; val price = "Ціна"; val priceHint = "залиште порожнім: за домовленістю"
+  val byAgreement = "за домовленістю"; val inUnits = "Одиницями, %"
+  val inUnitsHint = "яку частку ціни ви берете або платите одиницями: 100 — усю, 50 — половину"
+  val shareRange = "від 0 до 100"
+  val posted = "Оголошення на дошці"; val notPosted = "Не вдалося"
+  val boardFull = "На дошці немає місця для ще одного вашого оголошення: спершу зніміть одне."
+  val takeOffEntry = "Зняти з дошки"

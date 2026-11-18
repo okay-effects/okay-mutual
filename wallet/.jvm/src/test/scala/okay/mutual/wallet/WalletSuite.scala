@@ -257,7 +257,7 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(founder.kept("node"), "/n/our-town")
     val home = founder.play()
     assertEquals(home.at.map(_.title), Some("Our Town"), Seen.of(home))
-    assert(home.at.get.buttons.map(_.label).containsSlice(List("Community", "Invite", "Accounts")))
+    assert(home.at.get.buttons.map(_.label).containsSlice(List("Community", "Board", "Invite", "Accounts")))
     assert(Seen.of(founder.play(Act.press("Invite"))).contains("https://wallet.example/?node=/n/our-town"))
     // the place is taken now
     val second = new Phone(hub)
@@ -528,4 +528,37 @@ class WalletSuite extends munit.FunSuite:
     liar.play(Act.press("I lost my devices"), Act.choose("This is my account", "Jan"), Act.press("OK"))
     founder.play(Act.press("Community"), Act.press("Lost devices (1)"), Act.choose("Not them: drop", "Jan"))
     assert(founder.play(Act.press("Community")).at.get.buttons.exists(_.label == "Lost devices (0)"))
+  }
+
+  test("the board: a member offers, another pays for it — the form filled from the offer; wants; taken off") {
+    val town = Town()
+    val (anna, jan) = (joined(town, "Anna"), joined(town, "Jan"))
+    assertEquals(anna.play(Act.press("Board")).at.map(_.title), Some("Board"))
+    val posted = anna.play(Act.press("Board"), Act.press("I offer"), Act.press("Save", "What" -> "Trousers hemmed",
+      "More about it" -> "by Friday", "Price" -> "40", "In units, %" -> "50"))
+    assertEquals(posted.at.map(_.title), Some("It is on the board"), Seen.of(posted))
+    assertEquals(jan.play(Act.press("Board"), Act.press("I look for"), Act.press("Save", "What" -> "A logo")).at
+      .map(_.title), Some("It is on the board"))
+    val board = jan.play(Act.press("Board"))
+    assert(Seen.of(board).contains("offers | Trousers hemmed | Anna | 40.00 PLN | 50%"), Seen.of(board))
+    assert(Seen.of(board).contains("looks for | A logo | Jan | by agreement | 100%"), Seen.of(board))
+    // Jan opens the offer and pays: whom, the half that is in units and what for are there already
+    val offer = jan.play(Act.press("Board"), Act.choose("Open", "Trousers hemmed"))
+    assert(Seen.of(offer).contains("by Friday") && offer.at.get.buttons.map(_.label) == List("Pay", "Back"),
+      Seen.of(offer))
+    val paid = jan.play(Act.press("Board"), Act.choose("Open", "Trousers hemmed"), Act.press("Pay"),
+      Act.press("Save"), Act.press("Yes"))
+    assertEquals(paid.at.map(_.title), Some("Paid"), Seen.of(paid))
+    assert(Seen.of(paid).contains("20.00 PLN to Anna"), Seen.of(paid))
+    assert(Seen.of(anna.play(Act.press("History"))).contains("received | Jan | 20.00 PLN | Trousers hemmed"))
+    // a want is not paid for; one's own entry is taken off, another's is not
+    assertEquals(anna.play(Act.press("Board"), Act.choose("Open", "A logo")).at.get.buttons.map(_.label),
+      List("Back"))
+    assertEquals(jan.play(Act.press("Board"), Act.choose("Open", "A logo")).at.get.buttons.map(_.label),
+      List("Take off the board", "Back"))
+    anna.play(Act.press("Board"), Act.choose("Open", "Trousers hemmed"), Act.press("Take off the board"))
+    assert(!Seen.of(jan.play(Act.press("Board"))).contains("Trousers hemmed"))
+    // a share is a share
+    assertEquals(anna.play(Act.press("Board"), Act.press("I offer"), Act.press("Save", "What" -> "Bread",
+      "In units, %" -> "150")).problems.size, 1)
   }

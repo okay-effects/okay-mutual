@@ -28,9 +28,11 @@ key and shows it as a QR code; your phone signs "this key is mine too". If the p
 
 Each key can be limited: the work computer may spend at most 200 a week; the old tablet may only look.
 
-**If every device is lost** *(designed)*, people you named in advance (family, a friend) or your node can add a new key — but
-only after a waiting period that is announced openly, during which any surviving device can cancel. This is
-possible because members are known people: the community that trusted you with credit can also restore your access.
+**If every device is lost**, you ask for your account back from a new one (**I lost my devices**). Your community
+has to confirm it is you — it knows you; a message is not enough, it should speak to you. Then the new device holds
+the account, but only after a week that is announced openly: during it any of your old devices, if one turns up or
+was only mislaid, shows a warning and can cancel. This is possible because members are known people: the community
+that trusted you with credit can also restore your access. It cannot do so quietly, and not at once.
 
 ## A payment
 
@@ -56,6 +58,13 @@ breaking every signature after it.
 
 The chain holds amounts and fingerprints, not your name, address or what the payment was for. Those details are
 kept beside it and can be erased on your request without breaking the chain.
+
+## The board
+
+Members say what they offer and what they look for: a tailor's hemming for 40, half of it in units; a logo wanted.
+Whoever opens an offer can pay for it from there — the member, the part of the price that is in units and what it is
+for are already filled in; the rest of the price is paid in money, between the two, outside the system. An entry is
+its member's own signed word and is taken off by them alone.
 
 ## Vouching
 

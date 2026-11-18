@@ -101,12 +101,12 @@ wallet (docs/legal.md: not the vocabulary of crypto).
 Two holes between a working system and one people can live in: losing every device loses the account, and members
 have no place to say what they offer and what they need — which is what the whole thing is for.
 
-- [ ] **recovery** — specs/protocol.md "Keys": a new device asks (proving it holds its key), the community confirms
+- [x] **recovery** — specs/protocol.md "Keys": a new device asks (proving it holds its key), the community confirms
   it knows the person (a command), the node writes `recover {key, after}` on the account's chain — announced, not
   yet in force; any device that still holds the account sees it and can cancel (`revoke` of that key); after the
   waiting period (7 days) `recovered {key}` makes the key a holder. Chain kinds, the node, the app (ask, wait,
   cancel, the office's confirmations), four languages. Done when: ChainSuite, NodeSuite, WalletSuite.
-- [ ] **the board** — offers and wants of a community's members: what, for how much, what share in units; posted
+- [x] **the board** — offers and wants of a community's members: what, for how much, what share in units; posted
   and taken off by a holder's signed word (kept beside the chains, erasable); read by anyone the community shows
   its members to. In the app: the board, one's own entries, "Pay" from an offer. Done when: both suites.
 - [ ] **publish** — Worker, Pages; docs in four languages (how-it-works: recovery no longer "designed"; the board).

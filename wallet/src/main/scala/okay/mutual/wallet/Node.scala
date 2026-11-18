@@ -24,6 +24,9 @@ final case class Listed(slug: String, name: String, unit: String, open: Boolean)
 final case class TrustLine(node: String, address: String, name: String, id: String)
 /** one who asks an account back: the account, its member's name, the new device's key */
 final case class Lost(account: String, name: String, key: String)
+/** an entry of the board: a member's offer or want, its price (0: by agreement), the share of it taken in units */
+final case class Listing(id: String, account: String, kind: String, title: String, text: String, price: Long,
+                         share: Long)
 /** one who waits to be admitted */
 final case class Asked(id: String, name: String, of: String)
 /** a member as the others see it */
@@ -80,6 +83,15 @@ object Node:
       .getOrElse(Vector.empty))
 
   def invite[R[_]: Has[Net]]: String ! R = perform[Net](Net.Invite())
+
+  /** the community's board, newest first */
+  def board[R[_]: Has[Net]]: Vector[Listing] ! R = call[R]("GET", "/api/board").map((_, j) =>
+    scala.util.Try(j("listings").list.map(l => Listing(l("id").string, l("account").string, l("kind").string,
+      l("title").string, l("text").string, l("price").long, l("share").long))).getOrElse(Vector.empty))
+  /** a member's own signed word on the board (`list`, `unlist`) */
+  def post[R[_]: Has[Net]](text: String, key: String, sig: String): Either[Refusal, Unit] ! R =
+    call[R]("POST", "/api/board", Some(Json.obj("command" -> Json.str(text), "key" -> Json.str(key),
+      "sig" -> Json.str(sig)))).map((status, j) => if status == 200 then Right(()) else Left(refusal(status, j)))
 
   /** an account asked back by this device: `sig` its signature of `recover:<account>:<key>` */
   def askBack[R[_]: Has[Net]](account: String, key: String, sig: String): Either[Refusal, Unit] ! R =

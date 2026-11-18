@@ -96,5 +96,5 @@ taken once.
 - Trust lines join two communities that each opened one to the other (**Community**, then **Trust lines**), in
   the same unit. Not yet: a payment through a third community, and lines between different units.
 - Moving a community from one hub to another with its history.
-- Family and company accounts held by other accounts, two signatures, recovery of a lost key by the node.
+- Family and company accounts held by other accounts, two signatures.
 - Terms of use for a hub's operator; backups beyond what the platform or your own copies give.

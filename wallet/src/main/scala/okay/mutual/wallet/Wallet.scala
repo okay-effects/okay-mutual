@@ -247,7 +247,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
             val buttons = List(Button[Int](w.pay, Style.Primary)(1), Button[Int](w.history)(2),
               Button[Int](w.vouch)(3), Button[Int](w.devices)(4), Button[Int](w.checkNode)(5)) ++
               (if governs then List(Button[Int](w.community)(6)) else Nil) ++
-              List(Button[Int](w.invite)(8), Button[Int](w.accounts)(7)) ++
+              List(Button[Int](w.board)(10), Button[Int](w.invite)(8), Button[Int](w.accounts)(7)) ++
               // a recovery announced for another device: this one, which still holds the account, can say no
               s.recovering.toList.map(_ => Button[Int](w.cancelRecovery, Style.Danger)(9))
             val warning = s.recovering.toList.map((k, after) => Part.warning(w.recoveryWarning(short(k), day(after))))
@@ -255,6 +255,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               w.canSpend -> Cell.Money(units(s.balance - s.floor), about.unit),
               w.canReceive -> Cell.Money(units(s.ceiling - s.balance), about.unit),
               w.community -> Cell.Text(about.name)))*)(buttons*)).flatMap {
+              case 10 => board(about, s, key)
               case 9 => s.recovering.fold(pure[Unit, R](()))((k, _) => say(s, _ => Body.Revoke(k)).flatMap {
                   case Right(_) => inform(w.cancelRecovery, w.recoveryCancelled)
                   case Left(r) => inform(w.cancelRecovery, refusal(r, about.unit))
@@ -308,11 +309,16 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
             else paying(about, s, there, Some(line)))
     }
 
-  private def paying(about: About, s: State, ms: Vector[Member], line: Option[TrustLine]): Unit ! R =
+  /** the payment's form — filled in beforehand when it pays for an offer of the board (`preset`: whom, how much,
+   * what for), every field still the payer's to change */
+  private def paying(about: About, s: State, ms: Vector[Member], line: Option[TrustLine],
+                     preset: Option[(String, BigDecimal, String)] = None): Unit ! R =
+    val to = Field.choice(w.to, ms.map(m => m.name -> m.id)*)
+    val amount = Field.money(w.amount, about.unit)
     edit[(String, BigDecimal, Option[String])](line.fold(w.pay)(l => s"${w.pay} · ${l.name}"), Form(
-      said(Field.choice(w.to, ms.map(m => m.name -> m.id)*)),
-      said(Field.money(w.amount, about.unit).check(w.moreThanZero)(_ > 0)),
-      said(Field.text(w.forWhat).optional))).flatMap {
+      said(preset.filter(p => ms.exists(_.id == p._1)).fold(to)(p => to.initially(p._1))),
+      said(preset.filter(_._2 > 0).fold(amount)(p => amount.initially(p._2)).check(w.moreThanZero)(_ > 0)),
+      said(preset.fold(Field.text(w.forWhat))(p => Field.text(w.forWhat).initially(p._3)).optional))).flatMap {
       case None => pure(())
       case Some((to, amount, what)) =>
         val who = ms.find(_.id == to).fold(to)(_.name) + line.fold("")(l => s" · ${l.name}")
@@ -525,6 +531,61 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       }
     }
   }
+
+  // ---- the board: what members offer and what they look for
+
+  /** a member's own word on the board, signed by this device */
+  private def post(key: String, cmd: String, account: String, fields: (String, Json)*): Either[Refusal, Unit] ! R =
+    Clock.now[R].flatMap { now =>
+      val text = Json.print(Json.Obj(Vector("cmd" -> Json.str(cmd), "at" -> Json.num(now),
+        "account" -> Json.str(account)) ++ fields))
+      Device.sign[R](text).flatMap(sig => Node.post[R](text, key, sig))
+    }
+
+  private def board(about: About, s: State, key: String): Unit ! R = Node.board[R].flatMap(entries =>
+    Node.members[R].flatMap { ms =>
+      def who(id: String): String = ms.find(_.id == id).fold(short(id))(_.name)
+      def price(l: Listing): String = if l.price == 0 then w.byAgreement else money(l.price, about.unit)
+      val table = Table(entries.toList)(Column.text(w.boardKind)(l => if l.kind == "offer" then w.offers else w.wants),
+        Column.text(w.what)(_.title), Column.text(w.member)(l => who(l.account)), Column.text(w.price)(price),
+        Column.text(w.inUnits)(l => s"${l.share}%")).keyedBy(_.id).whenEmpty(w.boardEmpty)
+      show(Screen[Option[Either[String, Listing]]](w.board)(Part.text(w.boardText), table)(
+        Button.select(w.openEntry, table)(l => Some(Right(l))), Button(w.addOffer, Style.Primary)(Some(Left("offer"))),
+        Button(w.addWant)(Some(Left("want"))), Button(w.back)(None))).flatMap {
+        case None => pure(())
+        case Some(Left(kind)) => edit[(String, Option[String], Option[BigDecimal], Long)](
+            if kind == "offer" then w.addOffer else w.addWant, Form(said(Field.text(w.what)),
+            said(Field.longText(w.entryText).optional),
+            said(Field.money(w.price, about.unit).hinted(w.priceHint).optional),
+            said(Field.whole(w.inUnits).hinted(w.inUnitsHint).initially(100L).check(w.shareRange)(n =>
+              n >= 0 && n <= 100)))).flatMap {
+            case None => pure(())
+            case Some((title, more, cost, share)) => post(key, "list", s.id, "kind" -> Json.str(kind),
+                "title" -> Json.str(title), "text" -> Json.str(more.getOrElse("")),
+                "price" -> Json.num(cost.fold(0L)(cents)), "share" -> Json.num(share)).flatMap {
+                case Right(_) => inform(w.posted, title)
+                case Left(r) => inform(w.notPosted, if r.why == "full" then w.boardFull else refusal(r, about.unit))
+              }
+          }.andThen(defer(board(about, s, key)))
+        case Some(Right(l)) =>
+          val mine = l.account == s.id
+          val buttons = (if mine then List(Button[Int](w.takeOffEntry, Style.Danger)(2))
+            else if l.kind == "offer" then List(Button[Int](w.pay, Style.Primary)(1)) else Nil) :+ Button[Int](w.back)(0)
+          show(Screen[Int](l.title)((Part.details(
+            w.boardKind -> (if l.kind == "offer" then w.offers else w.wants), w.member -> who(l.account),
+            w.price -> price(l), w.inUnits -> s"${l.share}%") +: l.text.linesIterator.filter(_.trim.nonEmpty)
+            .map(Part.text).toSeq)*)(buttons*)).flatMap {
+            // paying for an offer: its member, the part of its price taken in units, its title as what it is for
+            case 1 => others(s).flatMap(members => paying(about, s, members, None,
+                Some((l.account, units(l.price * l.share / 100), l.title))))
+            case 2 => post(key, "unlist", s.id, "id" -> Json.str(l.id)).flatMap {
+                case Right(_) => inform(w.takeOffEntry, l.title)
+                case Left(r) => inform(w.notPosted, refusal(r, about.unit))
+              }
+            case _ => pure(())
+          }.andThen(defer(board(about, s, key)))
+      }
+    })
 
   // ---- an account asked back: every device lost (specs/protocol.md "Keys")
 

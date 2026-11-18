@@ -40,7 +40,9 @@ run a community's node, and communities connect by trust lines they choose thems
 | A community's node: an object an account, payments carried or returned, the node's signature on every record, its signed head with a proof for each account | runs, tested (in-memory cloud, real signatures; one JVM process with SQLite) |
 | The app: an account opened by a key made on the device, payments, history, vouching, devices with limits, the node checked by the device itself; in English, Polish, Ukrainian and Russian | runs, tested (played against the node in each language; in a real browser against a local node) |
 | The community governing itself: its own account, its holders setting members' limits by signed commands | runs, tested |
-| Family and company accounts held by other accounts, budgets, two signatures, recovery | designed |
+| Recovery when every device is lost: asked from a new device, confirmed by the community, in force after an announced week, cancelled by a device that still holds the account | runs, tested |
+| The board: members' offers and wants by their own signed word; paying for an offer from it | runs, tested |
+| Family and company accounts held by other accounts, budgets, two signatures | designed |
 | A hub of nodes: anyone creates a community by a call or from the app; each node's key made with it; accounts of different nodes apart | runs, tested; LIVE on Cloudflare Workers: https://okay-mutual.okay-effects.workers.dev (checked in a browser: two devices, a payment, the node verified) |
 | Joining by request where it is not open: asked from the app, admitted or rejected in the community's office | runs, tested |
 | A community's rules, accepted by every newcomer before an account is opened; private people who earn before they spend (an account that never goes below zero), or businesses only; a member's deals copied as a statement for the books | runs, tested |

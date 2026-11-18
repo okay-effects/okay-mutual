@@ -32,10 +32,12 @@ upoważnił.
 Każdy klucz można ograniczyć: komputer w pracy może wydać najwyżej 200 tygodniowo; stary tablet może tylko
 podglądać.
 
-**Jeśli zginą wszystkie urządzenia** *(zaprojektowane)*, osoby wskazane przez ciebie zawczasu (rodzina, przyjaciel) albo twój węzeł
-mogą dodać nowy klucz — ale dopiero po okresie oczekiwania, który jest ogłaszany jawnie i w trakcie którego każde
-ocalałe urządzenie może to anulować. Jest to możliwe, bo uczestnicy to znani ludzie: społeczność, która zaufała ci
-na tyle, żeby dać kredyt, może też przywrócić ci dostęp.
+**Jeśli zginą wszystkie urządzenia**, prosisz o odzyskanie konta z nowego (**Straciłem(-am) swoje urządzenia**).
+Społeczność musi potwierdzić, że to ty — zna cię; wiadomość nie wystarczy, powinna z tobą porozmawiać. Potem nowe
+urządzenie przejmuje konto, ale dopiero po tygodniu, który jest ogłaszany jawnie: przez ten czas każde twoje stare
+urządzenie, jeśli się znajdzie albo było tylko zapodziane, pokazuje ostrzeżenie i może to anulować. Jest to możliwe,
+bo uczestnicy to znani ludzie: społeczność, która zaufała ci na tyle, żeby dać kredyt, może też przywrócić ci
+dostęp. Ale nie po cichu i nie od razu.
 
 ## Płatność
 
@@ -61,6 +63,13 @@ wszystkich podpisów, które są po nim.
 
 W łańcuchu są kwoty i odciski — nie ma twojego imienia i nazwiska, adresu ani tego, za co była płatność. Te
 szczegóły są przechowywane obok i na twoją prośbę można je usunąć bez zrywania łańcucha.
+
+## Tablica
+
+Uczestnicy piszą, co oferują i czego szukają: skrócenie spodni za 40, połowa w jednostkach; potrzebne logo. Kto
+otworzy ofertę, może zapłacić za nią od razu stamtąd — uczestnik, część ceny w jednostkach i tytuł płatności są już
+wypełnione; resztę ceny strony płacą sobie pieniędzmi, poza systemem. Ogłoszenie to podpisane słowo samego
+uczestnika i tylko on może je zdjąć.
 
 ## Poręczenie
 

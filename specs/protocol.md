@@ -304,6 +304,24 @@ What keeps the system out of the regulated kinds is what the software does, and 
 - Not in it: the acceptance recorded on the member's chain (it is in the request alone); terms for a hub's
   operator; anything a lawyer may add after reading docs/legal.md.
 
+## Recovery and the board (sprint 5)
+
+- **Recovery**, made exact (the section "Keys" said who and how long; this is what the records are): a new device
+  asks (`POST …/api/accounts/<id>/recovery {key, sig}` — its signature of `recover:<id>:<key>` shows it holds the
+  key; kept as `dir/recovery/<id>`); one who may manage the community confirms it knows who asks (the command
+  `recover {account}`; `forget {account}` drops the asking); the node writes `recover {key, after}` on the
+  account's chain — announced, `after` a week on (`NodeApp.waiting`); between the two any holder that may manage
+  cancels by `revoke` of that key; from `after`, `recovered {key}` (the node's, asked for by anyone:
+  `POST …/recovered`) makes the key a holder that may manage. One recovery at a time; the chain's rules, not the
+  node's good will, say when it may be in force — a node that wrote `recovered` early would have signed a record
+  every wallet rejects. Recovery by holders the member named (family, a friend) instead of the community: not built.
+- **The board**: `dir/listing/<id>` — a member's offer or want (`kind`, `title`, `text`, `price` — 0: by agreement
+  —, `share`: the per cent of the price taken in units); `GET …/api/board`; `POST …/api/board {command, key, sig}`
+  — `list {…}` / `unlist {id}`, the text signed by a key that holds the account it names and may spend, fresh,
+  taken once. No record of a chain: an entry is taken off without a trace. At most `Directory.own` a member. The
+  app pays for an offer with the form filled from it (the units' part of the price); the money part is the two
+  parties' own. Not built: a board across communities, search, matching.
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

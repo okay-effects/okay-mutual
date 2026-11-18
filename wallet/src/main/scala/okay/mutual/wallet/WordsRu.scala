@@ -240,3 +240,15 @@ object WordsRu extends Words:
   def recoveryAnnouncedText(name: String) = s"Новое устройство участника $name получит счёт через неделю, если " +
     "старое устройство не отменит."
   val dropAsking = "Не он(а): отклонить"
+  val board = "Доска"
+  val boardText = "Что участники предлагают и что ищут. Цена — в национальной валюте; доля говорит, какая её часть " +
+    "берётся единицами, — остальное платится деньгами, вне системы."
+  val boardKind = "Вид"; val offers = "предлагает"; val wants = "ищет"; val boardEmpty = "пока пусто: будьте первым"
+  val openEntry = "Открыть"; val addOffer = "Предлагаю"; val addWant = "Ищу"
+  val entryText = "Подробнее"; val price = "Цена"; val priceHint = "оставьте пустым: по договорённости"
+  val byAgreement = "по договорённости"; val inUnits = "Единицами, %"
+  val inUnitsHint = "какую долю цены вы берёте или платите единицами: 100 — всю, 50 — половину"
+  val shareRange = "от 0 до 100"
+  val posted = "Объявление на доске"; val notPosted = "Не получилось"
+  val boardFull = "На доске нет места для ещё одного вашего объявления: сначала снимите одно."
+  val takeOffEntry = "Снять с доски"

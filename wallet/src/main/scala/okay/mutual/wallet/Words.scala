@@ -116,6 +116,12 @@ trait Words:
   def recoveriesButton(n: Int): String; def recoveriesTitle: String; def recoveriesText: String
   def noRecoveries: String; def confirmIdentity: String; def confirmQuestion(name: String): String
   def recoveryAnnounced: String; def recoveryAnnouncedText(name: String): String; def dropAsking: String
+  // ---- the board: what members offer and look for
+  def board: String; def boardText: String; def boardKind: String; def offers: String; def wants: String
+  def boardEmpty: String; def openEntry: String; def addOffer: String; def addWant: String
+  def entryText: String; def price: String; def priceHint: String; def byAgreement: String
+  def inUnits: String; def inUnitsHint: String; def shareRange: String
+  def posted: String; def notPosted: String; def boardFull: String; def takeOffEntry: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -339,3 +345,15 @@ object Words:
     def recoveryAnnouncedText(name: String) = s"$name's new device holds the account in a week, unless an old " +
       "device cancels."
     val dropAsking = "Not them: drop"
+    val board = "Board"
+    val boardText = "What members offer and what they look for. A price is in the national currency; the share says " +
+      "how much of it is taken in units — the rest is paid in money, outside."
+    val boardKind = "Kind"; val offers = "offers"; val wants = "looks for"; val boardEmpty = "nothing yet: be the first"
+    val openEntry = "Open"; val addOffer = "I offer"; val addWant = "I look for"
+    val entryText = "More about it"; val price = "Price"; val priceHint = "leave empty: by agreement"
+    val byAgreement = "by agreement"; val inUnits = "In units, %"
+    val inUnitsHint = "what share of the price you take or pay in units: 100 — all, 50 — half"
+    val shareRange = "from 0 to 100"
+    val posted = "It is on the board"; val notPosted = "Not done"
+    val boardFull = "The board has no room for another entry of yours: take one off first."
+    val takeOffEntry = "Take off the board"
