@@ -20,7 +20,8 @@ ThisBuild / pagesRepository := (ThisBuild / baseDirectory).value / "target" / "p
 ThisBuild / publishTo := Some(MavenCache("pages", (ThisBuild / pagesRepository).value))
 ThisBuild / Compile / packageDoc / publishArtifact := false
 
-val okayServerless = "0.2.0"
+// 0.1.0: what the first host (okay-mall) builds on; moved to 0.2.0 with it
+val okayServerless = "0.1.0"
 val munit = Def.setting("org.scalameta" %%% "munit" % "1.2.3" % Test)
 
 /** THE LEDGER: the model and its rules, the effect `Ledger`, its handler onto okay-serverless' durable state, the
