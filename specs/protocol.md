@@ -179,6 +179,9 @@ lines honest nodes gave it — and they give none to a stranger.
 
 ### 6. The wallet
 
+(What a person sees is called their ACCOUNT and "the app" — never a wallet, which is the word of another world,
+docs/legal.md; `wallet` stays the name of the module and of this section.)
+
 A web app (PWA), the same on a desktop and a phone:
 
 - makes the key on the device (WebCrypto, unextractable), keeps the member's own chain;

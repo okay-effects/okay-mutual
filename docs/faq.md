@@ -55,6 +55,13 @@ your balance.
 Another of your devices cuts it off. If you lose them all, the people you named for recovery, or your node, can add
 a new key after an openly announced waiting period that any surviving device can cancel.
 
+**Can private people take part, or only businesses?**
+Both. A community decides whom it admits, and the usual choice is: businesses, the self-employed, and private people
+whose accounts never go below zero. A business may buy before it has sold, within its credit line. A private person
+earns first — by work or by something sold to a member, or by units a business gives — and then spends what was
+earned. That keeps the system out of the rules on credit to consumers, and it is how such networks have brought
+private people in before. A community may instead admit only businesses, or give private people credit lines too.
+
 **Can my family or my company share an account?**
 Yes: an account can be held by several people's accounts, each with its own limit, and can require two signatures
 for large amounts. A department's or a child's budget is an account with a line lent from the parent's.

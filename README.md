@@ -3,7 +3,7 @@
 An open network of mutual credit: people and businesses sell to and buy from each other for units they issue to one
 another, when money is short but work, goods and needs are not. It runs beside ordinary money and replaces nothing.
 
-**Try it:** the wallet at https://okay-mutual.okay-effects.workers.dev/wallet/ — join the demo community or create
+**Try it:** the app at https://okay-mutual.okay-effects.workers.dev/app/ — join the demo community or create
 your own.
 
 There is no coin and nothing to invest in. Every member holds their own keys, every record is signed, anyone can
@@ -22,7 +22,7 @@ run a community's node, and communities connect by trust lines they choose thems
   pay.
 - **[Staying light](docs/legal.md)** — which regulated kinds the design stays out of and why (money, payment
   services, crypto-assets, consumer credit), what applies anyway (tax, data, contracts), the questions for a lawyer.
-- **[Have a node](docs/run-a-node.md)** — three ways: create a community on a hub from the wallet, deploy your own
+- **[Have a node](docs/run-a-node.md)** — three ways: create a community on a hub from the app, deploy your own
   hub to Cloudflare, run it on your machine; and who governs a community.
 - **[The protocol](specs/protocol.md)** — the design for those who build: records, chains, nodes, trust lines.
 - **[The prototype's spec](specs/mutual.md)** — the rules, the measures of a network's health, what is tested
@@ -38,12 +38,12 @@ run a community's node, and communities connect by trust lines they choose thems
 | A signed chain per account: records, hashes, the balance as their fold, fork proofs | runs, tested (JVM and Scala.js; the JDK's and Web Crypto's signatures check each other's) |
 | A key a device, with its own limits; a lost device cut off | runs, tested (in the chain's rules; no app yet) |
 | A community's node: an object an account, payments carried or returned, the node's signature on every record, its signed head with a proof for each account | runs, tested (in-memory cloud, real signatures; one JVM process with SQLite) |
-| The wallet: an account opened by a key made on the device, payments, history, vouching, devices with limits, the node checked by the device itself; in English, Polish, Ukrainian and Russian | runs, tested (played against the node in each language; in a real browser against a local node) |
+| The app: an account opened by a key made on the device, payments, history, vouching, devices with limits, the node checked by the device itself; in English, Polish, Ukrainian and Russian | runs, tested (played against the node in each language; in a real browser against a local node) |
 | The community governing itself: its own account, its holders setting members' limits by signed commands | runs, tested |
 | Family and company accounts held by other accounts, budgets, two signatures, recovery | designed |
-| A hub of nodes: anyone creates a community by a call or from the wallet; each node's key made with it; accounts of different nodes apart | runs, tested; LIVE on Cloudflare Workers: https://okay-mutual.okay-effects.workers.dev (checked in a browser: two devices, a payment, the node verified) |
-| Joining by request where it is not open: asked from the wallet, admitted or rejected in the community's office | runs, tested |
-| A community's rules, accepted by every newcomer before an account is opened; a community of businesses only; a member's deals copied as a statement for the books | runs, tested |
+| A hub of nodes: anyone creates a community by a call or from the app; each node's key made with it; accounts of different nodes apart | runs, tested; LIVE on Cloudflare Workers: https://okay-mutual.okay-effects.workers.dev (checked in a browser: two devices, a payment, the node verified) |
+| Joining by request where it is not open: asked from the app, admitted or rejected in the community's office | runs, tested |
+| A community's rules, accepted by every newcomer before an account is opened; private people who earn before they spend (an account that never goes below zero), or businesses only; a member's deals copied as a statement for the books | runs, tested |
 | Trust lines between communities: each opens a line to the other, a member pays a member of the other; mirrored accounts, bounded by the receiver's trust; on one hub and between hubs | runs, tested |
 | A payment through a third community; lines between different units | designed |
 

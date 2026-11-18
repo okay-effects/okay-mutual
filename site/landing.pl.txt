@@ -2,13 +2,13 @@ lang = pl
 title = wymiana, gdy brakuje pieniędzy
 description = Otwarta sieć kredytu wzajemnego: ludzie i firmy sprzedają sobie i kupują od siebie za jednostki, które sami sobie nawzajem wystawiają. Obok pieniądza, nie zamiast niego.
 docs = https://github.com/okay-effects/okay-mutual/blob/main/docs/pl
-nav_wallet = Portfel
+nav_app = Twoje konto
 nav_how = Jak to działa
 nav_questions = Pytania
 nav_code = Kod
 h1 = Wymiana, gdy brakuje pieniędzy — ale nie pracy, towarów i potrzeb.
 lead = Okay Mutual to otwarta sieć kredytu wzajemnego. Ludzie i firmy sprzedają sobie i kupują od siebie za jednostki, które sami sobie nawzajem wystawiają. Działa obok zwykłych pieniędzy i niczego nie zastępuje.
-go_wallet = Otwórz portfel
+go_app = Otwórz konto
 go_idea = Przeczytaj ideę
 h_count = Wystarczy prowadzić rachunek
 p_count = Krawcowa ma wolne godziny, piekarz ma chleb, programistka zrobiłaby krawcowej stronę do zapisów. Każde z nich czeka, aż najpierw pojawią się pieniądze. Daj każdemu konto, które zaczyna się od zera, i pozwól im handlować:
@@ -26,7 +26,7 @@ c1_p = Każdą płatność podpisuje klucz, który powstał na Twoim telefonie l
 c2_h = Nie ma administratora całości
 c2_p = Każda społeczność prowadzi własny węzeł według własnych zasad i sama sobą zarządza. Społeczności łączą linie zaufania, które same wybierają.
 c3_h = Księgi sprawdzasz samodzielnie
-c3_p = Portfel sprawdza każdy zapis, który Cię dotyczy, i potrafi udowodnić, że węzeł skłamał.
+c3_p = Aplikacja na Twoim urządzeniu sprawdza każdy zapis, który Cię dotyczy, i potrafi udowodnić, że węzeł skłamał.
 c4_h = Obok pieniądza
 c4_p = Ceny zostają w walucie krajowej. Transakcja może być częściowo w jednostkach, częściowo w pieniądzach. Podatki płaci się pieniędzmi, jak od każdej sprzedaży.
 h_stands = Na jakim jest etapie
@@ -34,7 +34,7 @@ note = To nie kryptowaluta, nie marketing sieciowy i nie sposób na ominięcie p
 foot_built = Zbudowano na
 foot_what = efekty algebraiczne dla Scali
 foot_more = Potrzebujesz więcej?
-p_stands = Zasady księgowania, podpisane łańcuchy kont, węzeł społeczności, publiczny hub, na którym każdy tworzy społeczność, linie zaufania, którymi społeczności handlują ze sobą, i ten portfel działają i są przetestowane. Konta rodzin i firm oraz płatności przez trzecią społeczność są zaprojektowane, ale jeszcze niezbudowane. Z sieci nie korzysta na razie żadna prawdziwa społeczność i nie oceniał jej prawnik ani doradca podatkowy. <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a> (po angielsku) oddziela to, co działa, od tego, co zaprojektowane.
+p_stands = Zasady księgowania, podpisane łańcuchy kont, węzeł społeczności, publiczny hub, na którym każdy tworzy społeczność, linie zaufania, którymi społeczności handlują ze sobą, i aplikacja działają i są przetestowane. Konta rodzin i firm oraz płatności przez trzecią społeczność są zaprojektowane, ale jeszcze niezbudowane. Z sieci nie korzysta na razie żadna prawdziwa społeczność i nie oceniał jej prawnik ani doradca podatkowy. <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a> (po angielsku) oddziela to, co działa, od tego, co zaprojektowane.
 h_node = Załóż własną społeczność
-p_node = Społeczność utworzysz w portfelu w minutę: bez serwera i bez terminala. Klucz Twojego urządzenia czyni Cię jej założycielem; przyjmujesz uczestników i ustalasz ich limity. Albo uruchom wszystko samodzielnie — na Cloudflare lub na własnej maszynie: kod jest otwarty (Apache-2.0). Zobacz <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/pl/run-a-node.md">przewodnik</a>. Wypróbować można w społeczności demonstracyjnej Demo Town.
+p_node = Społeczność utworzysz w aplikacji w minutę: bez serwera i bez terminala. Klucz Twojego urządzenia czyni Cię jej założycielem; przyjmujesz uczestników i ustalasz ich limity. Albo uruchom wszystko samodzielnie — na Cloudflare lub na własnej maszynie: kod jest otwarty (Apache-2.0). Zobacz <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/pl/run-a-node.md">przewodnik</a>. Wypróbować można w społeczności demonstracyjnej Demo Town.
 nav_legal = Prawo

@@ -79,7 +79,7 @@ lazy val host = (project in file("host")).dependsOn(node.jvm)
       case x => (assembly / assemblyMergeStrategy).value(x)
     })
 
-/** THE SITE: `sbt site` — target/site: the pages of site/ and the wallet linked beside its page (wallet/main.js).
+/** THE SITE: `sbt site` — target/site: the pages of site/ and the app (the module `wallet`) linked beside its page (app/main.js).
  * Static: any server serves it; a node's host serves it beside its calls */
 val site = taskKey[File]("the site: its pages and the wallet's script")
 lazy val siteTask = Def.task {
@@ -89,13 +89,15 @@ lazy val siteTask = Def.task {
   val from = (wallet.js / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value / linked
   IO.delete(out)
   IO.copyFile(base / "site" / "icon.svg", out / "icon.svg")
+  IO.copyDirectory(base / "site" / "app", out / "app")
+  // the page's old address, kept: it sends whoever comes on to app/
   IO.copyDirectory(base / "site" / "wallet", out / "wallet")
-  IO.copyFile(from, out / "wallet" / "main.js")
+  IO.copyFile(from, out / "app" / "main.js")
   // a wallet published apart from its hub (GitHub Pages) names it: `sbt -Dhub=https://… site`
   sys.props.get("hub").filter(_.nonEmpty).foreach { hub =>
-    val page = out / "wallet" / "index.html"
+    val page = out / "app" / "index.html"
     val empty = "<meta name=\"okay-mutual-hub\" content=\"\">"
-    require(IO.read(page).contains(empty), "site/wallet/index.html names no hub to set")
+    require(IO.read(page).contains(empty), "site/app/index.html names no hub to set")
     IO.write(page, IO.read(page).replace(empty, "<meta name=\"okay-mutual-hub\" content=\"" + hub.stripSuffix("/") +
       "\">"))
   }
@@ -108,7 +110,7 @@ lazy val siteTask = Def.task {
     val words = IO.readLines(base / "site" / s"landing.$lang.txt").filter(_.contains(" = ")).map { line =>
       val at = line.indexOf(" = ")
       line.take(at).trim -> line.drop(at + 3).trim
-    }.toMap ++ Map("root" -> root, "wallet" -> s"${root}wallet/?lang=$lang",
+    }.toMap ++ Map("root" -> root, "app" -> s"${root}app/?lang=$lang",
       "langs" -> languages.map { case (l, label) =>
         val href = if (l == "en") (if (root.isEmpty) "./" else root) else s"$root$l/"
         val current = if (l == lang) """ aria-current="true"""" else ""

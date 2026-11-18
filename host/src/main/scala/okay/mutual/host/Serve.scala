@@ -7,7 +7,7 @@ import java.nio.file.{Files, Paths}
 
 /**
  * A HUB ON ONE MACHINE (docs/run-a-node.md): one JVM process, one directory — okay-serverless' host. The same app
- * and objects as on Cloudflare, the site served beside them: open the wallet it serves and create a community. Every
+ * and objects as on Cloudflare, the site served beside them: open the app it serves and create a community. Every
  * community's key pair is made with it and kept in the directory's database, for the machine's owner alone. What the
  * environment may say:
  *
@@ -27,7 +27,7 @@ object Serve:
     val host = Host.start(NodeApp, NodeApp.actors, HostConfig(dir = dir, port = port,
       host = env.getOrElse("HOST", "127.0.0.1"), static = Option.when(Files.isDirectory(site))(site), vars = vars))
     System.err.println(s"the hub is up; its data: $dir")
-    System.err.println(if Files.isDirectory(site) then s"open http://127.0.0.1:$port/wallet/ and create a community"
+    System.err.println(if Files.isDirectory(site) then s"open http://127.0.0.1:$port/app/ and create a community"
       else s"no site at $site (sbt site): the hub answers its calls only")
     host
 

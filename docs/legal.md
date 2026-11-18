@@ -35,9 +35,12 @@ ordinary, and the books of an association or a cooperative.
 
 Two more, which are choices a community makes rather than properties of the code:
 
-- **Businesses first.** A community may admit only businesses and the self-employed (the software enforces the
-  choice). Rules that protect consumers — on credit above all — then do not arise. A community that admits private
-  people takes those rules on.
+- **Private people earn before they spend.** A community admits businesses, the self-employed and private people,
+  and a private person's account never goes below zero. The software enforces it: such an account opens with no
+  credit line, none can be given to it, and a line another member lends it comes back. A person earns units first —
+  by work or goods sold to members, or units a business gives — and then spends them. No credit is given to a
+  consumer, so the rules on consumer credit do not arise. A community may choose otherwise: admit only businesses,
+  or give private people credit lines too and take those rules on.
 - **A legal person for the community** — an association or a cooperative whose members keep accounts with each
   other — rather than an operator who "runs a currency".
 
@@ -61,6 +64,8 @@ licence:
   account.
 - **Ordinary liability.** A member who does not deliver, or does not honour a debt, answers to the others as under
   any contract.
+- **A buyer's rights.** A business that sells to a private person owes them what it owes any consumer — honest
+  information, a warranty, the right to return — whatever the price is counted in.
 
 ## Where we are not sure
 
@@ -76,25 +81,30 @@ Honest uncertainty, in order of weight:
    does.
 2. **Credit to private people.** A credit line given to a consumer may fall under consumer-credit rules even with
    no interest; the EU's revised directive, applying from late 2026, narrows the old exemptions. Whether a
-   community's mutual credit is "credit granted in the course of a trade" is unsettled. Businesses-only avoids the
-   question.
-3. **Platform reporting (DAC7)**, as above.
-4. **Each country.** The rules above are European; each state applies them in its own way, and some add their own.
+   community's mutual credit is "credit granted in the course of a trade" is unsettled. Where private people only
+   earn and then spend, they are given no credit and the question does not arise; a community that gives them
+   credit lines takes it on.
+3. **When a person's selling becomes a business.** Someone who sells work or goods now and then is a private
+   person; someone who does it regularly may be carrying on a business in the tax office's eyes, registered or
+   not, and each country draws that line in its own place. This is so for sales in money too; the statement the
+   app gives makes the count easy to keep.
+4. **Platform reporting (DAC7)**, as above.
+5. **Each country.** The rules above are European; each state applies them in its own way, and some add their own.
 
 ## The profile to start in
 
 Everything above points one way for a first real community:
 
 - one country and one unit;
-- businesses and the self-employed only;
+- businesses, the self-employed, and private people who earn before they spend;
 - an association or cooperative as the community's legal person, with its rules written down and accepted by each
   member;
 - admission by decision, small credit lines that grow with a member's record;
 - a fee, if any, in money, by invoice;
 - no trust lines to other communities until the first one works.
 
-With that profile the open questions shrink to two — MiCA's reach and platform reporting — and a single legal
-opinion can answer both.
+With that profile the open questions shrink to three — MiCA's reach, platform reporting, and where a private
+person's selling becomes a business — and a single legal opinion can answer them.
 
 ## What to ask a lawyer, once
 
@@ -106,7 +116,9 @@ opinion can answer both.
    leaving member does not settle?
 4. VAT and income tax on a deal in units, and on a deal that is part units and part money: the moment the income
    arises, the invoice.
-5. If private people are admitted: do consumer-credit rules apply to their credit lines?
+5. Private people who only earn and spend, with no credit line: does anything of consumer law apply beyond a
+   buyer's ordinary rights? From what size is a person's selling a business here? And if a community gives private
+   people credit lines: do consumer-credit rules apply to them?
 6. What must the hub's operator, who only hosts, have in place: a processing agreement, terms of use, nothing else?
 7. Does anything change when two communities open trust lines to each other across a border?
 
