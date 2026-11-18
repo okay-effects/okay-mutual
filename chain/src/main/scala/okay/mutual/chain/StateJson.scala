@@ -18,7 +18,9 @@ object StateJson:
     "grants" -> Json.Arr(s.grants.map(grant)), "sent" -> amounts(s.sent),
     "names" -> Json.Arr(s.names.toVector.sorted.map(Json.str)), "lends" -> amounts(s.lends),
     "spent" -> Json.Arr(s.spent.map(x => Json.obj("key" -> Json.str(x.key), "at" -> Json.num(x.at),
-      "amount" -> Json.num(x.amount)))))
+      "amount" -> Json.num(x.amount)))),
+    "recovering" -> s.recovering.fold[Json](Json.Null)((k, after) => Json.obj("key" -> Json.str(k),
+      "after" -> Json.num(after))))
 
   def read(j: Json): Option[State] = scala.util.Try {
     def map(name: String): Map[String, Long] = j(name).record.map((k, v) => k -> v.long).toMap
@@ -28,5 +30,6 @@ object StateJson:
       j("grants").list.map(g => Grant(g("key").string, g("spend").boolean, g("manage").boolean, g("payment").long,
         g("period").long, g("per").long, g.field("under").map(_.string))),
       map("sent"), j("names").list.map(_.string).toSet, map("lends"),
-      j("spent").list.map(x => Spent(x("key").string, x("at").long, x("amount").long)))
+      j("spent").list.map(x => Spent(x("key").string, x("at").long, x("amount").long)),
+      j.field("recovering").map(x => x("key").string -> x("after").long))
   }.toOption

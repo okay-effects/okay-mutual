@@ -17,6 +17,7 @@ import okay.serverless.cloud.{Actor, InActor, Request, Response}
  *   dir/head/<id>       the hash of the account's last record
  *   dir/number          how many times the heads changed: the head's number
  *   dir/line/<peer key> the account this node keeps for another node: its id, the peer's address and name
+ *   dir/recovery/<id>   one who asks back an account whose devices are lost: the new device's key, when
  *   dir/rules           the community's rules: the text its members accept to join, and its hash
  *   dir/community       the id of the community's own account — its holders that may manage govern the node
  *   dir/command/<hash>  a command taken (never twice)
@@ -36,6 +37,7 @@ object Directory extends Actor:
   private val community = s"$scope/community"
   private val lines = s"$scope/line/"
   private val rules = s"$scope/rules"
+  private val recoveries = s"$scope/recovery/"
 
   type Live[X] = (InActor + Signer)[X]
   private type Step[X] = (Live + Durable)[X]
@@ -104,6 +106,16 @@ object Directory extends Actor:
         _.fold(Http.refused("unknown", 404))(Http.json(_)))
     case ("POST", "/_dir/reject") =>
       step(Durable.delete[Step](requests + Http.body(r)("id").string)).as(Http.json(Json.obj()))
+    // ---- recovery asked (specs/protocol.md "Keys"): kept until the community confirms or drops it
+    case ("POST", "/_dir/recovery") =>
+      val j = Http.body(r)
+      step(Durable.put[Json, Step](recoveries + j("account").string, j)).as(Http.json(Json.obj()))
+    case ("GET", "/_dir/recoveries") => Http.all[Live](recoveries).map(rs => Http.json(Json.obj("recoveries" ->
+        Json.Arr(rs.map(_._2).sortBy(_("at").long)))))
+    case ("GET", "/_dir/recovery") => Http.read[Live](recoveries + r.param("account").getOrElse("")).map(
+        _.fold(Http.refused("unknown", 404))(Http.json(_)))
+    case ("POST", "/_dir/recovery/done") =>
+      step(Durable.delete[Step](recoveries + Http.body(r)("account").string)).as(Http.json(Json.obj()))
     // ---- the community's rules (docs/legal.md): what a newcomer accepts, named by its hash
     case ("GET", "/_dir/rules") => Http.read[Live](rules).map(r => Http.json(r.getOrElse(Json.obj(
         "text" -> Json.str(""), "hash" -> Json.str("")))))

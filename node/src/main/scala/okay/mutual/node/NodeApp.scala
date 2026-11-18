@@ -35,6 +35,10 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *   GET  /api/lines                         the nodes this one keeps an account for: key, address, name, account
  *   GET  /api/line?node=<key>               the account it keeps for that node
  *   POST /api/line/open                     {node}: the opening record of its own account at that node, signed
+ *   POST /api/accounts/<id>/recovery        {key, sig}: asked back by a new device (`sig`: its signature of
+ *                                           `recover:<id>:<key>`) — kept for the community to confirm
+ *   POST /api/accounts/<id>/recovered       a recovery announced and due, made so
+ *   GET  /api/recoveries                    who asks an account back: account, name, key
  *   POST /api/setup                         {record, name}: the community's own account, once (`x-setup-token`)
  *   POST /api/command                       {command, key, sig}: a command of one who may manage the community
  *
@@ -46,13 +50,17 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  * Commands (`{cmd, at, …}`, signed as their text, good for ten minutes, taken once): `limits {account, credit,
  * ceiling}`; `admit {id, credit, ceiling}` — one who asked is opened an account; `reject {id}`; `line {address,
  * credit}` — an account kept for another node (a trust line): how far that community may owe this one; `rules
- * {text}` — the community's rules, from then on the ones a newcomer accepts
+ * {text}` — the community's rules, from then on the ones a newcomer accepts; `recover {account}` — the community
+ * knows who asks that account back: the recovery announced on its chain, in force after the waiting period
+ * (`NodeApp.waiting`) unless a device that still holds the account cancels it; `forget {account}` — the asking dropped
  */
 object NodeApp extends App:
   val actors: Map[String, Actor] = Map(AccountObject.namespace -> AccountObject, Directory.namespace -> Directory,
     Hub.namespace -> Hub)
   type Live[X] = (Cloud + Signer)[X]
   val fresh: Long = 10 * 60 * 1000L
+  /** how long a recovery is announced before it is in force: time for the account's own holder to say no */
+  val waiting: Long = 7L * 24 * 60 * 60 * 1000
 
   override def fetch(r: Request): Response ! Cloud =
     if r.method == "OPTIONS" then pure(Response(204, Http.cors, ""))
@@ -126,6 +134,28 @@ object NodeApp extends App:
           Http.json(Json.obj("id" -> Http.answer(l)("id"))))
       case ("POST", List("api", "line", "open")) =>
         directory(env, Http.post("/_dir/line/sign", Json.obj("node" -> Http.body(r)("node")))).map(answered)
+      // an account asked back by a device that proves it holds the key it names
+      case ("POST", List("api", "accounts", a, "recovery")) if id(a) =>
+        scala.util.Try((Http.body(r)("key").string, Http.body(r)("sig").string)).toOption match
+          case None => pure(Http.refused("body"))
+          case Some((key, sig)) => Signer.verify[Live](key, s"recover:$a:$key", sig).flatMap { signed =>
+              if !signed then pure(Http.refused("unsigned", 403))
+              else account(env, a, Request.get("/_acct/state")).flatMap { st =>
+                StateJson.read(Http.answer(st)) match
+                  case None => pure(Http.refused("unknown", 404))
+                  case Some(s) if s.grant(key).isDefined => pure(Http.refused("held", 409))
+                  case Some(_) => directory(env, Request.get("/_dir/members")).flatMap { ms =>
+                      val name = scala.util.Try(Http.answer(ms)("members").list.find(_("id").string == a)
+                        .map(_("name").string)).toOption.flatten.getOrElse("")
+                      Clock.now[Live].flatMap(now => directory(env, Http.post("/_dir/recovery", Json.obj(
+                        "account" -> Json.str(a), "key" -> Json.str(key), "name" -> Json.str(name),
+                        "at" -> Json.num(now))))).as(Http.json(Json.obj("asked" -> Json.str(a)), 202))
+                    }
+              }
+            }
+      case ("POST", List("api", "accounts", a, "recovered")) if id(a) =>
+        account(env, a, Http.post("/_acct/recovered", Json.obj())).map(answered)
+      case ("GET", List("api", "recoveries")) => directory(env, Request.get("/_dir/recoveries")).map(answered)
       case ("POST", List("api", "setup")) => setup(env, r)
       case ("POST", List("api", "command")) => command(env, Http.body(r))
       case _ => pure(Response.notFound())
@@ -211,6 +241,21 @@ object NodeApp extends App:
                 "ceiling" -> Json.num(if line then Peers.unbounded else ceiling)))).map(answered)
             }
           case _ => pure(Http.refused("command"))
+      // the community knows who asks: the recovery announced on the account's chain, the asking taken off
+      case "recover" => scala.util.Try(c("account").string).toOption.filter(id) match
+          case None => pure(Http.refused("command"))
+          case Some(a) => directory(env, Request.get(s"/_dir/recovery?account=$a")).flatMap { q =>
+              if q.status != 200 then pure(Http.refused("no such request", 404))
+              else Clock.now[Live].flatMap(now => account(env, a, Http.post("/_acct/recover", Json.obj(
+                "key" -> Http.answer(q)("key"), "after" -> Json.num(now + waiting))))).flatMap(done =>
+                if done.status != 200 then pure(answered(done))
+                else directory(env, Http.post("/_dir/recovery/done", Json.obj("account" -> Json.str(a))))
+                  .as(answered(done)))
+            }
+      case "forget" => scala.util.Try(c("account").string).toOption.filter(id) match
+          case None => pure(Http.refused("command"))
+          case Some(a) => directory(env, Http.post("/_dir/recovery/done", Json.obj("account" -> Json.str(a))))
+              .map(answered)
       case "rules" => scala.util.Try(c("text").string).toOption match
           case Some(text) => directory(env, Http.post("/_dir/rules", Json.obj("text" -> Json.str(text)))).map(answered)
           case None => pure(Http.refused("command"))

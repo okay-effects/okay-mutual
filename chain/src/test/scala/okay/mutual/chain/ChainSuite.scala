@@ -29,7 +29,8 @@ class ChainSuite extends munit.FunSuite:
     val bodies = Vector[Body](Body.Open("N", "personal", "K", "PLN"), Body.Send("to", 4000, "memo", "k1"),
       Body.Receive("from", "ref", 1), Body.Bounce("ref", 2), Body.Limits(1, 2),
       Body.Granted(Grant("K2", spend = true, manage = false, 100, 500, 7 * day)), Body.Revoke("K2"),
-      Body.Vouch("to", 3), Body.Vouched("from", "ref", 3), Body.Release(3), Body.Released("ref", 3))
+      Body.Vouch("to", 3), Body.Vouched("from", "ref", 3), Body.Release(3), Body.Released("ref", 3),
+      Body.Recover("K3", 99), Body.Recovered("K3"))
     for b <- bodies do
       val r = Record("acc", 7, "prev", 123L, b)
       assertEquals(Record.parse(Record.text(r)), Some(r), b.kind)
@@ -238,4 +239,33 @@ class ChainSuite extends munit.FunSuite:
     w.node(Body.Vouched("v", "r", 500))
     assertEquals(StateJson.read(StateJson.write(w.state.get)), w.state)
     assertEquals(StateJson.read(okay.effects.json.Json.obj()), None)
+  }
+
+  test("recovery: announced by the node, in force only after its time, cancelled by a device that still holds") {
+    val w = account()
+    val fresh = Fake.pair("fresh")
+    // a holder does not announce one, and nothing is in force that was not announced
+    assertEquals(w.add(w.next(Body.Recover(fresh.pub, w.now + 7 * day)), phone), Left(Fault.Unsigned("node")))
+    assertEquals(w.node(Body.Recovered(fresh.pub)), Left(Fault.Unknown(fresh.pub)))
+    assertEquals(w.node(Body.Recover(phone.pub, w.now + 7 * day)), Left(Fault.Forbidden("held")))
+    assertEquals(w.node(Body.Recover(fresh.pub, w.now - 1)), Left(Fault.Place("time")))
+    assertEquals(w.node(Body.Recover(fresh.pub, w.now + 7 * day)).map(_.recovering), Right(Some(fresh.pub -> (w.now + 7 * day))))
+    // one at a time; the new key holds nothing while it waits; not in force a moment early
+    assertEquals(w.node(Body.Recover("Pother", w.now + 7 * day)), Left(Fault.Forbidden("recovering")))
+    assertEquals(w.by(fresh)(Body.Send("b", 1, "", "")), Left(Fault.Unsigned("holder")))
+    w.now += 7 * day - 1
+    assertEquals(w.node(Body.Recovered(fresh.pub)), Left(Fault.Place("time")))
+    w.now += 1
+    assertEquals(w.node(Body.Recovered(fresh.pub)).map(s => (s.recovering, s.grants.map(_.key))),
+      Right((None, Vector(phone.pub, fresh.pub))))
+    assert(w.by(fresh)(Body.Send("b", 100, "", "")).isRight)
+    // the phone was only mislaid: its owner cancels a recovery someone else started
+    val v = account()
+    v.node(Body.Recover(fresh.pub, v.now + 7 * day))
+    v.by(phone)(Body.Granted(Grant(tablet.pub, spend = true, manage = false)))
+    assertEquals(v.by(tablet)(Body.Revoke(fresh.pub)), Left(Fault.Forbidden("manage")))
+    assertEquals(v.by(phone)(Body.Revoke(fresh.pub)).map(_.recovering), Right(None))
+    v.now += 8 * day
+    assertEquals(v.node(Body.Recovered(fresh.pub)), Left(Fault.Unknown(fresh.pub)))
+    assertEquals(StateJson.read(StateJson.write(w.state.get)), w.state)
   }

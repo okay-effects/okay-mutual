@@ -33,6 +33,11 @@ enum Body(val kind: String):
   case Release(amount: Long) extends Body("release")
   /** `amount` of the line this account lent by its `vouch` `ref`, returned (the voucher's side) */
   case Released(ref: String, amount: Long) extends Body("released")
+  /** A RECOVERY ANNOUNCED: `key` is to hold the account from the time `after` — unless a holder takes it off first
+   * (`revoke` of that key). The node's word, given when the community confirms it knows who asks */
+  case Recover(key: String, after: Long) extends Body("recover")
+  /** the recovery in force: `key` holds the account (not before its announced time) */
+  case Recovered(key: String) extends Body("recovered")
 
 /** A RECORD of an account's chain: its place (`seq`, the hash of the one before), the time its signer says, what
  * it says. An opening record has no account yet: `account` and `prev` are empty */
@@ -70,6 +75,8 @@ object Record:
         "amount" -> Json.num(amount))
     case Body.Release(amount) => Json.obj("amount" -> Json.num(amount))
     case Body.Released(ref, amount) => Json.obj("ref" -> Json.str(ref), "amount" -> Json.num(amount))
+    case Body.Recover(key, after) => Json.obj("key" -> Json.str(key), "after" -> Json.num(after))
+    case Body.Recovered(key) => Json.obj("key" -> Json.str(key))
 
   /** a text read: none when it is not a record of this version */
   def parse(text: String): Option[Record] = Descent.parse(text).toOption.flatMap(j => scala.util.Try {
@@ -88,6 +95,8 @@ object Record:
       case "vouched" => Body.Vouched(b("from").string, b("ref").string, b("amount").long)
       case "release" => Body.Release(b("amount").long)
       case "released" => Body.Released(b("ref").string, b("amount").long)
+      case "recover" => Body.Recover(b("key").string, b("after").long)
+      case "recovered" => Body.Recovered(b("key").string)
     Record(j("account").string, j("seq").long, j("prev").string, j("at").long, read)
   }.toOption)
 

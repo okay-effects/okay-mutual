@@ -468,3 +468,50 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(other.state("floor").long, -11000L)
     assert(net.prefix.nonEmpty)
   }
+
+  test("recovery: asked by a new device, confirmed by the community, in force after a week — or cancelled") {
+    val town = Community(Net(), "Anna")
+    val (net, anna) = (town.net, town.one)
+    val fresh = SignerJdk.generate()
+    def ask(key: Pair, by: Pair) = net.post(s"/api/accounts/${anna.id}/recovery", Json.obj("key" -> Json.str(key.pub),
+      "sig" -> Json.str(SignerJdk.sign(by.secret, s"recover:${anna.id}:${key.pub}"))))
+    // only by a device that holds the key it names; not for a key that holds the account already
+    assertEquals(ask(fresh, anna.key).status, 403)
+    assertEquals(ask(anna.key, anna.key).status, 409)
+    assertEquals(net.post(s"/api/accounts/${"0" * 64}/recovery", Json.obj("key" -> Json.str(fresh.pub),
+      "sig" -> Json.str(SignerJdk.sign(fresh.secret, s"recover:${"0" * 64}:${fresh.pub}")))).status, 404)
+    assertEquals(ask(fresh, fresh).status, 202)
+    assertEquals(net.json(net.get("/api/recoveries"))("recoveries").list.map(q => (q("name").string, q("key").string)),
+      Vector(("Anna", fresh.pub)))
+    // asking changes nothing: the community must say it knows who asks
+    assertEquals(anna.state("recovering"), Json.Null)
+    def confirm(by: Pair) = net.command(by, "cmd" -> Json.str("recover"), "at" -> Json.num(net.now),
+      "account" -> Json.str(anna.id))
+    assertEquals(confirm(anna.key).status, 403)
+    assertEquals(confirm(town.founder.key).status, 200)
+    assertEquals(anna.state("recovering")("after").long, net.now + NodeApp.waiting)
+    assertEquals(net.json(net.get("/api/recoveries"))("recoveries").list.size, 0)
+    // announced, not in force: the new key spends nothing, and making it so is refused until its time
+    def spend(by: Pair) = anna.say(Body.Send(town.founder.id, 100, "", ""), by = by)
+    assertEquals(spend(fresh).status, 409)
+    assertEquals(net.post(s"/api/accounts/${anna.id}/recovered", Json.obj()).status, 409)
+    net.now += NodeApp.waiting
+    assertEquals(net.post(s"/api/accounts/${anna.id}/recovered", Json.obj()).status, 200)
+    assertEquals(spend(fresh).status, 200)
+    assertEquals(net.checked(anna.id).map(s => (s.grants.size, s.recovering)), Right((2, None)))
+    assertEquals(net.post(s"/api/accounts/${anna.id}/recovered", Json.obj()).status, 404)
+    // another time the phone was only mislaid: its owner cancels what someone else started
+    val thief = SignerJdk.generate()
+    assertEquals(ask(thief, thief).status, 202)
+    assertEquals(net.command(town.founder.key, "cmd" -> Json.str("recover"), "at" -> Json.num(net.now),
+      "account" -> Json.str(anna.id)).status, 200)
+    assertEquals(anna.say(Body.Revoke(thief.pub)).status, 200)
+    net.now += NodeApp.waiting
+    assertEquals(net.post(s"/api/accounts/${anna.id}/recovered", Json.obj()).status, 404)
+    assertEquals(spend(thief).status, 409)
+    // an asking the community does not believe is dropped
+    assertEquals(ask(thief, thief).status, 202)
+    assertEquals(net.command(town.founder.key, "cmd" -> Json.str("forget"), "at" -> Json.num(net.now),
+      "account" -> Json.str(anna.id)).status, 200)
+    assertEquals(net.json(net.get("/api/recoveries"))("recoveries").list.size, 0)
+  }

@@ -7,13 +7,15 @@ final case class Spent(key: String, at: Long, amount: Long)
  * AN ACCOUNT AS ITS CHAIN MAKES IT (specs/protocol.md "An account's chain"): never stored as the truth — the fold of
  * the records, the same in a node, in a wallet, in an auditor's script. `id`: the hash of its opening record;
  * `head`: the hash of its last. `sent`: its sends not bounced, by their hash; `lends`: the lines it lent, by the
- * hash of their `vouch`; `spent`: the holders' spending still inside a limit's window
+ * hash of their `vouch`; `spent`: the holders' spending still inside a limit's window; `recovering`: a recovery
+ * announced and not yet in force — the key and the time from which it holds the account
  */
 final case class State(id: String, node: String, of: String, unit: String, seq: Long, head: String, at: Long,
                        credit: Long = 0L, ceiling: Long = 0L, balance: Long = 0L, vouched: Long = 0L,
                        voucher: Option[String] = None, lent: Long = 0L, grants: Vector[Grant] = Vector.empty,
                        sent: Map[String, Long] = Map.empty, names: Set[String] = Set.empty,
-                       lends: Map[String, Long] = Map.empty, spent: Vector[Spent] = Vector.empty):
+                       lends: Map[String, Long] = Map.empty, spent: Vector[Spent] = Vector.empty,
+                       recovering: Option[(String, Long)] = None):
   /** the lowest balance it may reach: its own line, what was lent to it, less what it lent */
   def floor: Long = -(credit + vouched - lent)
   def grant(key: String): Option[Grant] = grants.find(_.key == key)
@@ -47,7 +49,8 @@ enum Fault:
  * Every record needs the node's signature: the node orders the chain. A debit and a change of holders need a
  * holder's too (`send`; `vouch`, `grant`, `revoke` by one that may manage): nobody moves a member's credit
  * without its key. A credit and a
- * rule are the node's alone (`receive`, `bounce`, `limits`, `vouched`, `release`, `released`)
+ * rule are the node's alone (`receive`, `bounce`, `limits`, `vouched`, `release`, `released`, `recover`,
+ * `recovered`)
  */
 object Chain:
   def step(state: Option[State], text: String, signers: Set[String]): Either[Fault, State] =
@@ -137,10 +140,27 @@ object Chain:
         val left = s.grants.filterNot(x => gone(x.key)).map(x =>
           if x.under.exists(gone) then x.copy(under = None) else x)
         if !g.manage then Left(Fault.Forbidden("manage"))
+        // a recovery announced for this key: cancelled — the account's own holder says it is not theirs
+        else if s.recovering.exists(_._1 == key) then Right(s.copy(recovering = None))
         else if s.grant(key).isEmpty then Left(Fault.Unknown(key))
         else if !left.exists(_.manage) then Left(Fault.Forbidden("last"))
         else Right(s.copy(grants = left))
       }
+
+    // RECOVERY (specs/protocol.md "Keys"): announced by the node — one at a time, for a key that holds nothing yet
+    // —, in force by a second record no earlier than announced; between the two, any holder that may manage can
+    // cancel it by taking the key off
+    case Body.Recover(key, after) =>
+      if s.recovering.isDefined then Left(Fault.Forbidden("recovering"))
+      else if s.grant(key).isDefined then Left(Fault.Forbidden("held"))
+      else if after < r.at then Left(Fault.Place("time"))
+      else Right(s.copy(recovering = Some(key -> after)))
+
+    case Body.Recovered(key) => s.recovering match
+        case Some((k, after)) if k == key && r.at >= after =>
+          Right(s.copy(recovering = None, grants = s.grants :+ Grant(key, spend = true, manage = true)))
+        case Some((k, _)) if k == key => Left(Fault.Place("time"))
+        case _ => Left(Fault.Unknown(key))
 
     // a line lent: a holder that may manage (it is no payment: no holder's spending limit counts it)
     case Body.Vouch(to, amount) => holder(s, signers).flatMap { g =>

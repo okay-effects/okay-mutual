@@ -80,6 +80,15 @@ object AccountObject extends Actor:
           case Some(signed) => append(env, signed, Http.body(r).field("memo").collect { case Json.Str(m) =>
               m.replaceAll("\\s+", " ").trim.take(200) }.getOrElse(""))
       case ("POST", "/_acct/deliver") => deliver(env, Http.body(r))
+      // recovery: announced for a key, in force from `after`; then made so — the chain's rules say when it may be
+      case ("POST", "/_acct/recover") => scala.util.Try((Http.body(r)("key").string, Http.body(r)("after").long))
+          .toOption match
+          case None => pure(Http.refused("body"))
+          case Some((key, after)) => byNode(env, Body.Recover(key, after)).map(done)
+      case ("POST", "/_acct/recovered") => state.flatMap {
+          case Some(s) if s.recovering.isDefined => byNode(env, Body.Recovered(s.recovering.get._1)).map(done)
+          case _ => pure(Http.refused("unknown", 404))
+        }
       case ("POST", "/_acct/limits") => scala.util.Try((Http.body(r)("credit").long, Http.body(r)("ceiling").long))
           .toOption match
           case None => pure(Http.refused("body"))
