@@ -229,4 +229,11 @@ an ordinary customer: an account is all a card needs.
   once) and the customer's device claims with its own signature; `GET /api/cards[?of=]`. Done when: NodeSuite.
 - [x] **the app** — "Cards": a customer's cards and stamps; a shop's own card, "Give a stamp" and "Give the reward"
   as a code to scan; the app opened by the code's link claims it. Four languages. Done when: WalletSuite.
-- [ ] **publish** — Worker, Pages, docs ×4, README.
+- [x] **publish** — Worker, Pages, docs ×4, README.
+
+Sprint 9 closed 2026-11-18: hub redeployed, Pages republished (gh-pages 6929bee). Checked on the live app with two
+browsers — a shop made its card and showed codes; a new customer opened the first code's link, opened an account,
+got the stamp, a second one ("the card is full"), then the reward; the code is taken out of the address once read.
+Left in `demo`: "Corner cafe (demo)" with its card and "Regular (demo)". The operator also asked how all of this
+could be a non-profit organisation: answered in the conversation; nothing decided — see docs/legal.md for what a
+community's legal person is for.
