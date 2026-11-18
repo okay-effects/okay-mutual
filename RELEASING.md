@@ -20,3 +20,19 @@ current number (0.1.0), the tag moved; a new number only when someone else depen
 
 5. A user that had the old jars clears them:
    `rm -rf ~/Library/Caches/Coursier/v1/https/okay-effects.github.io/okay-mutual`.
+
+## The site
+
+https://okay-effects.github.io/okay-mutual/ — the landing and the wallet, on the same `gh-pages` branch, beside
+`maven/`:
+
+```sh
+sbt site                                              # target/site
+git worktree add /tmp/okay-mutual-pages gh-pages
+rsync -ac --delete --exclude maven --exclude .git --exclude .nojekyll target/site/ /tmp/okay-mutual-pages/
+git -C /tmp/okay-mutual-pages add -A && git -C /tmp/okay-mutual-pages commit -m "the site"
+git -C /tmp/okay-mutual-pages push origin gh-pages && git worktree remove /tmp/okay-mutual-pages
+```
+
+The wallet published there is served by no node: it asks for a node's address (or takes the one in its page's
+`<meta name="okay-mutual-node">`). A node's own host serves the same site beside its calls.
