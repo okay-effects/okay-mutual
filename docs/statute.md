@@ -165,3 +165,34 @@ Founder, a member of a body or a person or entity related to them. 5. The softwa
 - **§ 16** gives communities a voice without making them the Foundation's members (a foundation has none). Whether
   a legal person may name a council member this way, and how to word it, is a question for you.
 - **§ 22** is meant to make the name and the hub impossible to privatise.
+
+## Where this draft is weak
+
+Found on a first reading against Polish practice — by us, not by a lawyer; each to be confirmed or dismissed:
+
+1. **Paid activity or business (§ 5, § 8, § 9).** "Paid statutory activity" has a legal meaning only under the
+   public-benefit act, which wants the statute to list what is unpaid and what is paid, and does not allow the
+   same subject to be both paid statutory and business activity. Business activity is entered by its
+   classification codes. § 9 has to be decided first; the rest follows.
+2. **The founder as board and contractor (§ 13–§ 17).** Nothing says who represents the Foundation in a contract
+   with a member of the Board. With a one-person Board who is also the contractor that is a contract with
+   oneself; the Council's approval does not cure it. Usually the Council, or an attorney it appoints, signs.
+3. **A Board that cannot be appointed (§ 13).** The Council appoints "on the Founder's proposal": no rule for when
+   the Founder is gone or proposes nobody. "Once the Council is first complete" is no definite moment.
+4. **The Council's make-up (§ 16).** No term of office, no way a membership ends, no rule for how the Founder's
+   first members give way to the communities'. A "community" may be no legal person: who names a member, and how,
+   must be in the statute itself. Its independence is worded more narrowly than the public-benefit act asks.
+5. **Representation by a threshold of value (§ 14).** A registry court often questions it: a third party cannot
+   check the value against the register.
+6. **Provisions that only declare (§ 6 last sentence, § 20 point 2, § 22 point 5).** A statute cannot make an act
+   towards a third party void, cannot entrench a paragraph against the body that may change the entrenching
+   paragraph, and does not govern the software's licence. They bind inside the Foundation, or say what is true
+   anyway; they should be reworded as duties of the bodies.
+7. **Changing the purposes; liquidation (§ 20, § 22).** Purposes may be changed only where the statute says so
+   expressly: it is silent. Liquidation follows from the act, not from a vote: the resolution should state its
+   grounds and open it. The liquidators are persons. For a later public-benefit status what remains must go to an
+   organisation of public-benefit purposes — an association of communities may not be one.
+8. **Publishing contracts (§ 19).** Every related-party contract with its price, employees' included, meets
+   data-protection law and business secrecy: it needs a basis, or consent written into those contracts.
+9. **Smaller points.** One minister must be named (§ 2). Protecting the name (§ 4 point 4) is a means, not a
+   public-benefit purpose. A cap on pay applies to paid statutory activity (§ 15).

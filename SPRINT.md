@@ -237,3 +237,8 @@ got the stamp, a second one ("the card is full"), then the reward; the code is t
 Left in `demo`: "Corner cafe (demo)" with its card and "Regular (demo)". The operator also asked how all of this
 could be a non-profit organisation: answered in the conversation; nothing decided — see docs/legal.md for what a
 community's legal person is for.
+
+2026-11-18, after sprint 9 (operator: "prepare it"): docs/organisation.md — who owns what: a foundation for the
+code, the name and the public hub; each community its own legal person; the builders ordinary businesses — and
+docs/statute.md, a draft statute of the foundation with the list of where it is weak; both in four languages (the
+Polish statute is the working text). A proposal for a lawyer: nothing is decided or registered.

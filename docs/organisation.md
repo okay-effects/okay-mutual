@@ -65,7 +65,8 @@ should be able to earn a living from it openly, by invoice, as for any open-sour
 
 - **A foundation** is set up by one founder, who writes its purposes and its statute; a board runs it. It can
   start with one person and a small founding fund. It fits the moment when there are no communities yet.
-- **An association** needs at least seven founding members and is governed by its members' vote. It fits "nobody
+- **An association** needs at least seven founding members (a registered one; an ordinary one, three)
+  and is governed by its members' vote. It fits "nobody
   is in charge" better — once there are communities to be its members.
 - **The path**: start as a foundation; give the communities a real voice through the council from the first
   community on; when several communities exist, either keep that arrangement or set up a union of communities
