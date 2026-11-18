@@ -81,7 +81,7 @@ object NodeApp extends App:
       "credit" -> Json.num(credit), "ceiling" -> Json.num(ceiling), "env" -> NodeEnv.write(env))))
   /** an id is a record's hash: nothing else names an object */
   private def id(s: String): Boolean = s.matches("[0-9a-f]{64}")
-  private def answered(r: Response): Response = r.copy(headers = r.headers ++ Http.cors)
+  private def answered(r: Response): Response = Http.open(r)
 
   private def route(env: NodeEnv, r: Request, method: String, path: List[String]): Response ! Live =
     (method, path) match

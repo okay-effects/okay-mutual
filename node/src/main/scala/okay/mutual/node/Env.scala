@@ -42,6 +42,11 @@ object Http:
    * known by a signature alone, so every origin may ask */
   val cors: Map[String, String] = Map("Access-Control-Allow-Origin" -> "*",
     "Access-Control-Allow-Headers" -> "content-type, x-setup-token, x-hub-token", "Access-Control-Allow-Methods" -> "GET, POST")
+  /** an object's answer given to whoever asked: the headers that let any origin ask, ONCE — an answer that came
+   * through an object carries them already, in whatever case the platform gave them back, and a browser refuses
+   * `Access-Control-Allow-Origin: *, *` */
+  def open(r: Response): Response = r.copy(headers =
+    r.headers.filterNot((k, _) => k.toLowerCase.startsWith("access-control-")) ++ cors)
   private val headers = Map("Content-Type" -> "application/json; charset=utf-8", "Cache-Control" -> "no-store") ++ cors
   def json(j: Json, status: Int = 200): Response = Response(status, headers, Json.print(j))
   def refused(why: String, status: Int = 400, more: (String, Json)*): Response =

@@ -259,6 +259,19 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(hub.get("/n/nowhere/api/members").status, 404)
   }
 
+  test("any origin may ask, and is told so once: an answer that came through an object is not told twice") {
+    val through = okay.serverless.cloud.Response(200, Map("access-control-allow-origin" -> "*",
+      "Access-Control-Allow-Methods" -> "GET, POST", "content-type" -> "application/json"), "{}")
+    val opened = Http.open(through)
+    assertEquals(opened.headers.keys.count(_.toLowerCase == "access-control-allow-origin"), 1)
+    assertEquals(opened.headers.keys.count(_.toLowerCase == "access-control-allow-methods"), 1)
+    assertEquals(opened.headers.get("content-type"), Some("application/json"))
+    val net = Net()
+    for path <- Seq("/api/members", "/api/head", "/.well-known/okay-mutual.json") do
+      assertEquals(net.get(path).headers.keys.count(_.toLowerCase == "access-control-allow-origin"), 1, path)
+    assertEquals(net.hub.get("/api/nodes").headers.keys.count(_.toLowerCase == "access-control-allow-origin"), 1)
+  }
+
   test("making a node: a proper place, once; a few a day from one address; behind a token where it is not open") {
     val hub = Hubs("HUB_PER_DAY" -> "2")
     assertEquals(hub.make("our-town", "Our Town").status, 200)
