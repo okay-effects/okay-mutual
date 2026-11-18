@@ -144,7 +144,7 @@ His requirement from the start ("families and organisations with shared budgets"
   are the keys and the accounts they acted for. `two {above}`: above this amount a payment needs two holders —
   the first says `propose {to, amount, memo, name}` (a record: it survives the chain moving on, it is audited, it
   lapses in a week), another holder's `send` of the same takes it. Done when: ChainSuite, Laws.
-- [ ] **the node** — the acting checked against the holder account's own chain, here, now; an account of a family
+- [x] **the node** — the acting checked against the holder account's own chain, here, now; an account of a family
   (`family`) or a team (`team`: a business's) opened by a member's account with no line of its own (a budget is
   lent — `vouch` — or given by the community; a family's never goes below zero where people earn first); who
   holds what (`GET /api/held?by=`). Done when: NodeSuite.

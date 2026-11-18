@@ -56,6 +56,12 @@ final class Net(join: String = "open", val hub: Hubs = Hubs(), slug: String = "t
     val records = json(get(s"/api/accounts/$id/chain"))("records").list.flatMap(Signed.parse)
     runIsolated(SignerJdk.run(Check.chain[Pure + Signer](records)))
 
+  /** the same for an account whose holders are accounts: each act checked against its account's own chain */
+  def checkedShared(id: String): Either[(Int, Fault), State] =
+    def records(a: String) = json(get(s"/api/accounts/$a/chain"))("records").list.flatMap(Signed.parse)
+    runIsolated(SignerJdk.run(Check.chain[Pure + Signer](records(id), a =>
+      Check.holds[Pure + Signer](records(a.account), a))))
+
   /** a command signed by `by` */
   def command(by: Pair, fields: (String, Json)*): Response =
     val text = Json.print(Json.Obj(fields.toVector))
@@ -75,6 +81,14 @@ final class Wallet(net: Net, val key: Pair = SignerJdk.generate()):
     val r = net.post("/api/accounts", Json.obj("record" -> record, "name" -> Json.str(name)))
     if r.status == 200 then id = net.json(r)("state")("id").string
     r
+  /** a record signed by `by` FOR the account of `who`, which `by` holds */
+  def signedFor(r: Record, who: Wallet, by: Pair): Json =
+    val text = Record.text(r)
+    Signed.json(Signed(text, Vector(by.pub -> SignerJdk.sign(by.secret, text)), Vector(Act(by.pub, who.id, 0))))
+  /** this account's next record, said by a device of `who` for `who`'s account — a holder of this one */
+  def sayFor(who: Wallet, body: Body, by: Pair, memo: String = ""): Response =
+    net.post(s"/api/accounts/$id/records", Json.obj("record" -> signedFor(next(body), who, by),
+      "memo" -> Json.str(memo)))
   def state: Json = net.json(net.get(s"/api/accounts/$id"))
   def balance: Long = state("balance").long
   /** the chain's next record saying `body`, as the account is now */

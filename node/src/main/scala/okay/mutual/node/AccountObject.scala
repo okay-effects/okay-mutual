@@ -98,6 +98,22 @@ object AccountObject extends Actor:
               else byNode(env, Body.Limits(credit, ceiling)).map(done))
       case _ => pure(Response.notFound())
 
+  /** WHO SIGNED, WITH THE ACCOUNTS THEY SIGNED FOR (specs/protocol.md "Keys": a holder may be an account). A
+   * record names, beside a signature, the account its key signed for; that account — of this node — is asked now:
+   * a key its chain says may manage it speaks for it. Answered: the record with the acts that hold, each at the
+   * place of its account's chain where it was checked (what an auditor checks again), and all who signed */
+  private def acting(env: NodeEnv, self: String, signed: Signed): (Signed, Set[String]) ! Live =
+    Check.signers[Live](signed).flatMap { keys =>
+      val named = signed.acts.filter(a => keys(a.key) && a.account != self && a.account.matches("[0-9a-f]{64}"))
+        .distinctBy(a => a.key -> a.account).take(4)
+      named.foldLeft(pure[(Vector[Act], Set[String]), Live]((Vector.empty, keys)))((acc, a) => acc.flatMap((kept, all) =>
+        Objects.call[Live](namespace, a.account, Request.get("/_acct/state").copy(headers = Map(
+          "x-node" -> List(env.pub)))).map(r => StateJson.read(Http.answer(r)).filter(p => r.status == 200 &&
+          p.grant(a.key).exists(_.manage)) match
+          case Some(p) => (kept :+ a.copy(seq = p.seq), all + a.account)
+          case None => (kept, all)))).map((kept, all) => (signed.copy(acts = kept), all))
+    }
+
   private def done(result: Either[Fault, (Signed, State)]): Response = result match
     case Right((signed, s)) => Http.json(Json.obj("record" -> Signed.json(signed), "state" -> StateJson.write(s)))
     case Left(fault) => faulted(fault)
@@ -129,14 +145,20 @@ object AccountObject extends Actor:
             .andThen(Durable.put[Json, Step](stateKey, StateJson.write(next))).andThen(more).as(Right((full, next)))
         })
     }.flatMap {
-      case Right(kept) => told(env, kept._2).as(Right(kept))
+      case Right(kept) => told(env, before, kept._2).as(Right(kept))
       case left => pure(left)
     }
 
-  /** the node's directory told the account's new head (its signed head covers every account) */
-  private def told(env: NodeEnv, s: State): Unit ! Live =
-    Objects.call[Live](Directory.namespace, env.slug, Http.post("/_dir/head", Json.obj(
-      "account" -> Json.str(s.id), "head" -> Json.str(s.head)))).as(())
+  /** the holders of an account that are accounts */
+  private def holders(s: State): Vector[String] = s.grants.map(_.key).filter(_.matches("[0-9a-f]{64}"))
+
+  /** the node's directory told the account's new head (its signed head covers every account) — and, when they
+   * changed, which accounts hold it: how a member's app finds what the member shares */
+  private def told(env: NodeEnv, before: Option[State], s: State): Unit ! Live =
+    val changed = before.fold(Vector.empty)(holders) != holders(s)
+    Objects.call[Live](Directory.namespace, env.slug, Http.post("/_dir/head", Json.Obj(Vector(
+      "account" -> Json.str(s.id), "head" -> Json.str(s.head)) ++ (if changed then Vector("holders" ->
+      Json.Arr(holders(s).map(Json.str))) else Vector.empty)))).as(())
 
   /** THE FIRST RECORD: signed by the member's first key, for this node and its unit; the object's name is its hash */
   private def open(env: NodeEnv, name: String, j: Json): Response ! Live =
@@ -145,7 +167,7 @@ object AccountObject extends Actor:
           case Some(Body.Open(node, _, _, unit)) if node == env.pub && unit == env.unit && signed.hash == name =>
             state.flatMap {
               case Some(_) => pure(Http.refused("taken", 409))
-              case None => Clock.now[Live].flatMap(now => Check.signers[Live](signed).flatMap { signers =>
+              case None => Clock.now[Live].flatMap(now => acting(env, name, signed).flatMap { (signed, signers) =>
                   Chain.step(None, signed.text, signers + env.pub) match
                     case Left(fault) => pure(faulted(fault))
                     case Right(s) => commit(env, None, signed, s, now,
@@ -181,11 +203,12 @@ object AccountObject extends Actor:
               }
             case None => Clock.now[Live].flatMap { now =>
                 val members = r.body match
-                  case _: Body.Send | _: Body.Vouch | _: Body.Granted | _: Body.Revoke => true
+                  case _: Body.Send | _: Body.Vouch | _: Body.Granted | _: Body.Revoke | _: Body.Two |
+                    _: Body.Propose => true
                   case _ => false
                 if !members then pure(faulted(Fault.Forbidden("node")))
                 else if math.abs(r.at - now) > skew then pure(faulted(Fault.Place("time")))
-                else Check.signers[Live](signed).flatMap { signers =>
+                else acting(env, s.id, signed).flatMap { (signed, signers) =>
                   Chain.step(Some(s), signed.text, signers + env.pub) match
                     case Left(fault) => pure(faulted(fault))
                     case Right(next) =>
@@ -197,8 +220,13 @@ object AccountObject extends Actor:
                         case Body.Vouch(to, amount) => Some(Json.obj("kind" -> Json.str("vouched"),
                             "to" -> Json.str(to), "amount" -> Json.num(amount)))
                         case _ => None
-                      val more: Unit ! Step = name.fold(unit[Step])(n => Durable.put[Json, Step](nameKey(n),
-                        Json.num(next.seq))).andThen(flight.fold(unit[Step])(f => Durable.put[Json, Step](
+                      // what a proposed payment is for waits with it, for the holder who sends it
+                      val proposed: Unit ! Step = r.body match
+                        case Body.Propose(_, _, hash, _) if memo.nonEmpty && Sha256.hex(memo) == hash =>
+                          Durable.put[Json, Step](memoKey(next.head), Json.str(memo))
+                        case _ => unit[Step]
+                      val more: Unit ! Step = proposed.andThen(name.fold(unit[Step])(n => Durable.put[Json, Step](nameKey(n),
+                        Json.num(next.seq)))).andThen(flight.fold(unit[Step])(f => Durable.put[Json, Step](
                         flightKey(next.head), f).andThen(Durable.wakeAt[Step](now + retry)).andThen(
                         f.field("memo").collect { case m @ Json.Str(text) if text.nonEmpty => m }.fold(unit[Step])(m =>
                           Durable.put[Json, Step](memoKey(next.head), m)))))

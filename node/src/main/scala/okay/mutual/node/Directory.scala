@@ -20,6 +20,7 @@ import okay.serverless.cloud.{Actor, InActor, Request, Response}
  *   dir/recovery/<id>   one who asks back an account whose devices are lost: the new device's key, when
  *   dir/listing/<id>    an offer or a want of a member: what, for how much, what share of it in units
  *   dir/rules           the community's rules: the text its members accept to join, and its hash
+ *   dir/holders/<id>    the accounts that hold the account <id> (a family's, a team's): their ids
  *   dir/community       the id of the community's own account — its holders that may manage govern the node
  *   dir/command/<hash>  a command taken (never twice)
  *
@@ -40,6 +41,7 @@ object Directory extends Actor:
   private val rules = s"$scope/rules"
   private val recoveries = s"$scope/recovery/"
   private val listings = s"$scope/listing/"
+  private val holders = s"$scope/holders/"
 
   type Live[X] = (InActor + Signer)[X]
   private type Step[X] = (Live + Durable)[X]
@@ -76,9 +78,18 @@ object Directory extends Actor:
     case ("GET", "/_dir/env") => pure(Http.json(NodeEnv.write(env)))
     case ("POST", "/_dir/head") =>
       val j = Http.body(r)
+      val held: Unit ! Step = j.field("holders") match
+        case Some(Json.Arr(hs)) if hs.isEmpty => Durable.delete[Step](holders + j("account").string)
+        case Some(hs) => Durable.put[Json, Step](holders + j("account").string, hs)
+        case None => unit[Step]
       step(Durable.get[Json, Step](number).flatMap(n => Durable.put[Json, Step](heads + j("account").string,
-        j("head")).andThen(Durable.put[Json, Step](number, Json.num(n.fold(0L)(_.long) + 1)))))
+        j("head")).andThen(Durable.put[Json, Step](number, Json.num(n.fold(0L)(_.long) + 1))).andThen(held)))
         .as(Http.json(Json.obj()))
+    // the accounts an account holds
+    case ("GET", "/_dir/held") =>
+      val by = Json.str(r.param("by").getOrElse(""))
+      Http.all[Live](holders).map(all => Http.json(Json.obj("accounts" -> Json.Arr(all.collect {
+        case (k, Json.Arr(hs)) if hs.contains(by) => Json.str(k.stripPrefix(holders)) }))))
     case ("GET", "/_dir/head") => head(env).map((signed, _) => Http.json(Signed.json(signed)))
     case ("GET", "/_dir/proof") =>
       val account = r.param("account").getOrElse("")

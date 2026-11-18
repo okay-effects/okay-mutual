@@ -26,12 +26,15 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *   POST /api/accounts                      {record, name, rules}: an account opened by its first, signed record
  *                                           (`rules`: the hash of the rules accepted — the ones in force) — or,
  *                                           where joining is not open, kept as a request (202)
+ *                                           an account a family or a team shares (`family`, `team`) is opened
+ *                                           by a member's ACCOUNT, at once, with no credit line of its own
+ *   GET  /api/held?by=<id>                  the accounts that account holds
  *   GET  /api/requests                      who waits to be admitted: id, name, kind
  *   GET  /api/accounts/<id>                 the account as its chain makes it
  *   GET  /api/accounts/<id>/chain?from=     its records, to check
  *   GET  /api/accounts/<id>/proof           the proof that its head is under the node's head
  *   POST /api/accounts/<id>/records         {record, memo?}: a holder's signed record — `send`, `vouch`, `grant`,
- *                                           `revoke`; a payment's memo, when its hash is the record's
+ *                                           `revoke`, `two`, `propose`; a payment's memo, when its hash is the record's
  *   GET  /api/lines                         the nodes this one keeps an account for: key, address, name, account
  *   GET  /api/line?node=<key>               the account it keeps for that node
  *   POST /api/line/open                     {node}: the opening record of its own account at that node, signed
@@ -119,7 +122,8 @@ object NodeApp extends App:
       // an account asked for: by one the community admits at all, who accepted its rules as they are now
       case ("POST", List("api", "accounts")) => directory(env, Request.get("/_dir/rules")).flatMap { rules =>
           val (body, hash) = (Http.body(r), Http.answer(rules).field("hash").fold("")(_.string))
-          if env.only == "business" && asking(body).exists(_._3 != "business") then
+          if asking(body).exists(a => Shared.kinds(a._3)) then shared(env, body)
+          else if env.only == "business" && asking(body).exists(_._3 != "business") then
             pure(Http.refused("business", 409))
           else if hash.nonEmpty && !body.field("rules").contains(Json.str(hash)) then pure(Http.refused("rules", 409))
           else if env.open then joined(env, body, env.credit, env.ceiling) else requested(env, body)
@@ -132,6 +136,8 @@ object NodeApp extends App:
       case ("POST", List("api", "accounts", a, "records")) if id(a) =>
         account(env, a, Http.post("/_acct/append", Json.obj("record" -> Http.body(r)("record"),
           "memo" -> Http.body(r).field("memo").getOrElse(Json.str(""))))).map(answered)
+      case ("GET", List("api", "held")) => directory(env, Request.get(s"/_dir/held?by=${r.param("by")
+          .filter(id).getOrElse("")}")).map(answered)
       case ("GET", List("api", "lines")) => directory(env, Request.get("/_dir/lines")).map(answered)
       case ("GET", List("api", "line")) => directory(env, Request.get(s"/_dir/line?node=${r.param("node")
           .getOrElse("")}")).map(l => if l.status != 200 then answered(l) else
@@ -181,6 +187,22 @@ object NodeApp extends App:
           "name" -> Json.str(name), "of" -> Json.str(of), "at" -> Json.num(at)))).as(answered(made))
       }
     case None => pure(Http.refused("record"))
+
+  /** AN ACCOUNT A FAMILY OR A TEAM SHARES: opened by an account that is a member here already — so at once,
+   * whatever the joining —, with no credit line of its own: what it may owe is lent to it (`vouch`) or given by the
+   * community. A team's is a business's to open; whether the opener's device signed is the account object's check */
+  private def shared(env: NodeEnv, j: Json): Response ! Live =
+    asking(j).flatMap(a => Record.parse(a._1.text).map(_.body)) match
+      case Some(Body.Open(_, of, opener, _)) if id(opener) =>
+        account(env, opener, Request.get("/_acct/state")).flatMap { st =>
+          StateJson.read(Http.answer(st)).filter(_ => st.status == 200) match
+            case None => pure(Http.refused("member", 409))
+            case Some(p) if Shared.kinds(p.of) || p.of == "line" => pure(Http.refused("member", 409))
+            case Some(p) if of == "team" && p.of == "personal" => pure(Http.refused("business", 409))
+            case Some(_) if of == "family" && env.only == "business" => pure(Http.refused("business", 409))
+            case Some(_) => joined(env, j, 0, env.ceiling)
+        }
+      case _ => pure(Http.refused("record"))
 
   /** WHERE JOINING IS NOT OPEN: the first record kept as a request — it must be this node's and signed by its own
    * key, so nobody asks in another's name — until a holder of the community admits or rejects it */

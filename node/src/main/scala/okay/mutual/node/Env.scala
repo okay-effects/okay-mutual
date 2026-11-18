@@ -16,8 +16,13 @@ import okay.serverless.cloud.{Request, Response}
  */
 final case class NodeEnv(slug: String, pub: String, secret: String, unit: String, name: String, open: Boolean,
                          credit: Long, ceiling: Long, setup: String, only: String = ""):
-  /** whether an account of this kind may have a credit line here */
-  def credited(of: String): Boolean = !(only == "earned" && of == "personal")
+  /** whether an account of this kind may have a credit line here: where private people earn first, neither a
+   * person's nor a family's */
+  def credited(of: String): Boolean = !(only == "earned" && (of == "personal" || of == "family"))
+
+object Shared:
+  /** the kinds of an account held by its members' accounts: a family's (people's), a team's (a business's) */
+  val kinds: Set[String] = Set("family", "team")
 
 object NodeEnv:
   def write(e: NodeEnv): Json.Obj = Json.obj("slug" -> Json.str(e.slug), "pub" -> Json.str(e.pub),

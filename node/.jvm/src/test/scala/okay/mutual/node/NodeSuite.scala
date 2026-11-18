@@ -466,6 +466,13 @@ class NodeSuite extends munit.FunSuite:
     val other = Member("business", "Bakery")
     assertEquals(shop.say(Body.Vouch(other.id, 1000)).status, 200)
     assertEquals(other.state("floor").long, -11000L)
+    // a family's account is people's too: opened by her account, it has no line and is lent none
+    val text = Record.text(Record("", 1, "", hub.now, Body.Open(about("key").string, "family", anna.id, "PLN")))
+    val home = hub.json(hub.post(at("/api/accounts"), Json.obj("record" -> Signed.json(Signed(text, Vector(
+      anna.key.pub -> SignerJdk.sign(anna.key.secret, text)), Vector(Act(anna.key.pub, anna.id, 0)))),
+      "name" -> Json.str("Home"))))("state")("id").string
+    assertEquals(shop.say(Body.Vouch(home, 1000)).status, 200)
+    assertEquals((hub.json(hub.get(at(s"/api/accounts/$home")))("floor").long, shop.state("lent").long), (0L, 1000L))
     assert(net.prefix.nonEmpty)
   }
 
@@ -549,4 +556,68 @@ class NodeSuite extends munit.FunSuite:
     for i <- 1 to Directory.own do { net.now += 1000; assertEquals(list(anna, anna.key, "offer", s"Offer $i").status, 200) }
     net.now += 1000
     assertEquals(list(anna, anna.key, "offer", "One more").status, 429)
+  }
+
+  test("an account shared: opened and held by members' accounts, any device of a holder signs; two holders") {
+    val (net, anna, jan) = town()
+    val shop = Wallet(net)
+    assertEquals(shop.join("Shop", "business").status, 200)
+    val home = Wallet(net)
+    def opening(of: String, who: Wallet) = Record("", 1, "", net.now, Body.Open(net.node.pub, of, who.id, "PLN"))
+    def open(of: String, who: Wallet, by: Pair, name: String = "Home") = net.post("/api/accounts", Json.obj(
+      "record" -> home.signedFor(opening(of, who), who, by), "name" -> Json.str(name)))
+    // not by a key that does not hold the account it names; a team is a business's to open
+    assertEquals(error(net, open("family", anna, jan.key)), (409, "unsigned", Json.str("holder")))
+    assertEquals(error(net, open("team", anna, anna.key))._2, "business")
+    val made = open("family", anna, anna.key)
+    assertEquals(made.status, 200, made.body)
+    home.id = net.json(made)("state")("id").string
+    val s = home.state
+    assertEquals((s("of").string, s("floor").long, s("ceiling").long, s("grants").list.map(_("key").string)),
+      ("family", 0L, 30000L, Vector(anna.id)))
+    assert(net.json(net.get("/api/members"))("members").list.exists(m => m("name").string == "Home"))
+    def held(w: Wallet) = net.json(net.get(s"/api/held?by=${w.id}"))("accounts").list.map(_.string)
+    assertEquals((held(anna), held(jan)), (Vector(home.id), Vector.empty))
+    // it is paid as any member; Jan's account a holder of it, 50.00 a week
+    assertEquals(jan.say(Body.Send(home.id, 6000, "", "")).status, 200)
+    assertEquals(home.balance, 6000L)
+    assertEquals(home.sayFor(anna, Body.Granted(Grant(jan.id, spend = true, manage = false, 0, 5000, 7 * day)),
+      anna.key).status, 200)
+    assertEquals(held(jan), Vector(home.id))
+    assertEquals(home.sayFor(jan, Body.Send(shop.id, 4000, "", ""), jan.key).status, 200)
+    assertEquals(error(net, home.sayFor(jan, Body.Send(shop.id, 2000, "", ""), jan.key)),
+      (409, "limit", Json.str("period")))
+    // Jan's key signs for Jan's account alone: not for Anna's; and it may not manage the family's
+    assertEquals(error(net, home.sayFor(anna, Body.Send(shop.id, 100, "", ""), jan.key))._2, "unsigned")
+    assertEquals(error(net, home.sayFor(jan, Body.Two(1000), jan.key)), (409, "forbidden", Json.str("manage")))
+    // Anna's laptop, signed in to HER account, acts for the family at once
+    val laptop = SignerJdk.generate()
+    assertEquals(anna.say(Body.Granted(Grant(laptop.pub, spend = true, manage = true))).status, 200)
+    assertEquals(home.sayFor(anna, Body.Two(500), laptop).status, 200)
+    // above the threshold: Jan proposes, Anna sends — what it is for waits with the proposal
+    assertEquals(error(net, home.sayFor(jan, Body.Send(shop.id, 800, Sha256.hex("paint"), "p1"), jan.key)),
+      (409, "unsigned", Json.str("second")))
+    assertEquals(home.sayFor(jan, Body.Propose(shop.id, 800, Sha256.hex("paint"), "p1"), jan.key, "paint").status, 200)
+    assertEquals(home.state("proposed").list.map(p => (p("by").string, p("amount").long)), Vector((jan.id, 800L)))
+    assert(net.json(net.get(s"/api/accounts/${home.id}/chain"))("records").list.exists(
+      _.field("memo").contains(Json.str("paint"))))
+    assertEquals(home.sayFor(anna, Body.Send(shop.id, 800, Sha256.hex("paint"), "p1"), laptop, "paint").status, 200)
+    assertEquals((home.balance, shop.balance, home.state("proposed").list.size), (1200L, 4800L, 0))
+    // the chain holds for anyone who checks each act against its account's own chain — and not without them
+    assertEquals(net.checkedShared(home.id).map(_.balance), Right(1200L))
+    assert(net.checked(home.id).isLeft)
+    // Jan taken off: he holds it no more
+    assertEquals(home.sayFor(anna, Body.Revoke(jan.id), anna.key).status, 200)
+    assertEquals(held(jan), Vector.empty)
+    assertEquals(error(net, home.sayFor(jan, Body.Send(shop.id, 100, "", ""), jan.key))._2, "unsigned")
+    // a business's team: no line of its own, a budget lent by its business
+    val team = Wallet(net)
+    val t = open("team", jan, jan.key, "Jan's workshop")
+    assertEquals(t.status, 200, t.body)
+    team.id = net.json(t)("state")("id").string
+    assertEquals(jan.say(Body.Vouch(team.id, 3000)).status, 200)
+    assertEquals((team.state("floor").long, jan.state("floor").long), (-3000L, -7000L))
+    assertEquals(team.sayFor(jan, Body.Send(shop.id, 2500, "", ""), jan.key).status, 200)
+    assertEquals(net.json(net.get("/api/members"))("members").list.map(m => net.json(net.get(
+      s"/api/accounts/${m("id").string}"))("balance").long).sum, 0L)
   }
