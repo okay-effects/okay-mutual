@@ -80,7 +80,8 @@ class NodeSuite extends munit.FunSuite:
   test("refused: past the credit line, by a key that holds nothing, out of place, out of time") {
     val (net, anna, jan) = town()
     assertEquals(error(net, anna.pay(jan, 10001)), (409, "credit", Json.num(1)))
-    assertEquals(error(net, anna.say(Body.Send(jan.id, 100, "", ""), by = jan.key)), (409, "unsigned", Json.str("holder")))
+    assertEquals(error(net, anna.say(Body.Send(jan.id, 100, "", ""), by = jan.key)),
+      (409, "unsigned", Json.str("holder")))
     val record = anna.next(Body.Send(jan.id, 100, "", ""))
     assertEquals(anna.send(record).status, 200)
     // the same record again: its place is taken
@@ -130,7 +131,8 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(anna.say(Body.Granted(Grant(tablet.pub, spend = true, manage = false, 2000, 5000, 7 * day))).status,
       200)
     assertEquals(anna.say(Body.Send(jan.id, 2000, "", ""), by = tablet).status, 200)
-    assertEquals(error(net, anna.say(Body.Send(jan.id, 2001, "", ""), by = tablet)), (409, "limit", Json.str("payment")))
+    assertEquals(error(net, anna.say(Body.Send(jan.id, 2001, "", ""), by = tablet)),
+      (409, "limit", Json.str("payment")))
     assertEquals(anna.say(Body.Send(jan.id, 2000, "", ""), by = tablet).status, 200)
     assertEquals(error(net, anna.say(Body.Send(jan.id, 1001, "", ""), by = tablet)), (409, "limit", Json.str("period")))
     assertEquals(error(net, anna.say(Body.Revoke(anna.key.pub), by = tablet)), (409, "forbidden", Json.str("manage")))

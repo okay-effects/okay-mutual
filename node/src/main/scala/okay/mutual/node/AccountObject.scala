@@ -48,7 +48,8 @@ object AccountObject extends Actor:
 
   private def answer(name: String, r: Request): Response ! Live = NodeEnv.read[Live].flatMap { env =>
     (r.method, r.path) match
-      case ("GET", "/_acct/state") => state.map(_.fold(Http.refused("unknown", 404))(s => Http.json(StateJson.write(s))))
+      case ("GET", "/_acct/state") =>
+        state.map(_.fold(Http.refused("unknown", 404))(s => Http.json(StateJson.write(s))))
       case ("GET", "/_acct/chain") =>
         val from = r.param("from").flatMap(_.toLongOption).getOrElse(1L)
         Http.all[Live](s"$scope/rec/").flatMap(rs => Http.all[Live](s"$scope/memo/").map { ms =>

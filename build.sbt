@@ -13,7 +13,8 @@ ThisBuild / resolvers ++= Seq("okay-scala" at "https://okay-effects.github.io/ok
   "okay-simple" at "https://okay-effects.github.io/okay-simple/maven",
   "okay-faces" at "https://okay-effects.github.io/okay-faces/maven",
   "okay-http" at "https://okay-effects.github.io/okay-http/maven",
-  "okay-serverless" at "https://okay-effects.github.io/okay-serverless/maven")
+  "okay-serverless" at "https://okay-effects.github.io/okay-serverless/maven",
+  "okay-ui" at "https://okay-effects.github.io/okay-ui/maven")
 /** RELEASES, ON GITHUB PAGES: `sbt publish` writes the module into `target/pages-maven/` */
 val pagesRepository = settingKey[File]("the Maven repository a release is written to, for GitHub Pages")
 ThisBuild / pagesRepository := (ThisBuild / baseDirectory).value / "target" / "pages-maven"
@@ -51,5 +52,18 @@ lazy val node = crossProject(JVMPlatform, JSPlatform).crossType(CrossType.Pure).
   .settings(name := "okay-mutual-node",
     libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-serverless" % "0.2.0", munit.value))
 
-lazy val root = (project in file(".")).aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js, node.jvm, node.js)
+/** THE WALLET (specs/protocol.md, stage 3): a member's side and the community's office, a program of okay-ui's
+ * screens; its world asked as effects — the node (`Net`), this device's key (`Device`). Its tests play it against
+ * the node itself, in memory; in a page it is one line (`InTheBrowser`) */
+lazy val wallet = crossProject(JVMPlatform, JSPlatform).crossType(CrossType.Pure).in(file("wallet"))
+  .dependsOn(chain, node % "test->test")
+  .settings(name := "okay-mutual-wallet",
+    libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-ui" % "0.1.0",
+      "io.github.okay-effects" %%% "okay-effects-time-value" % "0.1.1", munit.value))
+  .jsSettings(
+    Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-js",
+    scalaJSUseMainModuleInitializer := true, Compile / mainClass := Some("okay.mutual.wallet.InTheBrowser"))
+
+lazy val root = (project in file("."))
+  .aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js, node.jvm, node.js, wallet.jvm, wallet.js)
   .settings(publish / skip := true)
