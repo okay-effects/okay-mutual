@@ -216,3 +216,26 @@ object WordsPl extends Words:
   val statementCopiedText = "Twoje transakcje są w schowku jako CSV: wklej je do arkusza albo przekaż księgowej. " +
     "Transakcja w jednostkach jest sprzedażą, księgowaną i opodatkowaną jak każda inna."
   val notCopied = "Ta przeglądarka nie pozwala stronie kopiować. Zaznacz tabelę i skopiuj ją ręcznie."
+  val lostDevices = "Straciłem(-am) swoje urządzenia"
+  val lostText = "Wybierz swoje konto. To urządzenie utworzy nowy klucz i poprosi Twoją społeczność o " +
+    "potwierdzenie, że to Ty. Po potwierdzeniu klucz przejmie konto po tygodniu — to czas, żeby odmówić, jeśli " +
+    "prosił ktoś inny."
+  val itIsMine = "To moje konto"
+  val askedBack = "Prośba o odzyskanie konta wysłana"
+  def askedBackText(community: String) = s"$community musi potwierdzić, że to Ty: skontaktuj się z nią. Dopóki " +
+    "tego nie zrobi, nic się nie zmienia."
+  def confirmedBack(day: String) = s"Społeczność potwierdziła. To urządzenie przejmuje konto od $day."
+  val notYetBack = "Jeszcze nie: tydzień oczekiwania nie minął."; val backNow = "Przejmij konto"
+  val forgetAsking = "Zapomnij"
+  def recoveryWarning(key: String, day: String) = s"Ktoś poprosił o odzyskanie tego konta na inne urządzenie " +
+    s"($key), a społeczność to potwierdziła. Tamto urządzenie przejmie konto od $day. Jeśli to nie Ty — anuluj teraz."
+  val cancelRecovery = "To nie ja: anuluj"; val recoveryCancelled = "Anulowano: tamto urządzenie niczego nie przejmie."
+  def recoveriesButton(n: Int) = s"Utracone urządzenia ($n)"; val recoveriesTitle = "Kto prosi o odzyskanie konta"
+  val recoveriesText = "Potwierdzaj tylko wtedy, gdy masz pewność, że to uczestnik: porozmawiaj z nim, nie ufaj " +
+    "wiadomości. Stare urządzenia konta mogą jeszcze przez tydzień anulować."
+  val noRecoveries = "nikt nie prosi"; val confirmIdentity = "To ta osoba: potwierdź"
+  def confirmQuestion(name: String) = s"Czy na pewno prosi właśnie $name? Nowe urządzenie przejmie konto za tydzień."
+  val recoveryAnnounced = "Ogłoszono"
+  def recoveryAnnouncedText(name: String) = s"Nowe urządzenie uczestnika $name przejmie konto za tydzień, chyba że " +
+    "stare urządzenie anuluje."
+  val dropAsking = "To nie ta osoba: odrzuć"

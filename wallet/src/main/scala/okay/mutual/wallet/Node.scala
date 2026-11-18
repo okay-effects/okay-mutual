@@ -22,6 +22,8 @@ final case class About(key: String, unit: String, name: String, open: Boolean, c
 final case class Listed(slug: String, name: String, unit: String, open: Boolean)
 /** a node this one keeps an account for (a trust line): its key, its address, its name, the account's id here */
 final case class TrustLine(node: String, address: String, name: String, id: String)
+/** one who asks an account back: the account, its member's name, the new device's key */
+final case class Lost(account: String, name: String, key: String)
 /** one who waits to be admitted */
 final case class Asked(id: String, name: String, of: String)
 /** a member as the others see it */
@@ -78,6 +80,17 @@ object Node:
       .getOrElse(Vector.empty))
 
   def invite[R[_]: Has[Net]]: String ! R = perform[Net](Net.Invite())
+
+  /** an account asked back by this device: `sig` its signature of `recover:<account>:<key>` */
+  def askBack[R[_]: Has[Net]](account: String, key: String, sig: String): Either[Refusal, Unit] ! R =
+    call[R]("POST", s"/api/accounts/$account/recovery", Some(Json.obj("key" -> Json.str(key), "sig" -> Json.str(sig))))
+      .map((status, j) => if status == 202 then Right(()) else Left(refusal(status, j)))
+  /** a recovery announced and due, made so (refused until its time) */
+  def recovered[R[_]: Has[Net]](account: String): Boolean ! R =
+    call[R]("POST", s"/api/accounts/$account/recovered", Some(Json.obj())).map(_._1 == 200)
+  def recoveries[R[_]: Has[Net]]: Vector[Lost] ! R = call[R]("GET", "/api/recoveries").map((_, j) =>
+    scala.util.Try(j("recoveries").list.map(q => Lost(q("account").string, q("name").string, q("key").string)))
+      .getOrElse(Vector.empty))
 
   /** the community's rules — the text a newcomer accepts — and their hash (both empty: it has none) */
   def rules[R[_]: Has[Net]]: (String, String) ! R = call[R]("GET", "/api/rules").map((_, j) =>

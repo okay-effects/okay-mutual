@@ -70,7 +70,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("unsigned", _) => w.unsigned
     case ("forbidden", "manage") => w.onlyManage
     case ("forbidden", "last") => w.lastManager
-    case ("forbidden", "held") => w.heldAlready
+    case ("forbidden", "held") | ("held", _) => w.heldAlready
     case ("forbidden", "credit") => w.noCreditHere
     case ("place", _) => w.changedMeanwhile
     case ("named", _) => w.namedAlready
@@ -91,7 +91,10 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         case Some((id, name)) => home(about, id, name)
         case None => pending.flatMap {
             case Some((id, name)) => waiting(about, id, name)
-            case None => welcome(about, first = true)
+            case None => recovering.flatMap {
+                case Some((id, name)) => backing(about, id, name)
+                case None => welcome(about, first = true)
+              }
           }
     })).andThen(defer(main))
 
@@ -166,7 +169,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
   private def welcome(about: About, first: Boolean): Unit ! R = Node.community[R].flatMap { community =>
     val buttons = List(Button[Int](w.openAccount, Style.Primary)(1), Button[Int](w.addThisDevice)(2)) ++
       (if community.isEmpty then List(Button[Int](w.setUpCommunity)(3)) else Nil) ++
-      (if first then Nil else List(Button[Int](w.back)(0)))
+      List(Button[Int](w.lostDevices)(4)) ++ (if first then Nil else List(Button[Int](w.back)(0)))
     show(Screen[Int]("Okay Mutual")(Part.text(w.intro(about.unit)),
       Part.details(w.community -> about.name, w.joining -> (if about.open then w.joinOpen else w.joinAdmitted),
         w.newCredit -> money(about.credit, about.unit), w.newCeiling -> money(about.ceiling, about.unit)))(
@@ -174,6 +177,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       case 1 => open(about)
       case 2 => addThisDevice
       case 3 => setUp(about)
+      case 4 => lost(about)
       case _ => pure(())
     }
   }
@@ -243,11 +247,18 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
             val buttons = List(Button[Int](w.pay, Style.Primary)(1), Button[Int](w.history)(2),
               Button[Int](w.vouch)(3), Button[Int](w.devices)(4), Button[Int](w.checkNode)(5)) ++
               (if governs then List(Button[Int](w.community)(6)) else Nil) ++
-              List(Button[Int](w.invite)(8), Button[Int](w.accounts)(7))
-            show(Screen[Int](name)(Part.details(w.balance -> Cell.Money(units(s.balance), about.unit),
+              List(Button[Int](w.invite)(8), Button[Int](w.accounts)(7)) ++
+              // a recovery announced for another device: this one, which still holds the account, can say no
+              s.recovering.toList.map(_ => Button[Int](w.cancelRecovery, Style.Danger)(9))
+            val warning = s.recovering.toList.map((k, after) => Part.warning(w.recoveryWarning(short(k), day(after))))
+            show(Screen[Int](name)((warning :+ Part.details(w.balance -> Cell.Money(units(s.balance), about.unit),
               w.canSpend -> Cell.Money(units(s.balance - s.floor), about.unit),
               w.canReceive -> Cell.Money(units(s.ceiling - s.balance), about.unit),
-              w.community -> Cell.Text(about.name)))(buttons*)).flatMap {
+              w.community -> Cell.Text(about.name)))*)(buttons*)).flatMap {
+              case 9 => s.recovering.fold(pure[Unit, R](()))((k, _) => say(s, _ => Body.Revoke(k)).flatMap {
+                  case Right(_) => inform(w.cancelRecovery, w.recoveryCancelled)
+                  case Left(r) => inform(w.cancelRecovery, refusal(r, about.unit))
+                })
               case 1 => pay(about, s)
               case 2 => history(about, s)
               case 3 => vouch(about, s)
@@ -515,8 +526,66 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     }
   }
 
+  // ---- an account asked back: every device lost (specs/protocol.md "Keys")
+
+  /** THIS DEVICE ASKS AN ACCOUNT BACK: its own new key, signed to show it holds it; the community is to confirm */
+  private def lost(about: About): Unit ! R = Node.members[R].flatMap { ms =>
+    val table = Table(ms.filter(_.of != "line").toList)(Column.text(w.yourName)(_.name),
+      Column.text(w.accountKind)(m => w.kind(m.of))).keyedBy(_.id).whenEmpty(w.noMembers)
+    show(Screen[Option[Member]](w.lostDevices)(Part.text(w.lostText), table)(
+      Button.select(w.itIsMine, table)(Some(_)), Button(w.back)(None))).flatMap {
+      case None => pure(())
+      case Some(m) => Device.ready[R].flatMap(pub => Device.sign[R](s"recover:${m.id}:$pub").flatMap(sig =>
+          Node.askBack[R](m.id, pub, sig))).flatMap {
+          case Right(_) => keepHere("recovering", Json.print(Json.obj("id" -> Json.str(m.id),
+              "name" -> Json.str(m.name)))).andThen(inform(w.askedBack, w.askedBackText(about.name)))
+          case Left(r) => inform(w.lostDevices, refusal(r, about.unit))
+        }
+    }
+  }
+
+  /** the account this device asked back, when it did */
+  private def recovering: Option[(String, String)] ! R = here("recovering").map(_.flatMap(t =>
+    Descent.parse(t).toOption).flatMap(j => scala.util.Try(j("id").string -> j("name").string).toOption))
+
+  /** asked back, not yet held: waiting for the community, then for the week; taken up once the key holds it */
+  private def backing(about: About, id: String, name: String): Unit ! R =
+    Device.ready[R].flatMap(pub => Node.account[R](id).flatMap {
+      case Some(s) if s.grant(pub).isDefined => remember(id, name).andThen(keepHere("recovering", ""))
+      case Some(s) if s.recovering.exists(_._1 == pub) =>
+        show(Screen[Int](w.askedBack)(Part.info(w.confirmedBack(day(s.recovering.get._2))))(
+          Button(w.backNow, Style.Primary)(1), Button(w.forgetAsking)(2))).flatMap {
+          case 1 => Node.recovered[R](id).flatMap(done => if done then pure(()) else inform(w.askedBack, w.notYetBack))
+          case _ => keepHere("recovering", "")
+        }
+      case _ => show(Screen[Int](w.askedBack)(Part.text(w.askedBackText(about.name)))(
+          Button(w.checkAgain, Style.Primary)(1), Button(w.forgetAsking)(2))).flatMap {
+          case 2 => keepHere("recovering", "")
+          case _ => pure(())
+        }
+    })
+
+  /** who asks an account back: confirmed only by one sure it is the member — or dropped */
+  private def losses(about: About, key: String): Unit ! R = Node.recoveries[R].flatMap { asked =>
+    val table = Table(asked.toList)(Column.text(w.member)(_.name), Column.text(w.key)(l => short(l.key)))
+      .keyedBy(_.account).whenEmpty(w.noRecoveries)
+    show(Screen[Option[(Lost, Boolean)]](w.recoveriesTitle)(Part.warning(w.recoveriesText), table)(
+      Button.select(w.confirmIdentity, table)(l => Some(l -> true)),
+      Button.select(w.dropAsking, table, Style.Danger)(l => Some(l -> false)), Button(w.back)(None))).flatMap {
+      case None => pure(())
+      case Some((l, false)) => command(key, "forget", "account" -> Json.str(l.account)).as(())
+          .andThen(defer(losses(about, key)))
+      case Some((l, true)) => confirm(w.confirmQuestion(l.name), w.recoveriesTitle).flatMap { yes =>
+          if !yes then pure(()) else command(key, "recover", "account" -> Json.str(l.account)).flatMap {
+            case Right(_) => inform(w.recoveryAnnounced, w.recoveryAnnouncedText(l.name))
+            case Left(r) => inform(w.notSet, refusal(r, about.unit))
+          }
+        }.andThen(defer(losses(about, key)))
+    }
+  }
+
   private def office(about: About, key: String): Unit ! R = Node.requests[R].flatMap(asked =>
-    Node.members[R].flatMap { ms =>
+    Node.recoveries[R].flatMap(lostOnes => Node.members[R].flatMap { ms =>
     ms.foldLeft(pure[Vector[(Member, State)], R](Vector.empty))((acc, m) => acc.flatMap(all =>
       Node.account[R](m.id).map(_.fold(all)(s => all :+ (m -> s))))).flatMap { all =>
       val table = Table(all.toList)(Column.text(w.member)(_._1.name), Column.text(w.accountKind)(x => w.kind(x._1.of)),
@@ -528,9 +597,11 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         w.sum -> Cell.Money(units(all.map(_._2.balance).sum), about.unit)), Part.text(w.sumText), table)(
         Button.select(w.setLimits, table)(x => Some(Right(x))),
         Button(w.requestsButton(asked.size))(Some(Left(1))), Button(w.trustLines)(Some(Left(2))),
-        Button(w.rulesButton)(Some(Left(3))), Button(w.back)(None))).flatMap {
+        Button(w.rulesButton)(Some(Left(3))), Button(w.recoveriesButton(lostOnes.size))(Some(Left(4))),
+        Button(w.back)(None))).flatMap {
         case None => pure(())
         case Some(Left(1)) => asking(about, key).andThen(defer(office(about, key)))
+        case Some(Left(4)) => losses(about, key).andThen(defer(office(about, key)))
         case Some(Left(2)) => lines(about, key).andThen(defer(office(about, key)))
         // the community's rules: from then on the ones a newcomer accepts
         case Some(Left(_)) => Node.rules[R].flatMap((text, _) => edit[Option[String]](w.rulesOf(about.name),
@@ -555,7 +626,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           }.andThen(defer(office(about, key)))
       }
     }
-  })
+  }))
 
   // ---- the accounts this device holds
 

@@ -88,7 +88,7 @@ class WalletSuite extends munit.FunSuite:
     assert(Seen.of(first).contains("Community: Test Town") && Seen.of(first).contains("open to anyone"),
       Seen.of(first))
     assertEquals(first.at.get.buttons.map(_.label), List("Open an account", "Add this device to my account",
-      "Set up this community"))
+      "Set up this community", "I lost my devices"))
     val anna = joined(town, "Anna")
     val home = anna.play()
     assert(Seen.of(home).contains("Balance: 0.00") && Seen.of(home).contains("You can still spend: 100.00"),
@@ -479,4 +479,53 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(paid.at.map(_.title), Some("Paid"), Seen.of(paid))
     assert(Seen.of(anna.play()).contains("Balance: -10.00"), Seen.of(anna.play()))
     assertEquals(town.checked(anna.account).map(_.balance), Right(-1000L))
+  }
+
+  test("every device lost: the account asked back from a new one, confirmed by the community, held after a week") {
+    val town = Town()
+    val founder = Phone(town)
+    founder.play(Act.press("Set up this community"), Act.press("Save", "The community's name" -> "Test Town",
+      "Setup token" -> town.token), Act.press("OK"))
+    val (anna, jan) = (joined(town, "Anna"), joined(town, "Jan"))
+    // her phone is gone; on a new device she says which account is hers
+    val fresh = Phone(town)
+    val asked = fresh.play(Act.press("I lost my devices"), Act.choose("This is my account", "Anna"))
+    assertEquals(asked.at.map(_.title), Some("You asked your account back"), Seen.of(asked))
+    assert(Seen.of(fresh.play()).contains("Test Town has to confirm it is you"), Seen.of(fresh.play()))
+    assert(!Seen.of(anna.play()).contains("asked this account back"))
+    // the community's office: a warning to be sure, then the recovery announced
+    val office = founder.play(Act.press("Community"), Act.press("Lost devices (1)"))
+    assert(Seen.of(office).contains("Warning: Confirm only when you are sure"), Seen.of(office))
+    val announced = founder.play(Act.press("Community"), Act.press("Lost devices (1)"),
+      Act.choose("It is them: confirm", "Anna"), Act.press("Yes"))
+    assertEquals(announced.at.map(_.title), Some("Announced"), Seen.of(announced))
+    // the new device waits out the week; meanwhile it holds nothing
+    val waits = fresh.play()
+    assert(Seen.of(waits).contains("Info: Your community confirmed it. This device holds the account from 2026-11-25"),
+      Seen.of(waits))
+    assert(Seen.of(fresh.play(Act.press("Take the account up"))).contains("the waiting week is not over"))
+    // an old device, were it only mislaid, is warned and can say no
+    val warned = anna.play()
+    assert(Seen.of(warned).contains("Warning: Someone asked this account back for another device"), Seen.of(warned))
+    assert(warned.at.get.buttons.exists(_.label == "It was not me: cancel"))
+    town.now += 7L * 86400000L
+    val back = fresh.play(Act.press("Take the account up"))
+    assertEquals(back.at.map(_.title), Some("Anna"), Seen.of(back))
+    assertEquals(fresh.play(Act.press("Pay"), Act.press("Save", "To" -> "Jan", "Amount" -> "10"), Act.press("Yes"))
+      .at.map(_.title), Some("Paid"))
+    assertEquals(town.checked(fresh.account).map(s => (s.grants.size, s.balance)), Right((2, -1000L)))
+    // another asking, by someone else: the owner cancels it from the device she has now
+    val thief = Phone(town)
+    thief.play(Act.press("I lost my devices"), Act.choose("This is my account", "Anna"), Act.press("OK"))
+    founder.play(Act.press("Community"), Act.press("Lost devices (1)"), Act.choose("It is them: confirm", "Anna"),
+      Act.press("Yes"))
+    val cancelled = fresh.play(Act.press("It was not me: cancel"))
+    assert(Seen.of(cancelled).contains("that device will hold nothing"), Seen.of(cancelled))
+    town.now += 8L * 86400000L
+    assertEquals(thief.play(Act.press("Check again")).at.map(_.title), Some("You asked your account back"))
+    // one the community does not believe is dropped
+    val liar = Phone(town)
+    liar.play(Act.press("I lost my devices"), Act.choose("This is my account", "Jan"), Act.press("OK"))
+    founder.play(Act.press("Community"), Act.press("Lost devices (1)"), Act.choose("Not them: drop", "Jan"))
+    assert(founder.play(Act.press("Community")).at.get.buttons.exists(_.label == "Lost devices (0)"))
   }

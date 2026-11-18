@@ -108,6 +108,14 @@ trait Words:
   def rulesOf(community: String): String; def accept: String; def rulesButton: String; def rulesSaved: String
   def rulesChanged: String; def onlyBusinesses: String
   def copyStatement: String; def statementCopied: String; def statementCopiedText: String; def notCopied: String
+  // ---- an account asked back when every device is lost
+  def lostDevices: String; def lostText: String; def itIsMine: String
+  def askedBack: String; def askedBackText(community: String): String
+  def confirmedBack(day: String): String; def notYetBack: String; def backNow: String; def forgetAsking: String
+  def recoveryWarning(key: String, day: String): String; def cancelRecovery: String; def recoveryCancelled: String
+  def recoveriesButton(n: Int): String; def recoveriesTitle: String; def recoveriesText: String
+  def noRecoveries: String; def confirmIdentity: String; def confirmQuestion(name: String): String
+  def recoveryAnnounced: String; def recoveryAnnouncedText(name: String): String; def dropAsking: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -308,3 +316,26 @@ object Words:
     val statementCopiedText = "Your deals are on the clipboard as CSV: paste them into a spreadsheet or give them to " +
       "your accountant. A deal in units is a sale, booked and taxed as any other."
     val notCopied = "This browser does not let the page copy. Select the table and copy it by hand."
+    val lostDevices = "I lost my devices"
+    val lostText = "Choose your account. This device makes a new key and asks your community to confirm it is you. " +
+      "Once it has, the key holds your account after a week — time for you to say no if someone else asked."
+    val itIsMine = "This is my account"
+    val askedBack = "You asked your account back"
+    def askedBackText(community: String) = s"$community has to confirm it is you: get in touch with it. Nothing " +
+      "changes until it does."
+    def confirmedBack(day: String) = s"Your community confirmed it. This device holds the account from $day."
+    val notYetBack = "Not yet: the waiting week is not over."; val backNow = "Take the account up"
+    val forgetAsking = "Forget this"
+    def recoveryWarning(key: String, day: String) = s"Someone asked this account back for another device ($key), " +
+      s"and your community confirmed it. That device holds the account from $day. If it was not you, cancel it now."
+    val cancelRecovery = "It was not me: cancel"; val recoveryCancelled = "Cancelled: that device will hold nothing."
+    def recoveriesButton(n: Int) = s"Lost devices ($n)"; val recoveriesTitle = "Who asks an account back"
+    val recoveriesText = "Confirm only when you are sure it is the member: speak to them, do not trust a message. " +
+      "The account's old devices can still cancel for a week."
+    val noRecoveries = "nobody asks"; val confirmIdentity = "It is them: confirm"
+    def confirmQuestion(name: String) = s"Are you sure the one who asks is $name? Their new device will hold the " +
+      "account in a week."
+    val recoveryAnnounced = "Announced"
+    def recoveryAnnouncedText(name: String) = s"$name's new device holds the account in a week, unless an old " +
+      "device cancels."
+    val dropAsking = "Not them: drop"
