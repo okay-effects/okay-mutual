@@ -19,6 +19,22 @@ class ApiSuite extends munit.FunSuite:
     val set = w.json(w.ask("PUT", "/accounts/baker", """{"credit":20000,"ceiling":40000}"""))
     assertEquals((set("floor").long, set("ceiling").long, set("name").string), (-20000L, 40000L, "The baker"))
     assertEquals(w.ask("GET", "/accounts/nobody").status, 404)
+    // the holder: said when opened, changed with the limits, kept when not said
+    val held = w.json(w.ask("PUT", "/accounts/anna",
+      """{"kind":"personal","name":"Anna","credit":0,"ceiling":5000,"holder":"Anna@Example.com"}"""))
+    assertEquals(held("holder").string, "anna@example.com")
+    assertEquals(w.json(w.ask("PUT", "/accounts/anna", """{"credit":0,"ceiling":6000}"""))("holder").string,
+      "anna@example.com")
+    assertEquals(w.json(w.ask("PUT", "/accounts/baker",
+      """{"credit":20000,"ceiling":40000,"holder":"jan@example.com"}"""))("holder").string, "jan@example.com")
+  }
+
+  test("a named payment sent twice (a retry) makes one line") {
+    val w = network()
+    val named = """{"from":"tailor","to":"baker","amount":100,"key":"retry-1"}"""
+    assertEquals(w.json(w.ask("POST", "/pay", named))("seq").long, 1L)
+    assertEquals(w.json(w.ask("POST", "/pay", named))("seq").long, 1L)
+    assertEquals(w.json(w.ask("GET", "/journal"))("journal").list.size, 1)
   }
 
   test("a payment answered with its line; a refusal with its code and by how much") {

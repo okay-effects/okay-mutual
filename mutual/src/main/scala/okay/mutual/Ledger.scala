@@ -13,8 +13,12 @@ enum Ledger[X]:
   case Find(id: String) extends Ledger[Option[Account]]
   case Accounts() extends Ledger[Vector[Account]]
   case Limit(id: String, credit: Long, ceiling: Long) extends Ledger[Either[Refusal, Account]]
-  /** `amount` from the buyer to the seller, within the buyer's floor and the seller's ceiling */
-  case Pay(from: String, to: String, amount: Long, memo: String, at: Long) extends Ledger[Either[Refusal, Transfer]]
+  /** who may act for the account (empty: nobody but the operator) */
+  case Hold(id: String, holder: String) extends Ledger[Either[Refusal, Account]]
+  /** `amount` from the buyer to the seller, within the buyer's floor and the seller's ceiling. `key` (not empty)
+   * names the payment: asked again under the same key, it answers the line it made and pays nothing more */
+  case Pay(from: String, to: String, amount: Long, memo: String, at: Long, key: String = "")
+    extends Ledger[Either[Refusal, Transfer]]
   /** a line undone by its opposite, whatever the limits say (a correction, not a deal); once */
   case Reverse(seq: Long, at: Long) extends Ledger[Either[Refusal, Transfer]]
   /** `amount` of the voucher's line lent to the newcomer: the newcomer as it is after */
@@ -30,8 +34,10 @@ object Ledger:
   def accounts[R[_]](using In[Ledger, R]): Vector[Account] ! R = perform[Ledger](Accounts())
   def limit[R[_]](id: String, credit: Long, ceiling: Long)(using In[Ledger, R]): Either[Refusal, Account] ! R =
     perform[Ledger](Limit(id, credit, ceiling))
-  def pay[R[_]](from: String, to: String, amount: Long, memo: String, at: Long)(using In[Ledger, R])
-    : Either[Refusal, Transfer] ! R = perform[Ledger](Pay(from, to, amount, memo, at))
+  def hold[R[_]](id: String, holder: String)(using In[Ledger, R]): Either[Refusal, Account] ! R =
+    perform[Ledger](Hold(id, holder))
+  def pay[R[_]](from: String, to: String, amount: Long, memo: String, at: Long, key: String = "")(
+    using In[Ledger, R]): Either[Refusal, Transfer] ! R = perform[Ledger](Pay(from, to, amount, memo, at, key))
   def reverse[R[_]](seq: Long, at: Long)(using In[Ledger, R]): Either[Refusal, Transfer] ! R =
     perform[Ledger](Reverse(seq, at))
   def vouch[R[_]](voucher: String, newcomer: String, amount: Long)(using In[Ledger, R])

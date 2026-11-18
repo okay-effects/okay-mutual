@@ -24,7 +24,8 @@ Status: MVP. Not reviewed by a lawyer or a tax adviser; not yet tried with peopl
 | personal | a private person | 0 at the start; grows with history and vouching | set, small |
 
 An account: `id`, `kind`, `name`, `credit`, `ceiling`, `balance`, `joined`, and vouching's `voucher`, `vouched`,
-`lent`. Amounts are whole numbers of hundredths of a unit. Its `floor` — the lowest balance it may reach — is
+`lent`, and its `holder` — the address (an email) of the one who may act
+for it, signed in by the host; empty: nobody but the operator. Amounts are whole numbers of hundredths of a unit. Its `floor` — the lowest balance it may reach — is
 `-(credit + vouched - lent)`.
 
 ## Rules
@@ -42,6 +43,10 @@ An account: `id`, `kind`, `name`, `credit`, `ceiling`, `balance`, `joined`, and 
    correction, not a deal). A reversed line and its reversal are not deals in the measures.
 5. **A change is one step**: the accounts it moves and the journal's line are committed together or not at all; a
    commit that lost a race is run again from the start.
+
+6. **A named payment is paid once.** A payment may carry a `key`; sent again under the same key (a retry after a
+   lost answer) it answers the line it made and moves nothing. The same key with another buyer, seller or amount
+   is refused. A refused payment keeps no key.
 
 ## Measures
 
@@ -69,7 +74,7 @@ Sardex, by hand); code is written for what the broker already does and what slow
 
 ## The code
 
-- `Ledger` — the effect: `Open`, `Find`, `Accounts`, `Limit`, `Pay`, `Reverse`, `Vouch`, `Release`, `Journal`.
+- `Ledger` — the effect: `Open`, `Find`, `Accounts`, `Limit`, `Hold`, `Pay`, `Reverse`, `Vouch`, `Release`, `Journal`.
 - `Rules` — pure: what a change does to the accounts it touches, or the `Refusal`.
 - `LedgerDurable` — its handler onto okay-serverless' `Storage` (`Durable.step`): a Durable Object's SQLite on
   Cloudflare, okay-serverless' host without it, `Memory` in tests. Keys under `mutual/`.

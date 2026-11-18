@@ -11,8 +11,9 @@ import okay.serverless.cloud.{Request, Response}
  *
  *   GET  <prefix>/accounts            every account
  *   GET  <prefix>/accounts/<id>       an account, its journal, the credit line its sales suggest
- *   PUT  <prefix>/accounts/<id>       {kind, name, credit, ceiling}: opened; there already: {credit, ceiling} set
- *   POST <prefix>/pay                 {from, to, amount, memo}
+ *   PUT  <prefix>/accounts/<id>       {kind, name, credit, ceiling, holder?}: opened; there already: its
+ *                                     {credit, ceiling} set, and its {holder} when said
+ *   POST <prefix>/pay                 {from, to, amount, memo?, key?}: `key` names it — sent again, paid once
  *   POST <prefix>/reverse             {seq}
  *   POST <prefix>/vouch               {voucher, newcomer, amount}
  *   POST <prefix>/release             {newcomer}
@@ -55,15 +56,19 @@ object Api:
       case ("PUT", p) if p.startsWith("/accounts/") =>
         val id = p.stripPrefix("/accounts/")
         Ledger.find[R](id).flatMap {
-          case Some(_) => body(r)(j => (j("credit").long, j("ceiling").long))((credit, ceiling) =>
-              Ledger.limit[R](id, credit, ceiling).map(answered(_)(Wire.account)))
+          case Some(_) => body(r)(j => (j("credit").long, j("ceiling").long, j.field("holder").map(_.string)))(
+              (credit, ceiling, holder) => Ledger.limit[R](id, credit, ceiling).flatMap {
+                case Right(_) if holder.isDefined => Ledger.hold[R](id, holder.get)
+                case done => pure(done)
+              }.map(answered(_)(Wire.account)))
           case None => body(r)(j => Account(id, Wire.kind(j("kind").string), j("name").string, j("credit").long,
-              j("ceiling").long))(a => Clock.now[R].flatMap(now => Ledger.open[R](a.copy(joined = now)))
-              .map(answered(_)(Wire.account)))
+              j("ceiling").long, holder = j.field("holder").fold("")(_.string)))(a => Clock.now[R].flatMap(now =>
+              Ledger.open[R](a.copy(joined = now))).map(answered(_)(Wire.account)))
         }
       case ("POST", "/pay") => body(r)(j => (j("from").string, j("to").string, j("amount").long,
-          j.field("memo").fold("")(_.string)))((from, to, amount, memo) => Clock.now[R].flatMap(now =>
-          Ledger.pay[R](from, to, amount, memo, now)).map(answered(_)(Wire.transfer)))
+          j.field("memo").fold("")(_.string), j.field("key").fold("")(_.string)))((from, to, amount, memo, key) =>
+          Clock.now[R].flatMap(now => Ledger.pay[R](from, to, amount, memo, now, key))
+            .map(answered(_)(Wire.transfer)))
       case ("POST", "/reverse") => body(r)(_("seq").long)(seq => Clock.now[R].flatMap(now =>
           Ledger.reverse[R](seq, now)).map(answered(_)(Wire.transfer)))
       case ("POST", "/vouch") => body(r)(j => (j("voucher").string, j("newcomer").string, j("amount").long))(

@@ -12,6 +12,7 @@ import okay.serverless.{Durable, Storage}
  *   mutual/line/<seq>       a line of the journal (its number, twelve digits)
  *   mutual/seq              the last number given
  *   mutual/undone/<seq>     the number of the line that reversed this one
+ *   mutual/paid/<key>       the number of the line a named payment made
  *
  * A change is ONE `Durable.step`: the accounts it moves and the journal's line written together or not at all; a
  * reading is a read of what is committed, no step
@@ -22,6 +23,8 @@ object LedgerDurable:
   private def lineKey(seq: Long) = f"$scope/line/$seq%012d"
   private val seqKey = s"$scope/seq"
   private def undoneKey(seq: Long) = s"$scope/undone/$seq"
+  /** the number of the line a named payment made: `mutual/paid/<key>` */
+  private def paidKey(key: String) = s"$scope/paid/$key"
 
   def run[R[_], Rest[_], A](p: A ! R)(using Split[Ledger, R, Rest], In[Storage, Rest]): A ! Rest =
     handle(p, Handler.general[Ledger, Rest, A, A](pure)([X] => (op: Ledger[X], k: X => A ! Rest) =>
@@ -79,10 +82,26 @@ object LedgerDurable:
               case Left(r) => pure(Left(r))
               case Right(next) => keep[D](next).as(Right(next))
         })
-      case Ledger.Pay(from, to, amount, memo, at) => step[Either[Refusal, Transfer]](
-          both[D](from, to)(Rules.paid(_, _, amount)).flatMap {
-            case Left(r) => pure(Left(r))
-            case Right(_) => line[D](Transfer(_, from, to, amount, memo, at)).map(Right(_))
+      case Ledger.Hold(id, holder) => step[Either[Refusal, Account]](account[D](id).flatMap {
+          case Left(r) => pure(Left(r))
+          case Right(a) => Rules.held(a, holder) match
+              case Left(r) => pure(Left(r))
+              case Right(next) => keep[D](next).as(Right(next))
+        })
+      case Ledger.Pay(from, to, amount, memo, at, key) =>
+        def fresh: Either[Refusal, Transfer] ! D = both[D](from, to)(Rules.paid(_, _, amount)).flatMap {
+          case Left(r) => pure(Left(r))
+          case Right(_) => line[D](Transfer(_, from, to, amount, memo, at)).flatMap(t =>
+              (if key.isEmpty then unit[D] else Durable.put[Long, D](paidKey(key), t.seq)).as(Right(t)))
+        }
+        step[Either[Refusal, Transfer]](
+          if key.isEmpty then fresh
+          // a named payment asked again: the line it made, nothing paid — unless the name is another payment's
+          else Durable.get[Long, D](paidKey(key)).flatMap {
+            case None => fresh
+            case Some(seq) => Durable.get[Json, D](lineKey(seq)).map(_.map(Wire.transfer) match
+                case Some(t) if t.from == from && t.to == to && t.amount == amount => Right(t)
+                case _ => Left(Refusal.Invalid("key")))
           })
       case Ledger.Reverse(seq, at) => step[Either[Refusal, Transfer]](
           Durable.get[Json, D](lineKey(seq)).map(_.map(Wire.transfer)).flatMap {

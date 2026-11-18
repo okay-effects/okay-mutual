@@ -8,11 +8,11 @@ object Wire:
     "name" -> Json.str(a.name), "credit" -> Json.num(a.credit), "ceiling" -> Json.num(a.ceiling),
     "balance" -> Json.num(a.balance), "joined" -> Json.num(a.joined),
     "voucher" -> a.voucher.fold[Json](Json.Null)(Json.str), "vouched" -> Json.num(a.vouched),
-    "lent" -> Json.num(a.lent), "floor" -> Json.num(a.floor))
+    "lent" -> Json.num(a.lent), "floor" -> Json.num(a.floor), "holder" -> Json.str(a.holder))
 
   def account(j: Json): Account = Account(j("id").string, kind(j("kind").string), j("name").string,
     j("credit").long, j("ceiling").long, j("balance").long, j("joined").long, j.field("voucher").map(_.string),
-    j("vouched").long, j("lent").long)
+    j("vouched").long, j("lent").long, j.field("holder").fold("")(_.string))
 
   def transfer(t: Transfer): Json.Obj = Json.obj("seq" -> Json.num(t.seq), "from" -> Json.str(t.from),
     "to" -> Json.str(t.to), "amount" -> Json.num(t.amount), "memo" -> Json.str(t.memo), "at" -> Json.num(t.at),

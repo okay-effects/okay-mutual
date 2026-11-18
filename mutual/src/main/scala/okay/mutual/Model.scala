@@ -9,10 +9,13 @@ enum Kind:
  * one unit of the national currency and is never exchanged for it.
  *
  * `credit`: how far below zero its own line lets it go; `ceiling`: how far above zero it may rise — who reaches it
- * must spend before selling more. `vouched`: credit lent to it by `voucher`; `lent`: credit it lent to others
+ * must spend before selling more. `vouched`: credit lent to it by `voucher`; `lent`: credit it lent to others.
+ * `holder`: the address (an email, lowercase) of the one who may act for it — a host signs them in; empty: nobody
+ * but the operator
  */
 final case class Account(id: String, kind: Kind, name: String, credit: Long, ceiling: Long, balance: Long = 0L,
-                         joined: Long = 0L, voucher: Option[String] = None, vouched: Long = 0L, lent: Long = 0L):
+                         joined: Long = 0L, voucher: Option[String] = None, vouched: Long = 0L, lent: Long = 0L,
+                         holder: String = ""):
   /** the lowest balance it may reach: its own line, what was lent to it, less what it lent */
   def floor: Long = -(credit + vouched - lent)
 
@@ -47,7 +50,13 @@ object Rules:
     if !id(a.id) then Left(Refusal.Invalid("id"))
     else if a.name.trim.isEmpty then Left(Refusal.Invalid("name"))
     else if a.credit < 0 || a.ceiling < 0 then Left(Refusal.Invalid("limits"))
-    else Right(a.copy(balance = 0L, voucher = None, vouched = 0L, lent = 0L))
+    else held(a.copy(balance = 0L, voucher = None, vouched = 0L, lent = 0L), a.holder)
+
+  /** its holder set: an address, kept trimmed and lowercase; empty: none */
+  def held(a: Account, holder: String): Either[Refusal, Account] =
+    val h = holder.trim.toLowerCase
+    if h.nonEmpty && !h.matches("[^@\\s]+@[^@\\s]+") then Left(Refusal.Invalid("holder"))
+    else Right(a.copy(holder = h))
 
   /** new limits: never a floor above the balance it has (its debt stays within its line) */
   def limited(a: Account, credit: Long, ceiling: Long): Either[Refusal, Account] =

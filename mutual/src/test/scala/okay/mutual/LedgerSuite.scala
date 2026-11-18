@@ -45,6 +45,30 @@ class LedgerSuite extends munit.FunSuite:
     assertEquals(w.balances.values.sum, 0L)
   }
 
+  test("a named payment asked again pays once; the name of another payment is refused") {
+    val w = network()
+    val first = w.run(Ledger.pay[w.W]("baker", "tailor", 4000, "a hem", w.now, "k1"))
+    assertEquals(first.map(_.seq), Right(1L))
+    assertEquals(w.run(Ledger.pay[w.W]("baker", "tailor", 4000, "a hem", w.now + 5, "k1")), first)
+    assertEquals(w.account("baker").balance, -4000L)
+    assertEquals(w.run(Ledger.pay[w.W]("baker", "tailor", 4001, "", w.now, "k1")), Left(Refusal.Invalid("key")))
+    assertEquals(w.run(Ledger.pay[w.W]("baker", "tailor", 4000, "", w.now, "k2")).map(_.seq), Right(2L))
+    // a refused payment keeps no name: the same name works once the limits allow
+    assertEquals(w.run(Ledger.pay[w.W]("baker", "tailor", 9000, "", w.now, "k3")), Left(Refusal.Credit(7000)))
+    assertEquals(w.run(Ledger.pay[w.W]("baker", "tailor", 2000, "", w.now, "k3")).map(_.seq), Right(3L))
+  }
+
+  test("an account's holder: an address, lowercase; set, changed, taken off") {
+    val w = network()
+    assertEquals(w.run(Ledger.hold[w.W]("baker", " Jan@Example.com ")).map(_.holder), Right("jan@example.com"))
+    assertEquals(w.run(Ledger.hold[w.W]("baker", "not an address")), Left(Refusal.Invalid("holder")))
+    assertEquals(w.account("baker").holder, "jan@example.com")
+    assertEquals(w.run(Ledger.hold[w.W]("baker", "")).map(_.holder), Right(""))
+    assertEquals(w.run(Ledger.hold[w.W]("nobody", "a@example.com")), Left(Refusal.Unknown("nobody")))
+    assertEquals(w.run(Ledger.open[w.W](Account("shop", Kind.Business, "Shop", 1, 1, holder = "A@Example.com")))
+      .map(_.holder), Right("a@example.com"))
+  }
+
   test("limits change, never to a floor above the debt there is") {
     val w = network()
     w.pay("baker", "tailor", 8000)
