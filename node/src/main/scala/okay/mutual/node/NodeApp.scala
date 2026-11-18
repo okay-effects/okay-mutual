@@ -39,6 +39,10 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *                                           `recover:<id>:<key>`) — kept for the community to confirm
  *   POST /api/accounts/<id>/recovered       a recovery announced and due, made so
  *   GET  /api/recoveries                    who asks an account back: account, name, key
+ *   GET  /api/board                         the members' offers and wants
+ *   POST /api/board                         {command, key, sig}: a member's own word, signed by a key that holds
+ *                                           its account — `list {account, kind, title, text, price, share}`,
+ *                                           `unlist {account, id}`
  *   POST /api/setup                         {record, name}: the community's own account, once (`x-setup-token`)
  *   POST /api/command                       {command, key, sig}: a command of one who may manage the community
  *
@@ -156,6 +160,8 @@ object NodeApp extends App:
       case ("POST", List("api", "accounts", a, "recovered")) if id(a) =>
         account(env, a, Http.post("/_acct/recovered", Json.obj())).map(answered)
       case ("GET", List("api", "recoveries")) => directory(env, Request.get("/_dir/recoveries")).map(answered)
+      case ("GET", List("api", "board")) => directory(env, Request.get("/_dir/listings")).map(answered)
+      case ("POST", List("api", "board")) => posted(env, Http.body(r))
       case ("POST", List("api", "setup")) => setup(env, r)
       case ("POST", List("api", "command")) => command(env, Http.body(r))
       case _ => pure(Response.notFound())
@@ -302,3 +308,40 @@ object NodeApp extends App:
           case _ => pure(Http.refused("peer", 502))
         }
     }
+
+  /** A MEMBER'S OWN WORD ON THE BOARD: its text signed by a key that holds the account it names and may spend from
+   * it, its time near now, taken once. Kept beside the chains: an entry is no record, it is taken off without a
+   * trace. `list`: what is offered or wanted, its price (0: by agreement), the share of it taken in units */
+  private def posted(env: NodeEnv, j: Json): Response ! Live =
+    scala.util.Try((j("command").string, j("key").string, j("sig").string)).toOption.flatMap((text, key, sig) =>
+      Descent.parse(text).toOption.flatMap(c => scala.util.Try((c, c("cmd").string, c("account").string,
+        c("at").long)).toOption).map((text, key, sig, _))) match
+      case None => pure(Http.refused("body"))
+      case Some((text, key, sig, (c, cmd, a, at))) if id(a) => Clock.now[Live].flatMap { now =>
+          account(env, a, Request.get("/_acct/state")).flatMap { st =>
+            val may = StateJson.read(Http.answer(st)).flatMap(_.grant(key)).exists(_.spend)
+            if !may then pure(Http.refused("forbidden", 403))
+            else if math.abs(at - now) > fresh then pure(Http.refused("time", 409))
+            else Signer.verify[Live](key, text, sig).flatMap { signed =>
+              if !signed then pure(Http.refused("unsigned", 403))
+              else directory(env, Http.post("/_dir/command", Json.obj("hash" -> Json.str(Sha256.hex(text)))))
+                .flatMap(taken => if taken.status != 200 then pure(Http.refused("used", 409)) else cmd match
+                  case "list" => scala.util.Try((c("kind").string, c("title").string.replaceAll("\\s+", " ").trim
+                      .take(120), c.field("text").fold("")(_.string).trim.take(1000), c("price").long,
+                      c("share").long)).toOption match
+                      case Some((kind, title, more, price, share)) if Set("offer", "want")(kind) && title.nonEmpty &&
+                        price >= 0 && share >= 0 && share <= 100 =>
+                        directory(env, Http.post("/_dir/listing", Json.obj("id" -> Json.str(Sha256.hex(text).take(16)),
+                          "account" -> Json.str(a), "kind" -> Json.str(kind), "title" -> Json.str(title),
+                          "text" -> Json.str(more), "price" -> Json.num(price), "share" -> Json.num(share),
+                          "at" -> Json.num(now)))).map(answered)
+                      case _ => pure(Http.refused("listing"))
+                  case "unlist" => scala.util.Try(c("id").string).toOption match
+                      case Some(entry) => directory(env, Http.post("/_dir/listing/remove", Json.obj(
+                          "id" -> Json.str(entry), "account" -> Json.str(a)))).map(answered)
+                      case None => pure(Http.refused("listing"))
+                  case _ => pure(Http.refused("command")))
+            }
+          }
+        }
+      case _ => pure(Http.refused("body"))

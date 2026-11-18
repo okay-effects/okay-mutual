@@ -515,3 +515,38 @@ class NodeSuite extends munit.FunSuite:
       "account" -> Json.str(anna.id)).status, 200)
     assertEquals(net.json(net.get("/api/recoveries"))("recoveries").list.size, 0)
   }
+
+  test("the board: a member's offers and wants, by its own signed word; taken off by itself alone") {
+    val (net, anna, jan) = town()
+    def say(w: Wallet, by: Pair, fields: (String, Json)*) =
+      val text = Json.print(Json.Obj(Vector("at" -> Json.num(net.now), "account" -> Json.str(w.id)) ++ fields))
+      net.post("/api/board", Json.obj("command" -> Json.str(text), "key" -> Json.str(by.pub),
+        "sig" -> Json.str(SignerJdk.sign(by.secret, text))))
+    def list(w: Wallet, by: Pair, kind: String, title: String, price: Long = 0, share: Long = 100) = say(w, by,
+      "cmd" -> Json.str("list"), "kind" -> Json.str(kind), "title" -> Json.str(title), "text" -> Json.str("details"),
+      "price" -> Json.num(price), "share" -> Json.num(share))
+    def board = net.json(net.get("/api/board"))("listings").list
+    assertEquals(board.size, 0)
+    val listed = list(anna, anna.key, "offer", "  Trousers   hemmed ", 4000, 50)
+    assertEquals(listed.status, 200, listed.body)
+    net.now += 1000
+    assertEquals(list(jan, jan.key, "want", "A logo").status, 200)
+    assertEquals(board.map(l => (l("kind").string, l("title").string, l("price").long, l("share").long,
+      l("account").string)), Vector(("want", "A logo", 0L, 100L, jan.id), ("offer", "Trousers hemmed", 4000L, 50L,
+      anna.id)))
+    // not in another's name, not unsigned, not twice the same word, not nonsense
+    assertEquals(list(anna, jan.key, "offer", "Mine").status, 403)
+    assertEquals(list(anna, anna.key, "sale", "X").status, 400)
+    assertEquals(list(anna, anna.key, "offer", " ").status, 400)
+    assertEquals(list(anna, anna.key, "offer", "Free", share = 101).status, 400)
+    assertEquals(list(jan, jan.key, "want", "A logo").status, 409)
+    // taken off by its own member only
+    val entry = net.json(listed)("id").string
+    assertEquals(say(jan, jan.key, "cmd" -> Json.str("unlist"), "id" -> Json.str(entry)).status, 404)
+    assertEquals(say(anna, anna.key, "cmd" -> Json.str("unlist"), "id" -> Json.str(entry)).status, 200)
+    assertEquals(board.map(_("title").string), Vector("A logo"))
+    // a member has room for twenty
+    for i <- 1 to Directory.own do { net.now += 1000; assertEquals(list(anna, anna.key, "offer", s"Offer $i").status, 200) }
+    net.now += 1000
+    assertEquals(list(anna, anna.key, "offer", "One more").status, 429)
+  }

@@ -18,6 +18,7 @@ import okay.serverless.cloud.{Actor, InActor, Request, Response}
  *   dir/number          how many times the heads changed: the head's number
  *   dir/line/<peer key> the account this node keeps for another node: its id, the peer's address and name
  *   dir/recovery/<id>   one who asks back an account whose devices are lost: the new device's key, when
+ *   dir/listing/<id>    an offer or a want of a member: what, for how much, what share of it in units
  *   dir/rules           the community's rules: the text its members accept to join, and its hash
  *   dir/community       the id of the community's own account — its holders that may manage govern the node
  *   dir/command/<hash>  a command taken (never twice)
@@ -38,6 +39,7 @@ object Directory extends Actor:
   private val lines = s"$scope/line/"
   private val rules = s"$scope/rules"
   private val recoveries = s"$scope/recovery/"
+  private val listings = s"$scope/listing/"
 
   type Live[X] = (InActor + Signer)[X]
   private type Step[X] = (Live + Durable)[X]
@@ -106,6 +108,24 @@ object Directory extends Actor:
         _.fold(Http.refused("unknown", 404))(Http.json(_)))
     case ("POST", "/_dir/reject") =>
       step(Durable.delete[Step](requests + Http.body(r)("id").string)).as(Http.json(Json.obj()))
+    // ---- the board (specs/protocol.md "The board"): members' offers and wants, beside the chains
+    case ("GET", "/_dir/listings") => Http.all[Live](listings).map(ls => Http.json(Json.obj("listings" ->
+        Json.Arr(ls.map(_._2).sortBy(l => -l("at").long)))))
+    // kept — while its member has room for one more (`Directory.own`) and the board for it (`Directory.board`)
+    case ("POST", "/_dir/listing") =>
+      val j = Http.body(r)
+      step(Durable.keys[Step](listings).flatMap(ks => ks.foldLeft(pure[Int, Step](0))((acc, k) => acc.flatMap(n =>
+        Durable.get[Json, Step](k).map(l => if l.exists(_("account") == j("account")) then n + 1 else n))).flatMap(
+        mine => if mine >= own || ks.size >= board then pure(false)
+          else Durable.put[Json, Step](listings + j("id").string, j).as(true))))
+        .map(kept => if kept then Http.json(j) else Http.refused("full", 429))
+    // taken off by its own member
+    case ("POST", "/_dir/listing/remove") =>
+      val j = Http.body(r)
+      step(Durable.get[Json, Step](listings + j("id").string).flatMap {
+        case Some(l) if l("account") == j("account") => Durable.delete[Step](listings + j("id").string).as(true)
+        case _ => pure(false)
+      }).map(gone => if gone then Http.json(Json.obj()) else Http.refused("unknown", 404))
     // ---- recovery asked (specs/protocol.md "Keys"): kept until the community confirms or drops it
     case ("POST", "/_dir/recovery") =>
       val j = Http.body(r)
@@ -153,6 +173,9 @@ object Directory extends Actor:
       }).map(fresh => if fresh then Http.json(Json.obj()) else Http.refused("used", 409))
     case _ => pure(Response.notFound())
 
+  /** how many entries a member may have on the board, and the board in all */
+  val own = 20
+  val board = 2000
   /** how long a community's rules may be */
   val longest = 8000
   /** how many may wait to be admitted at a time */
