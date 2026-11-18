@@ -27,14 +27,17 @@ resumes from here: read `specs/protocol.md` first.
   community from the environment as before. Done when: the browser check passes against the jar.
 - [ ] **guides** — docs/run-a-node.md in four languages: three ways to have a node — create one on a hub from the
   wallet; deploy your own hub to Cloudflare; run it on your machine.
-- [ ] **publish** — the site on Pages pointing at the public hub; README's table; the site's page for okay-effects
+- [x] **publish** (DONE: Pages site names the public hub (`sbt -Dhub=… site`); checked in Chromium in Russian from Pages against the hub — found and fixed the doubled CORS header; README's table; the section on okay-effects.github.io with a screenshot) — the site on Pages pointing at the public hub; README's table; the site's page for okay-effects
   (its section on okay-effects.github.io).
-- [ ] **mall** — Okay Mall names Okay Mutual: its landing's "Also from us" links the site (`MALL_LINKS`); the
+- [x] **mall** (DONE: okay-mall main: `MALL_LINKS` names Okay Mutual, specs/mall.md "Okay Mutual", deployed; szykownia.pl's landing shows the link) — Okay Mall names Okay Mutual: its landing's "Also from us" links the site (`MALL_LINKS`); the
   prototype branch `mutual` (the 0.1.0 ledger inside the mall) is superseded and left unmerged; specs/mall.md says
   so. Deployed.
 
 ## Later (BACKLOG)
 
+- The demo community `demo` on the public hub is not set up (no community account): its setup token is in the
+  operator's `.env` (`DEMO_SETUP_TOKEN`); whoever sets it up governs it. Demo members were made by the checks.
+- A shop of Okay Mall taking units: its community and account named in its config, shown on its pages.
 - Trust lines between nodes (protocol stage 4).
 - A holder that is an account (families, companies), two signatures, recovery by the node.
 - `release` of a lent line; a flight's retry under test; batching of the head.
