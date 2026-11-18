@@ -322,6 +322,35 @@ What keeps the system out of the regulated kinds is what the software does, and 
   app pays for an offer with the form filled from it (the units' part of the price); the money part is the two
   parties' own. Not built: a board across communities, search, matching.
 
+## Shared accounts and two signatures (sprint 6)
+
+What "Keys" designed, as built — and where it is narrower:
+
+- **A holder that is an account.** A grant's `key` is a device's key or an account's id. A record as it travels says,
+  beside a signature, for which account its key signed: `sigs[] {key, sig, for, seq}`. Not under the signature: the
+  record's text already names the account it is a record OF, and whether `key` speaks for `for` is a fact of
+  `for`'s own chain — `key` is there a holder that may `manage` (a person's full device, not a limited one). The
+  node checks it at the moment it takes the record and writes the `seq` of `for`'s chain where it held; an auditor
+  folds `for`'s chain to that record and checks the same (`Check.holds`, `Check.chain(records, held)`). The fold
+  itself is unchanged: its signers are the keys and the accounts they acted for. A device taken off its person's
+  account speaks for nobody from that record on.
+- **One step.** A holder account is held by keys. A shared account held by another shared account is not built: a
+  department is under its company by the line the company lends it, not by holding.
+- **Opening.** `open {node, of: family | team, key: <the opener's account>, unit}`: by an account that is a member
+  of the node already — at once, whatever the joining; no rules to accept again. No credit line (`limits 0,
+  ceiling`): a line comes by `vouch` or from the community. `team` only by a business's account; `family` is
+  people's — where `only = earned` it has no line and is lent none, as a person's; where `only = business` there
+  are none. Listed among the members (it is paid as any). `GET /api/held?by=<account>`: what an account holds —
+  kept by the directory from the accounts' own grants.
+- **Two signatures**: `two {above}` by a holder that may manage (0: off). A `send` above it is the chain's next
+  only when a `propose {to, amount, memo, name}` of the same four, by ANOTHER holder, waits in the chain, no older
+  than a week (`Chain.life`); it takes the proposal. At most `Chain.most` wait. Why a record and not a second
+  signature on the first holder's record: a record's place (`seq`, `prev`) is void as soon as the account is paid
+  by anyone, so a half-signed record would die waiting; a proposal is its own record, audited, and outlives the
+  chain moving on. The threshold is the managers' to change, as every rule of an account: it guards against a
+  holder that may only spend, and against a mistake — not against one who may manage.
+- Not in it: a shared account on the board; its recovery (its holders recover their own accounts).
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

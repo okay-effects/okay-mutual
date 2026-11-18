@@ -75,16 +75,23 @@ back to zero, the line returns to the voucher.
 There is no reward for bringing people in — only your own room at risk. That is deliberate: it makes members bring
 people they would trust with their own money.
 
-## Families, teams, companies *(designed)*
+## Families, teams, companies
 
-An account can be held not by a key but by **other accounts**. A family account names Anna's and Jan's accounts as
-holders, and their daughter's with a limit of 50 a week. Anna pays from the family account with whichever device is
-in her hand; when she gets a new phone she adds it once, to her own account, and it works everywhere she is a
-holder.
+An account can be held not by a device's key but by **members' accounts**. A family opens a shared account
+(*Accounts → Shared accounts*) and names Anna's and Jan's accounts as its holders, and their daughter's with a limit
+of 50 a week. Anna pays from the family's account with whichever device is in her hand; when she gets a new phone
+she adds it once, to her own account, and it works everywhere she is a holder. Every record says both things: which
+device signed, and for whose account — and anyone can check that against that account's own chain.
 
-A company does the same with its people, and can require **two signatures** above an amount. A department's budget
-is an account to which the company lends part of its credit line — the same mechanism as vouching — and takes it
-back when the budget is cut.
+A shared account has no credit line of its own. It spends what it is paid, or a line a member lends it — the same
+mechanism as vouching. That is a **budget**: a business opens a team's account and lends it part of its own line. A
+family's account is people's: where private people earn before they spend, it never goes below zero either.
+
+**Two signatures.** Any account can say: above this amount, two holders. One holder proposes the payment; it waits,
+in the open, for up to a week; another holder confirms it, and only then do units move. Enough for a cashier and a
+director, small enough to explain.
+
+Not built yet: a shared account held by another shared account, and taking a lent budget back from the app.
 
 ## Nodes
 

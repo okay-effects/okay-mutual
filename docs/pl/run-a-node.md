@@ -100,5 +100,5 @@ dziesięć minut i przyjmowane tylko raz.
   **Linie zaufania**), w tej samej jednostce. Jeszcze nie ma: płatności przez trzecią społeczność i linii między
   różnymi jednostkami.
 - Przeniesienie społeczności z jednego huba na inny razem z jej historią.
-- Konta rodzinne i firmowe, których posiadaczami są inne konta, dwa podpisy.
+- Konto wspólne, którego posiadaczem jest inne konto wspólne; odbieranie pożyczonej linii.
 - Regulamin dla operatora huba; kopie zapasowe inne niż te, które daje platforma albo twoje własne kopie.

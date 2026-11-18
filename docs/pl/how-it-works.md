@@ -80,16 +80,25 @@ kwotę. Kiedy nowa osoba zarobi tyle, żeby wrócić do zera, linia wraca do por
 Za przyprowadzanie ludzi nie ma żadnej nagrody — jest tylko ryzyko dla własnego zapasu. To celowe: dzięki temu
 uczestnicy przyprowadzają ludzi, którym powierzyliby własne pieniądze.
 
-## Rodziny, zespoły, firmy *(zaprojektowane)*
+## Rodziny, zespoły, firmy
 
-Posiadaczem konta nie musi być klucz — mogą nim być **inne konta**. Konto rodzinne wskazuje jako posiadaczy konta
-Anny i Jana oraz konto ich córki z limitem 50 tygodniowo. Anna płaci z konta rodzinnego tym urządzeniem, które ma
-akurat w ręku; kiedy kupi nowy telefon, dodaje go raz, do własnego konta, i działa on wszędzie tam, gdzie jest
-posiadaczem.
+Konto może należeć nie do klucza urządzenia, lecz do **kont uczestników**. Rodzina otwiera konto wspólne (*Konta →
+Konta wspólne*) i wskazuje jako posiadaczy konta Anny i Jana, a konto ich córki — z limitem 50 tygodniowo. Anna
+płaci z konta rodziny tym urządzeniem, które ma w ręku; nowy telefon dodaje raz — do własnego konta, i działa on
+wszędzie, gdzie jest posiadaczką. Każdy zapis mówi dwie rzeczy: które urządzenie podpisało i w imieniu czyjego
+konta — a każdy może to sprawdzić w łańcuchu tamtego konta.
 
-Firma robi to samo ze swoimi ludźmi i może wymagać **dwóch podpisów** powyżej określonej kwoty. Budżet działu to
-konto, któremu firma pożycza część swojej linii kredytowej — ten sam mechanizm co przy poręczeniu — i odbiera ją,
-kiedy budżet zostaje obcięty.
+Konto wspólne nie ma własnej linii kredytowej. Wydaje to, co mu zapłacono, albo linię pożyczoną przez uczestnika —
+ten sam mechanizm co poręczenie. To właśnie **budżet**: firma otwiera konto zespołu i pożycza mu część swojej linii.
+Konto rodziny jest kontem ludzi: tam, gdzie osoby prywatne najpierw zarabiają, a potem wydają, ono też nigdy nie
+schodzi poniżej zera.
+
+**Dwa podpisy.** Każde konto może powiedzieć: powyżej tej kwoty — dwóch posiadaczy. Jeden posiadacz proponuje
+płatność; czeka ona jawnie do tygodnia; drugi posiadacz ją potwierdza i dopiero wtedy jednostki przechodzą.
+Wystarcza to kasjerowi i dyrektorowi, a łatwo to wytłumaczyć.
+
+Jeszcze niezbudowane: konto wspólne, którego posiadaczem jest inne konto wspólne, oraz odbieranie pożyczonego
+budżetu z aplikacji.
 
 ## Węzły
 
