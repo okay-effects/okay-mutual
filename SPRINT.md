@@ -198,6 +198,13 @@ shop. The mall holds no key and no unit: it shows a link its owner gave it (okay
 - [x] **here** — "Receive": an account's link and code to be paid by (`?node=…&pay=<account>`, with `amount`,
   `for`); the app opened by such a link goes to the payment, filled in, once the person holds an account there.
   Four languages. Done when: WalletSuite.
-- [ ] **the mall** — a shop's "Okay Mutual" in its owner's panel (the link, the share of a price taken in units);
+- [x] **the mall** — a shop's "Okay Mutual" in its owner's panel (the link, the share of a price taken in units);
   the storefront's line and foot link; only links to apps the operator lists. Done when: its suite; deployed.
-- [ ] **publish** — both; docs.
+- [x] **publish** — both; docs.
+
+Sprint 8 closed 2026-11-18: this hub and Pages republished; okay-mall deployed (fbb31a7): its pages byte-identical
+before and after (no shop has said it takes units yet), `/workshop/units/` answers as every owner's screen, 171
+tests. Checked in a browser on the live app: opened by a shop-style link (`?node=…&pay=…&amount=…&for=…`), a new
+client opens an account and lands on the payment. Not checked live: an owner saving the link in a real shop's
+panel (it needs an owner's sign-in) — the mall's `UnitsSuite` covers it. Next for the mall: the units' part of an
+order at checkout and the order marked by the payment seen on the shop's chain (okay-shop's pages).
