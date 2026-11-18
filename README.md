@@ -3,6 +3,9 @@
 An open network of mutual credit: people and businesses sell to and buy from each other for units they issue to one
 another, when money is short but work, goods and needs are not. It runs beside ordinary money and replaces nothing.
 
+**Try it:** the wallet at https://okay-mutual.okay-effects.workers.dev/wallet/ — join the demo community or create
+your own.
+
 There is no coin and nothing to invest in. Every member holds their own keys, every record is signed, anyone can
 run a community's node, and communities connect by trust lines they choose themselves.
 
@@ -17,7 +20,8 @@ run a community's node, and communities connect by trust lines they choose thems
   companies, nodes, trust lines, and what protects a member at each step.
 - **[Questions](docs/faq.md)** — is it a cryptocurrency, does it replace money, taxes, what if someone does not
   pay.
-- **[Run a node](docs/run-a-node.md)** — a community's node on one machine, and who governs it.
+- **[Have a node](docs/run-a-node.md)** — three ways: create a community on a hub from the wallet, deploy your own
+  hub to Cloudflare, run it on your machine; and who governs a community.
 - **[The protocol](specs/protocol.md)** — the design for those who build: records, chains, nodes, trust lines.
 - **[The prototype's spec](specs/mutual.md)** — the rules, the measures of a network's health, what is tested
   first.
@@ -35,7 +39,8 @@ run a community's node, and communities connect by trust lines they choose thems
 | The wallet: an account opened by a key made on the device, payments, history, vouching, devices with limits, the node checked by the device itself; in English, Polish, Ukrainian and Russian | runs, tested (played against the node in each language; in a real browser against a local node) |
 | The community governing itself: its own account, its holders setting members' limits by signed commands | runs, tested |
 | Family and company accounts held by other accounts, budgets, two signatures, recovery | designed |
-| A node on Cloudflare Workers | its code runs on the in-memory cloud; the Worker's packaging is not written |
+| A hub of nodes: anyone creates a community by a call or from the wallet; each node's key made with it; accounts of different nodes apart | runs, tested; LIVE on Cloudflare Workers: https://okay-mutual.okay-effects.workers.dev (checked in a browser: two devices, a payment, the node verified) |
+| Joining by request where it is not open: asked from the wallet, admitted or rejected in the community's office | runs, tested |
 | Trust lines between communities | designed |
 
 No community uses it yet. It has not been reviewed by a lawyer or a tax adviser.

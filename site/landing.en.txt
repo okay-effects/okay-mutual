@@ -30,10 +30,10 @@ c3_p = The wallet verifies every record that concerns you and can prove it if a 
 c4_h = Beside money
 c4_p = Prices stay in the national currency. A deal can be part units, part money. Taxes are paid in money, as for any sale.
 h_stands = Where it stands
-p_stands = The ledger rules, signed account chains, a community's node and this wallet run and are tested. Trust lines between communities are designed and not yet built. No community uses it yet, and it has not been reviewed by a lawyer or a tax adviser. The <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a> separates what runs from what is designed.
 note = It is not a cryptocurrency, not network marketing and not a way around taxes. It proves who promised what; it cannot make anyone keep a promise. That rests on people knowing each other, on vouching, and on limits that grow with a record of keeping one's word.
-h_node = Run a node for your community
-p_node = The code is open (Apache-2.0). A node is one command on any machine with Java. See the <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/run-a-node.md">guide</a>.
 foot_built = Built on
 foot_what = algebraic effects for Scala
 foot_more = Need more?
+p_stands = The ledger rules, signed account chains, a community's node, a public hub where anyone creates a community, and this wallet run and are tested. Trust lines between communities are designed and not yet built. No real community uses it yet, and it has not been reviewed by a lawyer or a tax adviser. The <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a> separates what runs from what is designed.
+h_node = Start your own community
+p_node = Create one in the wallet in a minute: no server, no terminal. Your device's key makes you its founder; you admit members and set their limits. Or run the whole thing yourself, on Cloudflare or on your own machine: the code is open (Apache-2.0). See the <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/run-a-node.md">guide</a>. A demo community, Demo Town, is open to try.

@@ -248,6 +248,30 @@ the member, in vouching, in limits that grow with history.
 4. **Trust lines.** A node as an account, transit messages and receipts, time-outs; two nodes in one test.
 5. **Witnesses, recovery, paths, offline** — in the order experience asks for them.
 
+## Anyone has a node
+
+A node is DATA of a deployment, not its configuration. A deployment — a HUB — holds as many communities' nodes as
+people make: `POST /api/nodes {slug, name, unit, join, credit, ceiling}` makes one (its key pair generated with it
+and kept in its own `Directory` object, its setup token derived from the secret and said once), and its calls live
+under `/n/<slug>/…`. The hub lists its communities (`GET /api/nodes`). Making is open (`HUB_OPEN=1`) or behind
+`HUB_TOKEN`, limited per address a day and in all.
+
+- **Three ways to have a node** (docs/run-a-node.md): create a community on a public hub from the wallet; deploy
+  one's own hub to Cloudflare (`worker/`, `sbt dist`, `worker/deploy.sh`); run it on one's own machine (`host`).
+- **What a hosted community's founder holds, and what the hub does**: the keys that may manage the community's own
+  account are the founder's devices'; the node's key — which orders and co-signs every record — is the hub's. The
+  hub's operator cannot spend for a member or govern a community; it could stop serving one, or sign two histories —
+  which the members' wallets, checking the node, would show. Moving a node off a hub with its history: not built.
+- **Accounts of different nodes are apart**: an account's object answers only its own node (`x-node`); a payment to
+  an account of another node comes back. Trust lines (stage 4) are what will join them.
+- **Joining where it is not open**: `POST …/api/accounts` keeps the signed first record as a request (202);
+  `GET …/api/requests` says who waits; the commands `admit {id, credit, ceiling}` and `reject {id}`.
+- **The wallet**: with no node in use it lists the hub's communities, takes an address or an inviting link
+  (`?node=`), or creates a community; what it remembers is kept a node apart.
+- BUILT (sprint 1): `Hub`, `Directory` a node, `NodeApp` by `/n/<slug>`; `NodeSuite` (isolation, limits, requests),
+  `WalletSuite` (created, asked, admitted, rejected, another community); checked in Chromium against the host's jar
+  and against the Worker. LIVE: https://okay-mutual.okay-effects.workers.dev, its demo community `demo` (open).
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

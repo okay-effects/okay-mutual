@@ -30,10 +30,10 @@ c3_p = Portfel sprawdza każdy zapis, który Cię dotyczy, i potrafi udowodnić,
 c4_h = Obok pieniądza
 c4_p = Ceny zostają w walucie krajowej. Transakcja może być częściowo w jednostkach, częściowo w pieniądzach. Podatki płaci się pieniędzmi, jak od każdej sprzedaży.
 h_stands = Na jakim jest etapie
-p_stands = Zasady księgowania, podpisane łańcuchy kont, węzeł społeczności i ten portfel działają i są przetestowane. Linie zaufania między społecznościami są zaprojektowane, ale jeszcze niezbudowane. Z sieci nie korzysta na razie żadna społeczność i nie oceniał jej prawnik ani doradca podatkowy. <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a> (po angielsku) oddziela to, co działa, od tego, co zaprojektowane.
 note = To nie kryptowaluta, nie marketing sieciowy i nie sposób na ominięcie podatków. System dowodzi, kto co obiecał; nie zmusi nikogo do dotrzymania obietnicy. To opiera się na tym, że ludzie się znają, na poręczeniach i na limitach, które rosną razem z historią dotrzymanych obietnic.
-h_node = Uruchom węzeł dla swojej społeczności
-p_node = Kod jest otwarty (Apache-2.0). Węzeł to jedno polecenie na dowolnej maszynie z Javą. Zobacz <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/pl/run-a-node.md">przewodnik</a>.
 foot_built = Zbudowano na
 foot_what = efekty algebraiczne dla Scali
 foot_more = Potrzebujesz więcej?
+p_stands = Zasady księgowania, podpisane łańcuchy kont, węzeł społeczności, publiczny hub, na którym każdy tworzy społeczność, i ten portfel działają i są przetestowane. Linie zaufania między społecznościami są zaprojektowane, ale jeszcze niezbudowane. Z sieci nie korzysta na razie żadna prawdziwa społeczność i nie oceniał jej prawnik ani doradca podatkowy. <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a> (po angielsku) oddziela to, co działa, od tego, co zaprojektowane.
+h_node = Załóż własną społeczność
+p_node = Społeczność utworzysz w portfelu w minutę: bez serwera i bez terminala. Klucz Twojego urządzenia czyni Cię jej założycielem; przyjmujesz uczestników i ustalasz ich limity. Albo uruchom wszystko samodzielnie — na Cloudflare lub na własnej maszynie: kod jest otwarty (Apache-2.0). Zobacz <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/pl/run-a-node.md">przewodnik</a>. Wypróbować można w społeczności demonstracyjnej Demo Town.

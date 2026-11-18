@@ -1,73 +1,104 @@
 [English](../run-a-node.md) · [Русский](../ru/run-a-node.md) · [Українська](../uk/run-a-node.md) · **Polski**
 
-# Uruchom węzeł
+# Węzeł dla twojej społeczności
 
 Węzeł to komputer społeczności: przyjmuje uczestników, prowadzi łańcuch każdego konta, współpodpisuje każdy zapis
-i publikuje podpisane podsumowanie wszystkiego, co przechowuje. Uruchomić go może każdy. Najpierw przeczytaj,
+i publikuje podpisane podsumowanie wszystkiego, co przechowuje. Najpierw przeczytaj,
 [jak to działa](how-it-works.md).
 
-Zanim zaprosisz kogokolwiek, kogo nie znasz osobiście: operator węzła odpowiada za jego uczestników i za jego
-podatki. Formę prawną i przepisy o usługach płatniczych w swoim kraju ustal z prawnikiem
+Są trzy sposoby, żeby go mieć: od minuty do jednego wieczoru. Wszystkie trzy działają na tym samym otwartym kodzie.
+
+Zanim zaprosisz kogokolwiek, kogo nie znasz osobiście: kto prowadzi społeczność, odpowiada za jej uczestników i za
+jej podatki. Formę prawną i przepisy o usługach płatniczych w swoim kraju ustal z prawnikiem
 ([otwarte pytania](../../specs/mutual.md#questions-for-a-lawyer-and-a-tax-adviser), po angielsku).
 
-## Na jednej maszynie
+## 1. Utwórz społeczność na hubie — minuta, bez serwera
 
-Potrzebna jest Java 21 lub nowsza oraz [sbt](https://www.scala-sbt.org/).
+Hub to jedno wdrożenie, które utrzymuje węzły wielu społeczności. Nasz jest publiczny:
+
+1. Otwórz portfel: https://okay-mutual.okay-effects.workers.dev/wallet/
+2. Wybierz **Utwórz społeczność**: jej nazwa, jej miejsce w adresie, jej jednostka, sposób dołączania, limity
+   nowego uczestnika.
+3. To wszystko. Klucz twojego urządzenia otworzył własne konto społeczności: jesteś jej założycielem.
+4. **Zaproś** pokazuje link. Kto go otworzy, trafia do portfela w twojej społeczności i może poprosić o przyjęcie.
+5. **Społeczność** to twoje biuro: kto prosi o przyjęcie (przyjmij z limitami albo odrzuć), uczestnicy, ich limity.
+
+Co masz ty, a co hub: klucz społeczności — ten, który pozwala przyjmować uczestników i ustalać limity — jest na
+twoim urządzeniu i nigdzie indziej. Własny klucz węzła, który współpodpisuje każdy zapis, przechowuje hub. Operator
+huba nie może więc wydawać za nikogo ani zarządzać twoją społecznością, ale mógłby przestać ją obsługiwać. Portfel
+każdego uczestnika stale sprawdza węzeł i pokazałby, gdyby zapisy zostały zmienione. Jeśli to za mało, uruchom
+własny hub.
+
+Publiczny hub ogranicza liczbę społeczności, które można utworzyć z jednego adresu w ciągu dnia.
+
+## 2. Własny hub na Cloudflare — pół godziny, wystarczy darmowe konto
+
+Potrzebne są: konto Cloudflare, Java 21 lub nowsza, [sbt](https://www.scala-sbt.org/) i Node.js.
 
 ```sh
 git clone https://github.com/okay-effects/okay-mutual && cd okay-mutual
-sbt site host/assembly                       # the site with the wallet, and the node's jar
-NODE_NAME="Our Town" JOIN=open DEFAULT_CREDIT=10000 DEFAULT_CEILING=30000 java -jar target/okay-mutual-node.jar
+printf 'CLOUDFLARE_API_TOKEN=…\nCLOUDFLARE_ACCOUNT_ID=…\n' > .env && chmod 600 .env
+./worker/deploy.sh
 ```
 
-Otwórz http://127.0.0.1:8787/wallet/ — to portfel, który rozmawia z twoim węzłem.
+Token musi mieć uprawnienie do edycji Workers. Skrypt buduje hub i stronę, a potem je wdraża; wypisuje twój adres,
+`https://okay-mutual.<your-account>.workers.dev`. Otwórz pod nim `/wallet/` i utwórz swoją społeczność.
 
-Przy pierwszym uruchomieniu węzeł zapisuje w `node-data/` dwa pliki, które możesz odczytać tylko ty:
-
-- `node.key` — klucz węzła. Kto go ma, może podpisywać jako twój węzeł. Zrób kopię zapasową; nigdy go nikomu nie
-  udostępniaj.
-- `setup.token` — wypisywany raz, przy pierwszym uruchomieniu. W portfelu wybierz **Załóż tę społeczność** i wpisz go:
-  to otwiera własne konto społeczności kluczem twojego urządzenia. Od tej chwili token
-  niczego już nie otwiera.
-
-Wszystko, co węzeł wie, jest w `node-data/okay.sqlite`. Rób kopie zapasowe całego katalogu.
+Nie trzeba ustawiać żadnego sekretu: para kluczy każdego węzła powstaje razem z węzłem, wewnątrz Cloudflare, i nigdy
+go nie opuszcza. Ustawienia są w `worker/wrangler.toml`:
 
 | Zmienna | Znaczenie | Domyślnie |
 |---|---|---|
-| `NODE_NAME` | nazwa społeczności, tak jak pokazują ją portfele | `A community` |
-| `NODE_UNIT` | nazwa jednostki; jednostka liczy się jak jedna jednostka waluty krajowej | `PLN` |
-| `JOIN` | `open`: konto może otworzyć każdy; cokolwiek innego: tylko ci, których przyjmiesz | tylko przyjęci |
-| `DEFAULT_CREDIT`, `DEFAULT_CEILING` | limity nowego uczestnika, w setnych częściach (`10000` to 100.00) | `0` |
+| `HUB_OPEN` | `1`: każdy może utworzyć społeczność na twoim hubie; cokolwiek innego: tylko ten, kto ma `HUB_TOKEN` | `1` |
+| `HUB_PER_DAY` | ile społeczności można utworzyć z jednego adresu w ciągu dnia | `3` |
+| `HUB_MAX` | ile społeczności może być łącznie | `500` |
+
+Żeby zachować hub dla siebie, ustaw `HUB_OPEN = ""`, uruchom `npx wrangler secret put HUB_TOKEN` w `worker/`
+i twórz społeczności żądaniem z nagłówkiem `x-hub-token`.
+
+## 3. Na własnej maszynie — wszystko w twoich rękach
+
+Potrzebne są Java 21 lub nowsza i sbt.
+
+```sh
+git clone https://github.com/okay-effects/okay-mutual && cd okay-mutual
+sbt site host/assembly                       # the site with the wallet, and the hub's jar
+java -jar target/okay-mutual-node.jar
+```
+
+Otwórz http://127.0.0.1:8787/wallet/ i utwórz społeczność.
+
+Wszystko, co hub wie — łącznie z kluczem każdego węzła — jest w `node-data/okay.sqlite`. Rób kopie zapasowe tego
+katalogu i nikomu go nie udostępniaj: kto go ma, może podpisywać jako twoje węzły.
+
+| Zmienna | Znaczenie | Domyślnie |
+|---|---|---|
 | `NODE_DIR` | gdzie przechowywane są dane | `node-data` |
-| `PORT`, `HOST` | gdzie węzeł nasłuchuje | `8787`, `127.0.0.1` |
-| `SITE` | katalog strony, którą węzeł ma serwować | `target/site` |
+| `PORT`, `HOST` | gdzie nasłuchuje | `8787`, `127.0.0.1` |
+| `HUB_OPEN`, `HUB_TOKEN`, `HUB_PER_DAY`, `HUB_MAX` | jak wyżej | `1`, brak, `20`, `500` |
+| `SITE` | katalog strony, którą ma serwować | `target/site` |
 
-Żeby węzeł był dostępny dla innych, postaw go za serwerem WWW z HTTPS (klucze portfela wymagają bezpiecznej
-strony) i ustaw `HOST=0.0.0.0` albo przekieruj do niego ruch przez proxy.
+Żeby był dostępny dla innych, postaw go za serwerem WWW z HTTPS (klucze portfela wymagają bezpiecznej strony)
+i ustaw `HOST=0.0.0.0` albo przekieruj do niego ruch przez proxy.
 
-## Kto zarządza węzłem
+## Kto zarządza społecznością
 
 Nikt z zewnątrz i żadne hasło. Własne konto społeczności jest kontem jak każde inne: urządzenia, których klucze
 mogą nim *zarządzać*, to zarząd społeczności. W portfelu, kiedy używasz tego konta:
 
-- **Społeczność** — uczestnicy, suma wszystkich sald (zawsze zero) i limity każdego uczestnika, które
-  można tu ustawić.
-- **Urządzenia** — dodaj urządzenie kolejnego członka zarządu albo któreś usuń. To ten sam ekran,
-  którego każdy używa dla swojego telefonu i laptopa.
+- **Społeczność** — kto prosi o przyjęcie, uczestnicy, suma wszystkich sald (zawsze zero), limity każdego
+  uczestnika.
+- **Urządzenia** — dodaj urządzenie kolejnego członka zarządu albo któreś usuń. To ten sam ekran, którego każdy
+  używa dla swojego telefonu i laptopa.
 
-Polecenie dla węzła (ustawienie limitu) jest podpisane takim kluczem, jest ważne przez dziesięć minut i przyjmowane
-tylko raz.
-
-Tam, gdzie dołączanie nie jest otwarte, uczestnika przyjmuje się poleceniem członka zarządu, do którego dołączony
-jest pierwszy zapis nowej osoby, podpisany przez nią samą. Portfel nie ma jeszcze do tego ekranu.
+Polecenie dla węzła (przyjęcie uczestnika, ustawienie limitu) jest podpisane takim kluczem, jest ważne przez
+dziesięć minut i przyjmowane tylko raz.
 
 ## Czego jeszcze nie ma
 
-- Linie zaufania do innych węzłów: zaprojektowane ([protokół](../../specs/protocol.md), po angielsku), niezbudowane.
-  Dziś węzeł to jedna społeczność.
-- Punkt wejścia dla Cloudflare Workera: kod węzła tam działa (jest testowany na takiej samej chmurze w pamięci),
-  ale paczka nie jest jeszcze przygotowana.
+- Linie zaufania między społecznościami: zaprojektowane ([protokół](../../specs/protocol.md), po angielsku),
+  niezbudowane. Płatność dla uczestnika innej społeczności wraca.
+- Przeniesienie społeczności z jednego huba na inny razem z jej historią.
 - Konta rodzinne i firmowe, których posiadaczami są inne konta, dwa podpisy, odzyskiwanie utraconego klucza przez
   węzeł.
-- Kopie zapasowe inne niż skopiowanie katalogu; ograniczenie częstości otwierania kont tam, gdzie dołączanie jest
-  otwarte.
+- Regulamin dla operatora huba; kopie zapasowe inne niż te, które daje platforma albo twoje własne kopie.
