@@ -133,3 +133,25 @@ live hub — an account opened in `demo`, an offer posted from the app, read bac
 check left three test accounts named "Anna the tailor" in `demo` (one holds the offer). Seen and left: the app
 published on Pages asks the hub's root for `/.well-known/okay-mutual.json` before a community is chosen — a 404
 without CORS, an error in the console and nothing else.
+
+## Sprint 6 — shared accounts: a family, a team, two signatures (operator, 2026-11-18: "continue")
+
+His requirement from the start ("families and organisations with shared budgets"), until now only designed
+(specs/protocol.md "Keys": a holder is a key — or another account).
+
+- [x] **the chain** — a holder may be an ACCOUNT: a record as it travels says for which account a key signed
+  (`sigs[].for`, `seq`: where that account's chain says the key may manage it); the fold is the same — its signers
+  are the keys and the accounts they acted for. `two {above}`: above this amount a payment needs two holders —
+  the first says `propose {to, amount, memo, name}` (a record: it survives the chain moving on, it is audited, it
+  lapses in a week), another holder's `send` of the same takes it. Done when: ChainSuite, Laws.
+- [ ] **the node** — the acting checked against the holder account's own chain, here, now; an account of a family
+  (`family`) or a team (`team`: a business's) opened by a member's account with no line of its own (a budget is
+  lent — `vouch` — or given by the community; a family's never goes below zero where people earn first); who
+  holds what (`GET /api/held?by=`). Done when: NodeSuite.
+- [ ] **the app** — Accounts → shared accounts: made, used as one's own from every device of the person; holders
+  (members, with limits), the threshold, payments that wait for a second holder; checked from the first record with
+  the holders' chains; four languages. Done when: WalletSuite.
+- [ ] **publish** — Worker, Pages, docs in four languages, README, protocol.
+
+Not in it: a holder that is itself a shared account (a department under a company holds by `vouch`, not by
+holding); a shared account on the board; taking a lent line back (`release`).

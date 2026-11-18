@@ -3,7 +3,8 @@ package okay.mutual.chain
 import okay.effects.json.{Descent, Json}
 
 /**
- * WHAT A HOLDER MAY DO with an account (specs/protocol.md "Keys, devices and who may act"): a device's key, what it
+ * WHAT A HOLDER MAY DO with an account (specs/protocol.md "Keys, devices and who may act"): a device's key — or,
+ * for an account a family or a team shares, the id of a member's ACCOUNT, whose own devices then act for it —, what it
  * may (`spend`, `manage`), at most `payment` a payment and `period` in any `per` milliseconds (0: no such limit), and
  * `under`: the key that gave the grant (none: the key the account was opened with)
  */
@@ -38,14 +39,23 @@ enum Body(val kind: String):
   case Recover(key: String, after: Long) extends Body("recover")
   /** the recovery in force: `key` holds the account (not before its announced time) */
   case Recovered(key: String) extends Body("recovered")
+  /** TWO HOLDERS for a payment above `above` (0: one is enough): said by one that may manage */
+  case Two(above: Long) extends Body("two")
+  /** the first holder's half of such a payment: no amount moves; another holder's `send` of the same takes it */
+  case Propose(to: String, amount: Long, memo: String, name: String) extends Body("propose")
 
 /** A RECORD of an account's chain: its place (`seq`, the hash of the one before), the time its signer says, what
  * it says. An opening record has no account yet: `account` and `prev` are empty */
 final case class Record(account: String, seq: Long, prev: String, at: Long, body: Body)
 
-/** A RECORD AS IT TRAVELS: its text — the bytes that are hashed and signed, never written again by a reader — and
- * the signatures over it, each by a key */
-final case class Signed(text: String, sigs: Vector[(String, String)]):
+/** A KEY THAT SIGNED FOR AN ACCOUNT it holds: `account`'s chain says, at its record `seq`, that `key` may manage
+ * it — so the key's signature is that account's word wherever the account is a holder */
+final case class Act(key: String, account: String, seq: Long)
+
+/** A RECORD AS IT TRAVELS: its text — the bytes that are hashed and signed, never written again by a reader —, the
+ * signatures over it, each by a key, and for which accounts those keys signed (`acts`: beside the signatures, not
+ * under them — anyone checks each against the named account's own chain) */
+final case class Signed(text: String, sigs: Vector[(String, String)], acts: Vector[Act] = Vector.empty):
   def hash: String = Sha256.hex(text)
 
 object Record:
@@ -77,6 +87,9 @@ object Record:
     case Body.Released(ref, amount) => Json.obj("ref" -> Json.str(ref), "amount" -> Json.num(amount))
     case Body.Recover(key, after) => Json.obj("key" -> Json.str(key), "after" -> Json.num(after))
     case Body.Recovered(key) => Json.obj("key" -> Json.str(key))
+    case Body.Two(above) => Json.obj("above" -> Json.num(above))
+    case Body.Propose(to, amount, memo, name) => Json.obj("to" -> Json.str(to), "amount" -> Json.num(amount),
+        "memo" -> Json.str(memo), "name" -> Json.str(name))
 
   /** a text read: none when it is not a record of this version */
   def parse(text: String): Option[Record] = Descent.parse(text).toOption.flatMap(j => scala.util.Try {
@@ -97,11 +110,18 @@ object Record:
       case "released" => Body.Released(b("ref").string, b("amount").long)
       case "recover" => Body.Recover(b("key").string, b("after").long)
       case "recovered" => Body.Recovered(b("key").string)
+      case "two" => Body.Two(b("above").long)
+      case "propose" => Body.Propose(b("to").string, b("amount").long, b("memo").string, b("name").string)
     Record(j("account").string, j("seq").long, j("prev").string, j("at").long, read)
   }.toOption)
 
 object Signed:
+  /** a signature says for whom it was given when it was for an account: `for`, `seq` */
   def json(s: Signed): Json.Obj = Json.obj("record" -> Json.str(s.text), "sigs" -> Json.Arr(s.sigs.map((k, sig) =>
-    Json.obj("key" -> Json.str(k), "sig" -> Json.str(sig)))))
-  def parse(j: Json): Option[Signed] = scala.util.Try(Signed(j("record").string,
-    j("sigs").list.map(s => s("key").string -> s("sig").string))).toOption
+    Json.Obj(Vector("key" -> Json.str(k), "sig" -> Json.str(sig)) ++ s.acts.find(_.key == k).toVector.flatMap(a =>
+      Vector("for" -> Json.str(a.account), "seq" -> Json.num(a.seq)))))))
+  def parse(j: Json): Option[Signed] = scala.util.Try {
+    val sigs = j("sigs").list
+    Signed(j("record").string, sigs.map(s => s("key").string -> s("sig").string), sigs.flatMap(s =>
+      s.field("for").collect { case Json.Str(a) => Act(s("key").string, a, s.field("seq").fold(0L)(_.long)) }))
+  }.toOption

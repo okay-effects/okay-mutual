@@ -30,7 +30,7 @@ class ChainSuite extends munit.FunSuite:
       Body.Receive("from", "ref", 1), Body.Bounce("ref", 2), Body.Limits(1, 2),
       Body.Granted(Grant("K2", spend = true, manage = false, 100, 500, 7 * day)), Body.Revoke("K2"),
       Body.Vouch("to", 3), Body.Vouched("from", "ref", 3), Body.Release(3), Body.Released("ref", 3),
-      Body.Recover("K3", 99), Body.Recovered("K3"))
+      Body.Recover("K3", 99), Body.Recovered("K3"), Body.Two(5000), Body.Propose("to", 9000, "memo", "k2"))
     for b <- bodies do
       val r = Record("acc", 7, "prev", 123L, b)
       assertEquals(Record.parse(Record.text(r)), Some(r), b.kind)
@@ -40,6 +40,76 @@ class ChainSuite extends munit.FunSuite:
       None)
     val s = Signed("text", Vector("K" -> "sig"))
     assertEquals(Signed.parse(Signed.json(s)), Some(s))
+    val acted = Signed("text", Vector("K" -> "sig", "N" -> "sig2"), Vector(Act("K", "anna", 3)))
+    assertEquals(Signed.parse(Signed.json(acted)), Some(acted))
+  }
+
+  test("an account shared: its holders are accounts, a person's device signs for the person's — while it holds it") {
+    val jan = Fake.pair("jan")
+    val (anna, jans) = (Writer(node, phone), Writer(node, jan))
+    // the family's account: opened by Anna's ACCOUNT — her phone signs, the record says for whom
+    val open = Record("", 1, "", 2000, Body.Open(node.pub, "family", anna.id, "PLN"))
+    def held(a: Act): Boolean ! Fake.W = Check.holds[Fake.W](if a.account == anna.id then anna.records
+      else jans.records, a)
+    def signedFor(r: Record, by: Pair, who: Writer): Signed =
+      val s = Fake(Check.signed[Fake.W](r, node, by))
+      s.copy(acts = Vector(Act(by.pub, who.id, who.state.get.seq)))
+    var chain = Vector(signedFor(open, phone, anna))
+    def state = Fake(Check.chain[Fake.W](chain, held))
+    def say(by: Pair, who: Writer, at: Long)(body: Body) =
+      val s = state.toOption.get
+      val next = chain :+ signedFor(Record(s.id, s.seq + 1, s.head, at, body), by, who)
+      val made = Fake(Check.chain[Fake.W](next, held))
+      if made.isRight then chain = next
+      made.left.map(_._2)
+    assertEquals(state.map(_.grants), Right(Vector(Grant(anna.id, spend = true, manage = true))))
+    // the same records with nobody answering for the acts: the holder did not sign
+    assertEquals(Fake(Check.chain[Fake.W](chain)), Left(0 -> Fault.Unsigned("holder")))
+    // a key that does not hold the account it names signs for nobody
+    assertEquals(Fake(Check.chain[Fake.W](Vector(signedFor(open, jan, anna)), held)), Left(0 -> Fault.Unsigned("holder")))
+    // Jan's account a holder, 50.00 a week; his device pays for the family within it
+    assert(say(phone, anna, 2001)(Body.Granted(Grant(jans.id, spend = true, manage = false, 0, 5000, 7 * day))).isRight)
+    assert(Fake(Check.signed[Fake.W](Record(state.toOption.get.id, 3, state.toOption.get.head, 2002,
+      Body.Limits(10000, 30000)), node).map(s => { chain :+= s; state })).isRight)
+    assert(say(jan, jans, 2003)(Body.Send("shop", 4000, "", "a")).isRight)
+    assertEquals(say(jan, jans, 2004)(Body.Send("shop", 2000, "", "b")), Left(Fault.Limit("period")))
+    assertEquals(say(jan, jans, 2005)(Body.Two(1)), Left(Fault.Forbidden("manage")))
+    // Anna's laptop, signed in to HER account, acts for the family at once; her phone, taken off, no more
+    assert(anna.by(phone)(Body.Granted(Grant(laptop.pub, spend = true, manage = true))).isRight)
+    assert(say(laptop, anna, 2006)(Body.Send("shop", 1000, "", "c")).isRight)
+    assert(anna.by(laptop)(Body.Revoke(phone.pub)).isRight)
+    assertEquals(say(phone, anna, 2007)(Body.Send("shop", 1000, "", "d")), Left(Fault.Unsigned("holder")))
+    assertEquals(state.map(_.balance), Right(-5000L))
+  }
+
+  test("two holders: above the threshold a payment is proposed by one and sent by another, within a week") {
+    val w = account()
+    assert(w.node(Body.Limits(100000, 300000)).isRight)
+    assert(w.by(phone)(Body.Granted(Grant(laptop.pub, spend = true, manage = false))).isRight)
+    assert(w.by(phone)(Body.Granted(Grant(tablet.pub, spend = true, manage = false))).isRight)
+    assertEquals(w.by(laptop)(Body.Two(5000)), Left(Fault.Forbidden("manage")))
+    assertEquals(w.by(phone)(Body.Two(5000)).map(_.two), Right(5000L))
+    // at the threshold and under it: one holder
+    assertEquals(w.by(laptop)(Body.Send("shop", 5000, "", "a")).map(_.balance), Right(-5000L))
+    assertEquals(w.by(laptop)(Body.Send("shop", 5001, "m", "b")), Left(Fault.Unsigned("second")))
+    assertEquals(w.by(laptop)(Body.Propose("shop", 5001, "m", "b")).map(s => (s.balance, s.proposed.size)),
+      Right((-5000L, 1)))
+    // not by the one who proposed, not another payment
+    assertEquals(w.by(laptop)(Body.Send("shop", 5001, "m", "b")), Left(Fault.Unsigned("second")))
+    assertEquals(w.by(tablet)(Body.Send("shop", 5002, "m", "b")), Left(Fault.Unsigned("second")))
+    assertEquals(w.by(tablet)(Body.Send("thief", 5001, "m", "b")), Left(Fault.Unsigned("second")))
+    assertEquals(w.by(tablet)(Body.Send("shop", 5001, "m", "b")).map(s => (s.balance, s.proposed.size)),
+      Right((-10001L, 0)))
+    // taken once
+    assertEquals(w.by(phone)(Body.Send("shop", 5001, "m", "b2")), Left(Fault.Unsigned("second")))
+    // a proposal lapses in a week
+    assert(w.by(laptop)(Body.Propose("shop", 6000, "", "c")).isRight)
+    w.now += Chain.life
+    assertEquals(w.by(tablet)(Body.Send("shop", 6000, "", "c")), Left(Fault.Unsigned("second")))
+    // the threshold off: one holder again
+    assert(w.by(phone)(Body.Two(0)).isRight)
+    assertEquals(w.by(tablet)(Body.Send("shop", 6000, "", "c")).map(_.balance), Right(-16001L))
+    assertEquals(StateJson.read(StateJson.write(w.state.get)), w.state)
   }
 
   test("an account opens by its node and its first key; its id is the hash of that record") {

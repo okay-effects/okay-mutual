@@ -36,16 +36,37 @@ object Check:
     s.sigs.foldLeft(pure[Set[String], R](Set.empty))((acc, ks) => acc.flatMap(ok =>
       Signer.verify[R](ks._1, s.text, ks._2).map(v => if v then ok + ks._1 else ok)))
 
+  /** WHO SIGNED, WITH THE ACCOUNTS THEY SIGNED FOR: the keys whose signatures hold, and each account a record names
+   * for one of them (`acts`) — when `held` says that account's chain makes the key its managing holder there */
+  def acting[R[_]](s: Signed, held: Act => Boolean ! R)(using In[Signer, R]): Set[String] ! R =
+    signers[R](s).flatMap(keys => s.acts.filter(a => keys(a.key)).foldLeft(pure[Set[String], R](keys))((acc, a) =>
+      acc.flatMap(all => held(a).map(yes => if yes then all + a.account else all))))
+
+  /** nobody acts for an account: the check of a chain whose holders are keys alone */
+  def nobody[R[_]]: Act => Boolean ! R = _ => pure(false)
+
+  /** whether `chain` — an account's records from its first — makes the act's key a managing holder at the record
+   * the act names: an auditor's `held`, with nothing taken on trust */
+  def holds[R[_]](records: Vector[Signed], a: Act)(using In[Signer, R]): Boolean ! R =
+    chain[R](records.take(a.seq.toInt)).map(_.exists(p => p.id == a.account && p.seq == a.seq &&
+      p.grant(a.key).exists(_.manage)))
+
   /** the next record of an account, its signatures checked */
   def step[R[_]](state: Option[State], s: Signed)(using In[Signer, R]): Either[Fault, State] ! R =
     signers[R](s).map(Chain.step(state, s.text, _))
 
   /** a whole chain from its opening record: the account it makes, or the first fault and where */
   def chain[R[_]](records: Vector[Signed])(using In[Signer, R]): Either[(Int, Fault), State] ! R =
+    chain[R](records, nobody[R])
+
+  /** the same for an account some of whose holders are accounts: `held` answers for each act */
+  def chain[R[_]](records: Vector[Signed], held: Act => Boolean ! R)(using In[Signer, R])
+    : Either[(Int, Fault), State] ! R =
     records.zipWithIndex.foldLeft(pure[Either[(Int, Fault), Option[State]], R](Right(None)))((acc, si) =>
       acc.flatMap {
         case Left(f) => pure(Left(f))
-        case Right(state) => step[R](state, si._1).map(_.fold(f => Left(si._2 -> f), s => Right(Some(s))))
+        case Right(state) => acting[R](si._1, held).map(who => Chain.step(state, si._1.text, who)
+            .fold(f => Left(si._2 -> f), s => Right(Some(s))))
       }).map(_.flatMap(_.toRight(0 -> Fault.Malformed)))
 
   /**

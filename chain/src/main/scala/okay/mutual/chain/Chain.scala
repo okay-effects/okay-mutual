@@ -3,19 +3,24 @@ package okay.mutual.chain
 /** what a holder's key spent, and when: the base of its limit a period */
 final case class Spent(key: String, at: Long, amount: Long)
 
+/** a payment one holder proposed, waiting for another's `send` of the same: the hash of its record, who, what */
+final case class Proposal(hash: String, by: String, to: String, amount: Long, memo: String, name: String, at: Long)
+
 /**
  * AN ACCOUNT AS ITS CHAIN MAKES IT (specs/protocol.md "An account's chain"): never stored as the truth — the fold of
  * the records, the same in a node, in a wallet, in an auditor's script. `id`: the hash of its opening record;
  * `head`: the hash of its last. `sent`: its sends not bounced, by their hash; `lends`: the lines it lent, by the
  * hash of their `vouch`; `spent`: the holders' spending still inside a limit's window; `recovering`: a recovery
- * announced and not yet in force — the key and the time from which it holds the account
+ * announced and not yet in force — the key and the time from which it holds the account; `two`: above this amount a
+ * payment needs two holders (0: one); `proposed`: the payments that wait for their second
  */
 final case class State(id: String, node: String, of: String, unit: String, seq: Long, head: String, at: Long,
                        credit: Long = 0L, ceiling: Long = 0L, balance: Long = 0L, vouched: Long = 0L,
                        voucher: Option[String] = None, lent: Long = 0L, grants: Vector[Grant] = Vector.empty,
                        sent: Map[String, Long] = Map.empty, names: Set[String] = Set.empty,
                        lends: Map[String, Long] = Map.empty, spent: Vector[Spent] = Vector.empty,
-                       recovering: Option[(String, Long)] = None):
+                       recovering: Option[(String, Long)] = None, two: Long = 0L,
+                       proposed: Vector[Proposal] = Vector.empty):
   /** the lowest balance it may reach: its own line, what was lent to it, less what it lent */
   def floor: Long = -(credit + vouched - lent)
   def grant(key: String): Option[Grant] = grants.find(_.key == key)
@@ -53,6 +58,11 @@ enum Fault:
  * `recovered`)
  */
 object Chain:
+  /** how long a proposed payment waits for its second holder, and how many may wait at a time */
+  val life: Long = 7L * 86400000L
+  val most = 20
+  private def waiting(s: State, now: Long): Vector[Proposal] = s.proposed.filter(_.at > now - life)
+
   def step(state: Option[State], text: String, signers: Set[String]): Either[Fault, State] =
     Record.parse(text).toRight(Fault.Malformed).flatMap(r => state match
       case None => opened(r, Sha256.hex(text), signers)
@@ -96,12 +106,34 @@ object Chain:
   private def said(s: State, r: Record, hash: String, signers: Set[String]): Either[Fault, State] = r.body match
     case _: Body.Open => Left(Fault.Place("open"))
 
-    case Body.Send(to, amount, _, name) => holder(s, signers).flatMap(g => debit(s, g, amount, r.at)).flatMap { d =>
+    case Body.Send(to, amount, memo, name) => holder(s, signers).flatMap(g => debit(s, g, amount, r.at)).flatMap { d =>
         if to == s.id then Left(Fault.Forbidden("same"))
         else if name.nonEmpty && s.names(name) then Left(Fault.Named)
         else if s.balance - amount < s.floor then Left(Fault.Credit(s.floor - (s.balance - amount)))
-        else Right(d.copy(balance = s.balance - amount, sent = s.sent + (hash -> amount),
-          names = if name.isEmpty then s.names else s.names + name))
+        else
+          val paid = d.copy(balance = s.balance - amount, sent = s.sent + (hash -> amount),
+            names = if name.isEmpty then s.names else s.names + name)
+          // above the account's threshold: only as the second holder of the same payment, proposed by ANOTHER
+          if s.two <= 0 || amount <= s.two then Right(paid)
+          else holder(s, signers).flatMap(g => waiting(s, r.at).find(p => p.by != g.key && p.to == to &&
+            p.amount == amount && p.memo == memo && p.name == name)
+            .toRight(Fault.Unsigned("second"))).map(p => paid.copy(proposed = waiting(s, r.at).filterNot(_ == p)))
+      }
+
+    // the first holder's half of a payment that needs two: nothing moves, it waits (a week) for another's `send`
+    case Body.Propose(to, amount, memo, name) => holder(s, signers).flatMap { g =>
+        if !g.spend then Left(Fault.Forbidden("spend"))
+        else if amount <= 0 then Left(Fault.Amount)
+        else if to == s.id then Left(Fault.Forbidden("same"))
+        else if waiting(s, r.at).size >= most then Left(Fault.Forbidden("full"))
+        else Right(s.copy(proposed = waiting(s, r.at) :+ Proposal(hash, g.key, to, amount, memo, name, r.at)))
+      }
+
+    // the threshold of two holders: by one that may manage — as every rule of an account is its managers' to set
+    case Body.Two(above) => holder(s, signers).flatMap { g =>
+        if !g.manage then Left(Fault.Forbidden("manage"))
+        else if above < 0 then Left(Fault.Amount)
+        else Right(s.copy(two = above))
       }
 
     case Body.Receive(_, _, amount) =>
