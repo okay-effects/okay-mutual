@@ -1,0 +1,7 @@
+target/
+.bsp/
+.idea/
+.metals/
+.bloop/
+node_modules/
+.scala-build/
