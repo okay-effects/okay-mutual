@@ -61,21 +61,29 @@ the amount back to a. The two line accounts mirror each other; each node's balan
 Answer and reasoning: docs/legal.md. The rules that keep the system out of the regulated kinds (money, payment
 services, crypto-assets, credit to consumers, deposits) become things the software DOES, not only says:
 
-- [ ] **legal.md** — what each rule avoids and why, what still applies whatever we do (tax, data protection,
+- [x] **legal.md** (DONE: docs/legal.md and its three translations (by helpers, structure checked); linked from README and the landing's nav) — what each rule avoids and why, what still applies whatever we do (tax, data protection,
   contracts, platform reporting), the profile to start in, the questions left for one legal opinion. Four
   languages. Not legal advice, and says so.
-- [ ] **a community's rules, accepted** — a community has its rules (a text its founder writes from a standard one:
+- [x] **a community's rules, accepted** (DONE: `dir/rules`, `GET …/api/rules`, the `rules` command, the hash named to join; the wallet shows and accepts, the office edits; both suites) — a community has its rules (a text its founder writes from a standard one:
   units are a count of mutual obligations, never sold or exchanged for money; members are known; each pays its own
   taxes; leaving settles the balance); `GET …/api/rules`; joining names the rules' hash — no account without it;
   the `rules` command changes them. Done when: NodeSuite and WalletSuite (shown, accepted, refused without).
-- [ ] **businesses only** — a community may admit only businesses (the simplest footing: no consumer law, no
+- [x] **businesses only** (DONE: `NodeEnv.only`; chosen in the create form (the default); both suites) — a community may admit only businesses (the simplest footing: no consumer law, no
   consumer credit); chosen at creation, kept by the node. Done when: tested in both suites.
-- [ ] **a statement for the books** — a member copies its deals as CSV (day, counterparty, amount, what for): a
+- [x] **a statement for the books** (DONE: History → "Copy as a statement (CSV)" by okay-ui's `Clipboard`; WalletSuite) — a member copies its deals as CSV (day, counterparty, amount, what for): a
   deal in units is a sale to be booked and taxed as any other. Done when: played in WalletSuite.
-- [ ] **publish** — Worker, Pages; README and the site link legal.md.
+- [x] **publish** (DONE: Worker and Pages redeployed; README and the landing's nav link legal.md; smoke-checked in
+  Chromium on the live hub in Russian — an account, a payment, the statement on the clipboard. A community created
+  with rules was not tried live: this address had made its three for the day) — Worker, Pages; README and the
+  site link legal.md.
 
 ## Later (BACKLOG)
 
+- ONE LEGAL OPINION on docs/legal.md's seven questions (MiCA's reach and platform reporting first) before any
+  community admits people its founder does not know. Then: terms for a hub's operator, a processing agreement.
+- The word "wallet" belongs to the world docs/legal.md advises not to sound like: consider "account" in the
+  app and the site (the operator's call).
+- The rules' acceptance recorded on the member's chain; members asked again when the rules change.
 - A payment through a third community (a path); lines between different units (a rate); a line lent across
   nodes; closing a line; a flight across a line retried by the alarm under test.
 - The demo community `demo` on the public hub is not set up (no community account): its setup token is in the

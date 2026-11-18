@@ -16,7 +16,8 @@ enum Net[X]:
   case Invite() extends Net[String]
 
 /** what a node says it is (`/.well-known/okay-mutual.json`) */
-final case class About(key: String, unit: String, name: String, open: Boolean, credit: Long, ceiling: Long)
+final case class About(key: String, unit: String, name: String, open: Boolean, credit: Long, ceiling: Long,
+                       only: String = "")
 /** a community as its hub lists it */
 final case class Listed(slug: String, name: String, unit: String, open: Boolean)
 /** a node this one keeps an account for (a trust line): its key, its address, its name, the account's id here */
@@ -49,7 +50,8 @@ object Node:
 
   def about[R[_]: Has[Net]]: Option[About] ! R = call[R]("GET", "/.well-known/okay-mutual.json").map((status, j) =>
     if status != 200 then None else scala.util.Try(About(j("key").string, j("unit").string, j("name").string,
-      j("join").string == "open", j("credit").long, j("ceiling").long)).toOption)
+      j("join").string == "open", j("credit").long, j("ceiling").long,
+      j.field("only").collect { case Json.Str(s) => s }.getOrElse(""))).toOption)
 
   def members[R[_]: Has[Net]]: Vector[Member] ! R = call[R]("GET", "/api/members").map((_, j) =>
     scala.util.Try(j("members").list.map(m => Member(m("id").string, m("name").string, m("of").string)))
@@ -66,8 +68,9 @@ object Node:
       Record.parse(s.text).map(r => Line(s, r, x.field("memo").collect { case Json.Str(m) => m }.getOrElse(""))))))
 
   /** an account opened: the account — or none, where joining is not open and the record was kept as a request */
-  def open[R[_]: Has[Net]](record: Signed, name: String): Either[Refusal, Option[State]] ! R =
-    call[R]("POST", "/api/accounts", Some(Json.obj("record" -> Signed.json(record), "name" -> Json.str(name))))
+  def open[R[_]: Has[Net]](record: Signed, name: String, rules: String = ""): Either[Refusal, Option[State]] ! R =
+    call[R]("POST", "/api/accounts", Some(Json.obj("record" -> Signed.json(record), "name" -> Json.str(name),
+      "rules" -> Json.str(rules))))
       .map(answer => if answer._1 == 202 then Right(None) else stated(answer).map(Some(_)))
 
   def requests[R[_]: Has[Net]]: Vector[Asked] ! R = call[R]("GET", "/api/requests").map((_, j) =>
@@ -75,6 +78,10 @@ object Node:
       .getOrElse(Vector.empty))
 
   def invite[R[_]: Has[Net]]: String ! R = perform[Net](Net.Invite())
+
+  /** the community's rules — the text a newcomer accepts — and their hash (both empty: it has none) */
+  def rules[R[_]: Has[Net]]: (String, String) ! R = call[R]("GET", "/api/rules").map((_, j) =>
+    scala.util.Try((j("text").string, j("hash").string)).getOrElse(("", "")))
 
   /** the communities this one has a trust line to */
   def lines[R[_]: Has[Net]]: Vector[TrustLine] ! R = call[R]("GET", "/api/lines").map((_, j) =>
@@ -92,11 +99,12 @@ object Node:
       n("join").string == "open"))).getOrElse(Vector.empty))
 
   /** a community made at the hub: its address there and its setup token */
-  def make[R[_]: Has[Net]](slug: String, name: String, unit: String, open: Boolean, credit: Long, ceiling: Long)
-    : Either[Refusal, (String, String)] ! R =
+  def make[R[_]: Has[Net]](slug: String, name: String, unit: String, open: Boolean, credit: Long, ceiling: Long,
+                           only: String = "", rules: String = ""): Either[Refusal, (String, String)] ! R =
     perform[Net](Net.AtHub("POST", "/api/nodes", Some(Json.obj("slug" -> Json.str(slug), "name" -> Json.str(name),
       "unit" -> Json.str(unit), "join" -> Json.str(if open then "open" else "admitted"),
-      "credit" -> Json.num(credit), "ceiling" -> Json.num(ceiling))))).map((status, j) =>
+      "credit" -> Json.num(credit), "ceiling" -> Json.num(ceiling), "only" -> Json.str(only),
+      "rules" -> Json.str(rules))))).map((status, j) =>
       if status == 200 then scala.util.Try((j("address").string, j("token").string)).toOption
         .toRight(Refusal(200, "answer", "")) else Left(refusal(status, j)))
 

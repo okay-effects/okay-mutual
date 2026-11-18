@@ -9,9 +9,9 @@ your own.
 There is no coin and nothing to invest in. Every member holds their own keys, every record is signed, anyone can
 run a community's node, and communities connect by trust lines they choose themselves.
 
-Читать по-русски: [идея](docs/ru/idea.md), [как это работает](docs/ru/how-it-works.md), [вопросы](docs/ru/faq.md),
-[запуск узла](docs/ru/run-a-node.md) · Українською: [ідея](docs/uk/idea.md), [як це працює](docs/uk/how-it-works.md),
-[запитання](docs/uk/faq.md), [запуск вузла](docs/uk/run-a-node.md) · Po polsku: [idea](docs/pl/idea.md),
+Читать по-русски: [идея](docs/ru/idea.md), [право](docs/ru/legal.md), [как это работает](docs/ru/how-it-works.md), [вопросы](docs/ru/faq.md),
+[запуск узла](docs/ru/run-a-node.md) · Українською: [ідея](docs/uk/idea.md), [право](docs/uk/legal.md), [як це працює](docs/uk/how-it-works.md),
+[запитання](docs/uk/faq.md), [запуск вузла](docs/uk/run-a-node.md) · Po polsku: [idea](docs/pl/idea.md), [prawo](docs/pl/legal.md),
 [jak to działa](docs/pl/how-it-works.md), [pytania](docs/pl/faq.md), [uruchomienie węzła](docs/pl/run-a-node.md)
 
 - **[The idea](docs/idea.md)** — the problem, what mutual credit is, where it has worked for ninety years, what
@@ -20,6 +20,8 @@ run a community's node, and communities connect by trust lines they choose thems
   companies, nodes, trust lines, and what protects a member at each step.
 - **[Questions](docs/faq.md)** — is it a cryptocurrency, does it replace money, taxes, what if someone does not
   pay.
+- **[Staying light](docs/legal.md)** — which regulated kinds the design stays out of and why (money, payment
+  services, crypto-assets, consumer credit), what applies anyway (tax, data, contracts), the questions for a lawyer.
 - **[Have a node](docs/run-a-node.md)** — three ways: create a community on a hub from the wallet, deploy your own
   hub to Cloudflare, run it on your machine; and who governs a community.
 - **[The protocol](specs/protocol.md)** — the design for those who build: records, chains, nodes, trust lines.
@@ -41,10 +43,12 @@ run a community's node, and communities connect by trust lines they choose thems
 | Family and company accounts held by other accounts, budgets, two signatures, recovery | designed |
 | A hub of nodes: anyone creates a community by a call or from the wallet; each node's key made with it; accounts of different nodes apart | runs, tested; LIVE on Cloudflare Workers: https://okay-mutual.okay-effects.workers.dev (checked in a browser: two devices, a payment, the node verified) |
 | Joining by request where it is not open: asked from the wallet, admitted or rejected in the community's office | runs, tested |
+| A community's rules, accepted by every newcomer before an account is opened; a community of businesses only; a member's deals copied as a statement for the books | runs, tested |
 | Trust lines between communities: each opens a line to the other, a member pays a member of the other; mirrored accounts, bounded by the receiver's trust; on one hub and between hubs | runs, tested |
 | A payment through a third community; lines between different units | designed |
 
-No community uses it yet. It has not been reviewed by a lawyer or a tax adviser.
+No community uses it yet. It has not been reviewed by a lawyer or a tax adviser; [what we think the law says](docs/legal.md)
+is our reading, with the questions to ask one.
 
 ## For developers
 

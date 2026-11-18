@@ -187,3 +187,28 @@ object WordsPl extends Words:
   val lineNotOpened = "Linia nie jest otwarta"
   val lineUnit = "Tamta społeczność liczy w innej jednostce: linie między jednostkami nie są jeszcze zbudowane."
   val noSuchNode = "Pod tym adresem żadna społeczność nie odpowiada."; val lineSame = "To nasza własna społeczność."
+  val whoMayJoin = "Kto może dołączyć"
+  val businessesOnly = "tylko firmy i samozatrudnieni (najprościej)"
+  val businessesAndPeople = "firmy i osoby prywatne"
+  val rulesLabel = "Zasady społeczności"
+  val rulesHint = "tekst na początek: przyjmuje go każdy nowy uczestnik. Zanim się na nim oprzesz, pokaż go prawnikowi."
+  val standardRules = "1. Społeczność prowadzi wspólny rachunek tego, co jej uczestnicy sobie nawzajem dają i od " +
+    "siebie biorą. Jednostka jest miarą w tym rachunku; w cenach liczy się jak jedna jednostka waluty krajowej.\n" +
+    "2. Jednostki nie są pieniędzmi. Nikt ich nigdy nie sprzedaje, nie kupuje ani nie wymienia na pieniądze.\n" +
+    "3. Saldo powyżej zera mówi, o ile uczestnik dał więcej, niż wziął; saldo poniżej zera — o ile wziął więcej, " +
+    "niż dał, i jest winien społeczności własne towary i usługi.\n" +
+    "4. Każdy uczestnik ma linię kredytową i pułap; ustala je społeczność i może je zmieniać.\n" +
+    "5. Uczestników przyjmuje społeczność i zna ich z prawdziwego imienia i nazwiska lub nazwy.\n" +
+    "6. Sprzedaż za jednostki jest sprzedażą. Każdy uczestnik sam wystawia faktury i sam płaci podatki, " +
+    "pieniędzmi, jak od każdej sprzedaży.\n" +
+    "7. Uczestnik może odejść w każdej chwili, doprowadzając saldo do zera. Kto odchodzi z saldem poniżej zera, " +
+    "wyrównuje różnicę pieniędzmi w ciągu 30 dni.\n" +
+    "8. Społeczność może zamknąć konto uczestnika, który łamie te zasady."
+  def rulesOf(community: String) = s"Zasady · $community"; val accept = "Akceptuję"
+  val rulesButton = "Zasady"; val rulesSaved = "Zasady zapisane"
+  val rulesChanged = "Zasady społeczności się zmieniły: przeczytaj je i zaakceptuj ponownie."
+  val onlyBusinesses = "Ta społeczność przyjmuje tylko firmy i samozatrudnionych."
+  val copyStatement = "Skopiuj wyciąg (CSV)"; val statementCopied = "Skopiowano"
+  val statementCopiedText = "Twoje transakcje są w schowku jako CSV: wklej je do arkusza albo przekaż księgowej. " +
+    "Transakcja w jednostkach jest sprzedażą, księgowaną i opodatkowaną jak każda inna."
+  val notCopied = "Ta przeglądarka nie pozwala stronie kopiować. Zaznacz tabelę i skopiuj ją ręcznie."

@@ -101,6 +101,12 @@ trait Words:
   def openLine: String; def lineAddress: String; def lineAddressHint: String; def changeLine: String
   def lineOpened: String; def lineOpenedText(community: String, credit: String): String; def lineNotOpened: String
   def lineUnit: String; def noSuchNode: String; def lineSame: String
+  // ---- a community's rules, whom it admits, a statement for the books (docs/legal.md)
+  def whoMayJoin: String; def businessesOnly: String; def businessesAndPeople: String
+  def rulesLabel: String; def rulesHint: String; def standardRules: String
+  def rulesOf(community: String): String; def accept: String; def rulesButton: String; def rulesSaved: String
+  def rulesChanged: String; def onlyBusinesses: String
+  def copyStatement: String; def statementCopied: String; def statementCopiedText: String; def notCopied: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -273,3 +279,27 @@ object Words:
     val lineNotOpened = "The line is not open"
     val lineUnit = "That community counts in another unit: lines between units are not built yet."
     val noSuchNode = "No community answers at that address."; val lineSame = "That is this community itself."
+    val whoMayJoin = "Who may join"; val businessesOnly = "businesses and the self-employed only (simplest)"
+    val businessesAndPeople = "businesses and private people"
+    val rulesLabel = "The community's rules"
+    val rulesHint = "a starting text: every newcomer accepts it to join. Have a lawyer read it before you rely on it."
+    val standardRules = "1. This community keeps a shared account of what its members give to and take from each " +
+      "other. A unit is the measure in that account; it counts as one unit of the national currency in prices.\n" +
+      "2. Units are not money. They are never sold, bought or exchanged for money, by anyone.\n" +
+      "3. A balance above zero says how much a member has given beyond what it has taken; a balance below zero, how " +
+      "much it has taken beyond what it has given, and owes back to the community in its own goods and services.\n" +
+      "4. Each member has a credit line and a ceiling, set by the community, which may change them.\n" +
+      "5. Members are admitted by the community and are known to it by their real names.\n" +
+      "6. A sale for units is a sale. Each member issues its own invoices and pays its own taxes, in money, as for " +
+      "any sale.\n" +
+      "7. A member may leave at any time by bringing its balance to zero. A member who leaves below zero settles the " +
+      "difference in money within 30 days.\n" +
+      "8. The community may close the account of a member who breaks these rules."
+    def rulesOf(community: String) = s"The rules · $community"; val accept = "I accept"
+    val rulesButton = "Rules"; val rulesSaved = "The rules are saved"
+    val rulesChanged = "The community's rules have changed: read and accept them again."
+    val onlyBusinesses = "This community admits only businesses and the self-employed."
+    val copyStatement = "Copy as a statement (CSV)"; val statementCopied = "Copied"
+    val statementCopiedText = "Your deals are on the clipboard as CSV: paste them into a spreadsheet or give them to " +
+      "your accountant. A deal in units is a sale, booked and taxed as any other."
+    val notCopied = "This browser does not let the page copy. Select the table and copy it by hand."

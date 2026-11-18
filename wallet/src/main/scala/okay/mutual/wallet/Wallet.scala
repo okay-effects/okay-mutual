@@ -20,7 +20,7 @@ import okay.scala3.std.Clock
  * limits from here, by signed commands. There is no other administrator
  */
 final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[Device, R], In[Settings, R],
-  In[Signer, R], In[Clock, R]):
+  In[Signer, R], In[Clock, R], In[Clipboard, R]):
   private val week = 7L * 86400000L
 
   // ---- the screens every program has, in this wallet's words (okay-ui's own are English)
@@ -74,6 +74,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("place", _) => w.changedMeanwhile
     case ("named", _) => w.namedAlready
     case ("admitted", _) => w.admitsItself
+    case ("rules", _) => w.rulesChanged
+    case ("business", _) => w.onlyBusinesses
     case ("taken", _) => w.openAlready
     case ("token", _) => w.notTheToken
     case ("set", _) => w.setUpAlready
@@ -117,16 +119,21 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   /** A COMMUNITY MADE: its node at the hub, then its own account opened by this device's key — its founder's */
   private def create: Unit ! R =
-    edit[(String, String, String, Boolean, BigDecimal, BigDecimal)](w.createCommunity, Form(
+    edit[(String, String, String, Boolean, String, BigDecimal, BigDecimal, String)](w.createCommunity, Form(
       said(Field.text(w.communityName)), said(Field.text(w.place).hinted(w.placeHint)),
       said(Field.text(w.unitLabel).initially("PLN")),
       said(Field.choice(w.howJoin, w.byAdmission -> false, w.joinOpen -> true).initially(false)),
+      // businesses only is where a community starts (docs/legal.md): no consumer law arises
+      said(Field.choice(w.whoMayJoin, w.businessesOnly -> "business", w.businessesAndPeople -> "")
+        .initially("business")),
       said(Field.decimal(w.newcomersLine).initially(BigDecimal(100)).check(w.notBelowZero)(_ >= 0)),
-      said(Field.decimal(w.newcomersCeiling).initially(BigDecimal(300)).check(w.notBelowZero)(_ >= 0))),
+      said(Field.decimal(w.newcomersCeiling).initially(BigDecimal(300)).check(w.notBelowZero)(_ >= 0)),
+      said(Field.longText(w.rulesLabel).hinted(w.rulesHint).initially(w.standardRules))),
       Part.text(w.createText)).flatMap {
       case None => pure(())
-      case Some((name, place, unit, open, line, ceiling)) =>
-        Node.make[R](place.trim.toLowerCase, name, unit.trim, open, cents(line), cents(ceiling)).flatMap {
+      case Some((name, place, unit, open, only, line, ceiling, rules)) =>
+        Node.make[R](place.trim.toLowerCase, name, unit.trim, open, cents(line), cents(ceiling), only, rules.trim)
+          .flatMap {
           case Left(r) => inform(w.notSetUp, r.why match
               case "taken" => w.placeTaken
               case "body" => w.placeBad
@@ -172,11 +179,23 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
   private def opening(about: About, of: String): Signed ! R = Device.ready[R].flatMap(pub => Clock.now[R].flatMap(now =>
     Device.signed[R](Record("", 1, "", now, Body.Open(about.key, of, pub, about.unit)))))
 
-  private def open(about: About): Unit ! R =
+  /** AN ACCOUNT ASKED FOR: the community's rules read and accepted first (docs/legal.md: they are the contract
+   * among its members) — the acceptance goes to the node as the hash of the text that was shown */
+  private def open(about: About): Unit ! R = Node.rules[R].flatMap { (text, hash) =>
+    if text.isEmpty then openWith(about, hash)
+    else show(Screen[Boolean](w.rulesOf(about.name))(text.linesIterator.filter(_.trim.nonEmpty).map(Part.text)
+      .toSeq*)(Button(w.accept, Style.Primary)(true), Button(w.back)(false))).flatMap(yes =>
+      if yes then openWith(about, hash) else pure(()))
+  }
+
+  private def openWith(about: About, rules: String): Unit ! R =
+    // a community of businesses only offers no personal account
+    val kinds = if about.only == "business" then List(w.business -> "business")
+      else List(w.personal -> "personal", w.business -> "business")
     edit[(String, String)](w.openAccount, Form(said(Field.text(w.yourName).hinted(w.nameHint)),
-      said(Field.choice(w.accountKind, w.personal -> "personal", w.business -> "business")))).flatMap {
+      said(Field.choice(w.accountKind, kinds*).initially(kinds.head._2)))).flatMap {
       case None => pure(())
-      case Some((name, of)) => opening(about, of).flatMap(signed => Node.open[R](signed, name).flatMap {
+      case Some((name, of)) => opening(about, of).flatMap(signed => Node.open[R](signed, name, rules).flatMap {
           case Right(Some(s)) => remember(s.id, name).andThen(inform(w.opened,
               w.openedText(money(-s.floor, about.unit))))
           // where joining is not open the record waits: the account's id will be its hash
@@ -332,9 +351,17 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           case Body.Released(_, a) => (w.lineReturned(m(a)), "", 0L)
         Row(l.record.seq, day(l.record.at), what, who, units(amount), l.memo)
       }.reverse.toList
-      show(Screen[Unit](w.history)(Table(rows)(Column.text(w.day)(_.day), Column.text(w.what)(_.what),
+      // the deals as a statement for the books (docs/legal.md: a deal in units is a sale, booked as any other)
+      def field(s: String): String = "\"" + s.replace("\"", "\"\"") + "\""
+      val csv = (List(w.day, w.what, w.withWhom, s"${w.amount} (${about.unit})", w.forColumn) +: rows.reverse
+        .filter(_.amount != 0).map(r => List(r.day, r.what, r.who, r.amount.toString, r.memo)))
+        .map(_.map(field).mkString(",")).mkString("\n")
+      show(Screen[Boolean](w.history)(Table(rows)(Column.text(w.day)(_.day), Column.text(w.what)(_.what),
         Column.text(w.withWhom)(_.who), Column.money(w.amount, about.unit)(_.amount),
-        Column.text(w.forColumn)(_.memo)).keyedBy(_.seq.toString).whenEmpty(w.nothingYet))(Button(w.back)(())))
+        Column.text(w.forColumn)(_.memo)).keyedBy(_.seq.toString).whenEmpty(w.nothingYet))(
+        Button(w.copyStatement)(true), Button(w.back)(false))).flatMap(asked =>
+        if !asked then pure(()) else copy[R](csv).flatMap(done =>
+          if done then inform(w.statementCopied, w.statementCopiedText) else inform(w.copyStatement, w.notCopied)))
   }))
 
   // ---- devices: who may act for the account
@@ -484,15 +511,24 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         Column.money(w.balance, about.unit)(x => units(x._2.balance)),
         Column.money(w.creditLine, about.unit)(x => units(x._2.credit)),
         Column.money(w.ceiling, about.unit)(x => units(x._2.ceiling))).keyedBy(_._1.id).whenEmpty(w.noMembers)
-      show(Screen[Option[Either[Boolean, (Member, State)]]](s"${w.community} · ${about.name}")(Part.details(
+      show(Screen[Option[Either[Int, (Member, State)]]](s"${w.community} · ${about.name}")(Part.details(
         w.members -> Cell.Number(BigDecimal(all.size)),
         w.sum -> Cell.Money(units(all.map(_._2.balance).sum), about.unit)), Part.text(w.sumText), table)(
         Button.select(w.setLimits, table)(x => Some(Right(x))),
-        Button(w.requestsButton(asked.size))(Some(Left(true))), Button(w.trustLines)(Some(Left(false))),
-        Button(w.back)(None))).flatMap {
+        Button(w.requestsButton(asked.size))(Some(Left(1))), Button(w.trustLines)(Some(Left(2))),
+        Button(w.rulesButton)(Some(Left(3))), Button(w.back)(None))).flatMap {
         case None => pure(())
-        case Some(Left(true)) => asking(about, key).andThen(defer(office(about, key)))
-        case Some(Left(false)) => lines(about, key).andThen(defer(office(about, key)))
+        case Some(Left(1)) => asking(about, key).andThen(defer(office(about, key)))
+        case Some(Left(2)) => lines(about, key).andThen(defer(office(about, key)))
+        // the community's rules: from then on the ones a newcomer accepts
+        case Some(Left(_)) => Node.rules[R].flatMap((text, _) => edit[Option[String]](w.rulesOf(about.name),
+            Form.one(said(Field.longText(w.rulesLabel).hinted(w.rulesHint).initially(text).optional))).flatMap {
+            case None => pure(())
+            case Some(next) => command(key, "rules", "text" -> Json.str(next.getOrElse(""))).flatMap {
+                case Right(_) => inform(w.rulesSaved, about.name)
+                case Left(r) => inform(w.notSet, refusal(r, about.unit))
+              }
+          }).andThen(defer(office(about, key)))
         case Some(Right((m, s))) => edit[(BigDecimal, BigDecimal)](w.limitsOf(m.name), Form(
             said(Field.money(w.creditLine, about.unit).initially(units(s.credit)).check(w.notBelowZero)(_ >= 0)),
             said(Field.money(w.ceiling, about.unit).initially(units(s.ceiling)).check(w.notBelowZero)(_ >= 0))))

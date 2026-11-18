@@ -285,6 +285,22 @@ under `/n/<slug>/…`. The hub lists its communities (`GET /api/nodes`). Making 
   `WalletSuite` (created, asked, admitted, rejected, another community); checked in Chromium against the host's jar
   and against the Worker. LIVE: https://okay-mutual.okay-effects.workers.dev, its demo community `demo` (open).
 
+## Light by design (sprint 3; docs/legal.md)
+
+What keeps the system out of the regulated kinds is what the software does, and two things a community chooses:
+
+- **A community's rules** (`dir/rules`: the text and its hash; `GET …/api/rules`; the `rules` command): the
+  contract among its members. `POST …/api/accounts` names the hash of the rules accepted; with rules in force and
+  another hash, or none, no account and no request (409 `rules`). A node without rules asks for none. The wallet
+  shows the rules before the form and sends the hash of what it showed; a founder writes them from a standard text
+  (`Words.standardRules`, in each language). Rules changed later are not asked of those already members.
+- **Whom it admits** (`NodeEnv.only`: `business` or any; said at the node's making, in its descriptor): a
+  community of businesses refuses a personal account (409 `business`), and its wallet offers none.
+- **A statement** (the wallet's History, "Copy as a statement"): a member's deals as CSV — a deal in units is a
+  sale, booked and taxed as any other.
+- Not in it: the acceptance recorded on the member's chain (it is in the request alone); terms for a hub's
+  operator; anything a lawyer may add after reading docs/legal.md.
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

@@ -2,7 +2,7 @@ package okay.mutual.wallet
 
 import okay.business.faces.Skin
 import okay.business.laminar.Laminar
-import okay.business.model.{Settings, Ui}
+import okay.business.model.{Clipboard, Settings, Ui}
 import okay.business.web.InThePage
 import okay.mutual.chain.{Signer, SignerWeb}
 import okay.scala3.*
@@ -16,7 +16,7 @@ import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
  * checked by Web Crypto, this device's key Web Crypto's unextractable one, the node by `fetch`
  */
 object InTheBrowser:
-  type Browser[X] = (Async + Ui + Settings + Clock + Net + Device + Signer)[X]
+  type Browser[X] = (Async + Ui + Settings + Clipboard + Clock + Net + Device + Signer)[X]
   val skin: Skin = Skin.calm(accent = "#2f5d50", deep = "#1c2b26")
 
   /** THE LANGUAGE: the one asked for (`?lang=`, kept from then on), else the one kept, else the browser's */
@@ -57,8 +57,8 @@ object InTheBrowser:
     // okay-faces' own words (Back, Help…) in the same language
     val skin = this.skin.copy(look = this.skin.look.copy(words = okay.faces.Words.of(words.code)))
     val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
-    val running = Async.start(Laminar.run(root, skin)(InThePage.kept(NetInPage.prefix)(ClockInPage.run(
-      SignerWeb.run(DeviceInPage.run(NetInPage.run(Wallet[Browser](words).main)))))))
+    val running = Async.start(Laminar.run(root, skin)(InThePage.kept(NetInPage.prefix)(InThePage.clipboard(ClockInPage.run(
+      SignerWeb.run(DeviceInPage.run(NetInPage.run(Wallet[Browser](words).main))))))))
     running.future.failed.foreach {
       case _: Cancelled => ()
       case e => dom.console.error(e.toString)

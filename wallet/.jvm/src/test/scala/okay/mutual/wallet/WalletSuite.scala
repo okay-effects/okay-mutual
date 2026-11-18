@@ -13,7 +13,9 @@ final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
   var pair: Option[Pair] = None
   val kept = scala.collection.mutable.Map.empty[String, String]
   if node.nonEmpty then kept("node") = node
-  type World[X] = (Ui + Settings + Clock + Net + Device + Signer)[X]
+  /** what the wallet copied: its statements */
+  val copied = scala.collection.mutable.Buffer.empty[String]
+  type World[X] = (Ui + Settings + Clipboard + Clock + Net + Device + Signer)[X]
 
   private def asked(method: String, path: String, body: Option[Json], headers: (String, String)*): (Int, Json) =
     val r = hub.ask(Request(method, path).copy(body = body.fold("")(Json.print(_)), headers =
@@ -40,7 +42,8 @@ final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
 
   /** the wallet from its start, the acts done in order: what was seen, and the screen it stopped at */
   def play(acts: Act*): Played[(Long, Unit)] =
-    Play(steps(keptIn(kept)(Clock.virtual(hub.now)(SignerJdk.run(device(net(Wallet[World](words).main)))))), acts*)
+    Play(steps(keptIn(kept)(copiedTo(copied)(Clock.virtual(hub.now)(SignerJdk.run(device(net(
+      Wallet[World](words).main))))))), acts*)
 
   def key: String = pair.get.pub
   /** the account in use at the node in use */
@@ -89,7 +92,7 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(town.checked(anna.account).map(s => s.grants.map(_.key)), Right(Vector(anna.key)))
     assertEquals(town.json(town.get("/api/members"))("members").list.map(_("name").string), Vector("Anna"))
     // the form says what it needs
-    assertEquals(Phone(town).play(Act.press("Open an account"), Act.press("Save")).problems.size, 2)
+    assertEquals(Phone(town).play(Act.press("Open an account"), Act.press("Save")).problems.size, 1)
   }
 
   test("a payment from the wallet: signed here, seen at both ends, with what it was for; refusals in words") {
@@ -273,8 +276,8 @@ class WalletSuite extends munit.FunSuite:
       "Its place in the address" -> "our-town"), Act.press("OK"))
     def asks(name: String): Phone =
       val phone = new Phone(hub)
-      val asked = phone.play(Act.choose("Use", "Our Town"), Act.press("Open an account"), Act.press("Save",
-        "Your name" -> name, "Account" -> "Personal"), Act.press("OK"))
+      val asked = phone.play(Act.choose("Use", "Our Town"), Act.press("Open an account"), Act.press("I accept"),
+        Act.press("Save", "Your name" -> name), Act.press("OK"))
       assertEquals(asked.at.map(_.title), Some("You asked to join"), Seen.of(asked))
       assert(Seen.of(asked).contains("Our Town admits its members itself"), Seen.of(asked))
       phone
@@ -313,7 +316,7 @@ class WalletSuite extends munit.FunSuite:
       founder
     def member(place: String, name: String): Phone =
       val phone = new Phone(hub, node = s"/n/$place")
-      phone.play(Act.press("Open an account"), Act.press("Save", "Your name" -> name, "Account" -> "Personal"),
+      phone.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> name),
         Act.press("OK"))
       phone
     val (north, south) = (community("North", "north"), community("South", "south"))
@@ -357,4 +360,42 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(back.at.map(_.title), Some("It came back"), Seen.of(back))
     assert(Seen.of(back).contains("South did not take it"), Seen.of(back))
     assert(Seen.of(anna.play()).contains("Balance: -40.00"))
+  }
+
+  test("a community's rules and whom it admits, from the wallet; a statement for the books") {
+    val hub = Hubs()
+    val founder = new Phone(hub)
+    founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "The Guild",
+      "Its place in the address" -> "guild", "How one joins" -> "open to anyone"), Act.press("OK"))
+    // a newcomer reads the rules first; not accepted, nothing is opened
+    val anna = new Phone(hub, node = "/n/guild")
+    val shown = anna.play(Act.press("Open an account"))
+    assertEquals(shown.at.map(_.title), Some("The rules · The Guild"), Seen.of(shown))
+    assert(Seen.of(shown).contains("2. Units are not money.") && Seen.of(shown).contains("pays its own taxes"),
+      Seen.of(shown))
+    assertEquals(anna.play(Act.press("Open an account"), Act.press("Back")).at.map(_.title), Some("Okay Mutual"))
+    // businesses only, as its founder left it: no personal account is offered, and the node would refuse one
+    val form = anna.play(Act.press("Open an account"), Act.press("I accept"))
+    assert(Seen.of(anna.play()).contains("Community: The Guild"))
+    val opened = anna.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save",
+      "Your name" -> "Anna's bakery"), Act.press("OK"))
+    assertEquals(opened.at.map(_.title), Some("Anna's bakery"), Seen.of(opened) + form.problems)
+    assertEquals(hub.json(hub.get(s"/n/guild/api/accounts/${anna.account}"))("of").string, "business")
+    // the founder changes the rules: a newcomer shown the old ones is told to read again
+    val late = new Phone(hub, node = "/n/guild")
+    val saved = founder.play(Act.press("Community"), Act.press("Rules"), Act.press("Save",
+      "The community's rules" -> "One rule: be fair."))
+    assertEquals(saved.at.map(_.title), Some("The rules are saved"), Seen.of(saved))
+    assert(Seen.of(late.play(Act.press("Open an account"))).contains("One rule: be fair."))
+    // a statement for the books: the member's deals as CSV, on the clipboard
+    val olaf = new Phone(hub, node = "/n/guild")
+    olaf.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> "Olaf, tailor"),
+      Act.press("OK"))
+    anna.play(Act.press("Pay"), Act.press("Save", "To" -> "Olaf, tailor", "Amount" -> "40", "For what" ->
+      "a jacket, \"blue\""), Act.press("Yes"))
+    val copied = anna.play(Act.press("History"), Act.press("Copy as a statement (CSV)"))
+    assertEquals(copied.at.map(_.title), Some("Copied"), Seen.of(copied))
+    assertEquals(anna.copied.last.linesIterator.toList, List(
+      "\"Day\",\"What\",\"With\",\"Amount (PLN)\",\"For\"",
+      "\"2026-11-18\",\"paid\",\"Olaf, tailor\",\"-40\",\"a jacket, \"\"blue\"\"\""))
   }
