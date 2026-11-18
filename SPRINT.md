@@ -178,7 +178,14 @@ may spend, and above what two must sign (sprint 6).
   The hub's bounds (`HUB_PERSONAL`, `HUB_MAX_CREDIT`, `HUB_MAX_PERSONAL`) hold at making and at every change. An
   account's object asks the policy in force, not the one it was opened under. `earned` in the fold. Done when:
   ChainSuite, NodeSuite.
-- [ ] **the app** — the office's "Policy" screen; making a community offers what the hub allows; four languages.
+- [x] **the app** — the office's "Policy" screen; making a community offers what the hub allows; four languages.
   Done when: WalletSuite.
-- [ ] **publish** — Worker, Pages; docs ×4 (how-it-works, run-a-node, legal: which choices take on which
+- [x] **publish** — Worker, Pages; docs ×4 (how-it-works, run-a-node, legal: which choices take on which
   questions), README, protocol.
+
+Sprint 7 closed 2026-11-18: hub redeployed, Pages republished. Checked on the live hub: its bounds
+(`/.well-known/okay-mutual-hub.json`: every way allowed, no bound — the operator has set none) and the policies of
+the communities made before this sprint, read as they were (lines for all, a week, shared accounts). The office's
+Policy screen is checked by WalletSuite only: no community on the live hub has an office whose key we hold (`demo`
+is not set up; the founders' keys of `demo-hill` and `demo-river` went with the browser that made them). A new
+Worker version reaches the edge and running objects within about a minute, as Pages does.
