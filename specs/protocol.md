@@ -231,11 +231,39 @@ the member, in vouching, in limits that grow with history.
    faked) and `Laws` (one program every handler must satisfy, with a record signed by the JDK and one by Web Crypto
    kept as vectors) on the JVM and Scala.js. NOT in it, left for the node's stage: a holder that is an account, two
    signatures, recovery, `close`; the size of what the fold keeps (every payment's name, every send not bounced).
-2. **A node.** An object an account; `send` / `receive` / `bounce`; the node's co-signature, directory, head and
-   inclusion proofs; its HTTP API and descriptor. The 0.1.0 suites re-read as the node's.
-3. **The wallet.** Keys on the device, signing, the checks of §6; in okay-mall, in place of the present page.
+2. **A node.** BUILT (module `node`, on okay-serverless 0.2.0; `host`: one JVM process). `AccountObject`: an object
+   an account — its chain, the node's signature on every record, a `send` or `vouch` carried to its receiver or
+   returned (`bounce`, `released`), a flight tried again by the alarm, named payments paid once, a payment's memo
+   beside the chain at both ends. `Directory`: the members, every account's head, the node's signed head and a
+   proof for each account. `NodeApp`: the calls, CORS for any wallet. `NodeSuite` on `MemoryCloud` with real
+   signatures. NOT in it: `release` of a lent line, a retried flight under test, rate limits on joining, the
+   Worker's packaging, batching of the head.
+3. **The wallet.** BUILT (module `wallet`, a program of okay-ui's screens; `site/`: the pages; `sbt site`). Its
+   world as effects: `Net` (the node), `Device` (this device's key — in a page Web Crypto's unextractable key kept
+   by IndexedDB). An account opened, a payment, history, vouching, devices with limits, the node checked (the chain
+   folded again, every signature, the signed head, a head going back or forked), the community's office.
+   `WalletSuite` plays it against the node in memory; checked in Chromium against a node on the host (two devices,
+   a payment, a reload, the check, the key unextractable). English only; no admission screen where joining is not
+   open; no QR scanning (the key is shown as a QR code and typed or pasted).
 4. **Trust lines.** A node as an account, transit messages and receipts, time-outs; two nodes in one test.
 5. **Witnesses, recovery, paths, offline** — in the order experience asks for them.
+
+## Who governs: nobody above, everyone their own
+
+There is no administrator of the network, and none of a node either. The same four relations, at every size:
+
+| Relation | Between | What it says |
+|---|---|---|
+| holding | a key or an account, and an account | who may act for it, within what limits (`grant`, `revoke`) |
+| membership | an account and its node | the community orders its chain and sets its limits (`limits`) |
+| lending a line | two accounts | one answers for the other with its own room (`vouch`): a newcomer, a department's budget |
+| a trust line | two nodes | how far each community lets the other owe it |
+
+A person governs their devices. A family or a company governs its members' access to its account. A community
+governs its members' limits — through ITS OWN ACCOUNT, whose holders that may manage are its board, added and taken
+off by the same records as a person's phone and laptop; a command to the node is signed by such a key. Communities
+are equals: none is above another, each decides alone whom it trusts and how far. Every account has exactly one
+home — the node that orders its chain — and that is the only hierarchy there is.
 
 ## Open questions
 

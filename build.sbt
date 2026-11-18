@@ -64,6 +64,36 @@ lazy val wallet = crossProject(JVMPlatform, JSPlatform).crossType(CrossType.Pure
     Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-js",
     scalaJSUseMainModuleInitializer := true, Compile / mainClass := Some("okay.mutual.wallet.InTheBrowser"))
 
+/** A NODE ON ONE MACHINE (docs/run-a-node.md): the node on okay-serverless' host — one JVM process, one directory —
+ * serving the site beside its calls. `sbt host/run`, or `sbt host/assembly` and `java -jar target/okay-mutual-node.jar` */
+lazy val host = (project in file("host")).dependsOn(node.jvm)
+  .settings(name := "okay-mutual-host", publish / skip := true,
+    libraryDependencies += "io.github.okay-effects" %% "okay-serverless-host" % "0.2.0",
+    Compile / mainClass := Some("okay.mutual.host.Serve"), run / fork := true,
+    run / baseDirectory := (ThisBuild / baseDirectory).value,
+    assembly / assemblyJarName := "okay-mutual-node.jar",
+    assembly / target := (ThisBuild / baseDirectory).value / "target",
+    assembly / assemblyMergeStrategy := {
+      case "module-info.class" => MergeStrategy.discard
+      case x if x.endsWith("/module-info.class") => MergeStrategy.discard
+      case x => (assembly / assemblyMergeStrategy).value(x)
+    })
+
+/** THE SITE: `sbt site` — target/site: the pages of site/ and the wallet linked beside its page (wallet/main.js).
+ * Static: any server serves it; a node's host serves it beside its calls */
+val site = taskKey[File]("the site: its pages and the wallet's script")
+lazy val siteTask = Def.task {
+  val base = (ThisBuild / baseDirectory).value
+  val out = base / "target" / "site"
+  val linked = (wallet.js / Compile / fullLinkJS).value.data.publicModules.head.jsFileName
+  val from = (wallet.js / Compile / fullLinkJS / scalaJSLinkerOutputDirectory).value / linked
+  IO.delete(out)
+  IO.copyDirectory(base / "site", out)
+  IO.copyFile(from, out / "wallet" / "main.js")
+  out
+}
+
 lazy val root = (project in file("."))
-  .aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js, node.jvm, node.js, wallet.jvm, wallet.js)
+  .aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js, node.jvm, node.js, wallet.jvm, wallet.js, host)
+  .settings(site := siteTask.value)
   .settings(publish / skip := true)

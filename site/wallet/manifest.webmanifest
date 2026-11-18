@@ -1,0 +1,3 @@
+{"name": "Okay Mutual", "short_name": "Mutual", "start_url": "./", "scope": "./", "display": "standalone",
+ "background_color": "#f7f4ee", "theme_color": "#1c2b26",
+ "icons": [{"src": "../icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]}

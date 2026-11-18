@@ -12,6 +12,7 @@ run a community's node, and communities connect by trust lines they choose thems
   companies, nodes, trust lines, and what protects a member at each step.
 - **[Questions](docs/faq.md)** — is it a cryptocurrency, does it replace money, taxes, what if someone does not
   pay.
+- **[Run a node](docs/run-a-node.md)** — a community's node on one machine, and who governs it.
 - **[The protocol](specs/protocol.md)** — the design for those who build: records, chains, nodes, trust lines.
 - **[The prototype's spec](specs/mutual.md)** — the rules, the measures of a network's health, what is tested
   first.
@@ -23,11 +24,13 @@ run a community's node, and communities connect by trust lines they choose thems
 | The rules: credit line, ceiling, vouching, corrections, payments paid once | runs, tested (JVM and Scala.js) |
 | A single community's ledger on a small cloud service or one machine | runs, tested |
 | The measures of a network's health (velocity, who both sells and buys, stale balances) | runs, tested |
-| A member's page: sign-in by an emailed link, balance, history, payment | built in a host application (not public), not yet deployed |
 | A signed chain per account: records, hashes, the balance as their fold, fork proofs | runs, tested (JVM and Scala.js; the JDK's and Web Crypto's signatures check each other's) |
 | A key a device, with its own limits; a lost device cut off | runs, tested (in the chain's rules; no app yet) |
-| Family and company accounts, budgets, two signatures, recovery | designed |
-| Nodes anyone runs, signed summaries, checking by the member's app | designed |
+| A community's node: an object an account, payments carried or returned, the node's signature on every record, its signed head with a proof for each account | runs, tested (in-memory cloud, real signatures; one JVM process with SQLite) |
+| The wallet: an account opened by a key made on the device, payments, history, vouching, devices with limits, the node checked by the device itself | runs, tested (played against the node; in a real browser against a local node) |
+| The community governing itself: its own account, its holders setting members' limits by signed commands | runs, tested |
+| Family and company accounts held by other accounts, budgets, two signatures, recovery | designed |
+| A node on Cloudflare Workers | its code runs on the in-memory cloud; the Worker's packaging is not written |
 | Trust lines between communities | designed |
 
 No community uses it yet. It has not been reviewed by a lawyer or a tax adviser.

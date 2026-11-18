@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Okay Mutual — wallet</title>
+  <meta name="robots" content="noindex">
+  <!-- the node this page talks to unless the person names another: empty — the page's own origin -->
+  <meta name="okay-mutual-node" content="">
+  <meta name="theme-color" content="#1c2b26">
+  <link rel="icon" href="../icon.svg">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    /* THE WALLET'S OWN RULES over okay-ui's calm skin (Laminar.run installs it) */
+    body > footer .bar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+    body > footer .more { margin-left: auto; }
+    body > header a.guide { color: #cfe5dc; }
+    .okay-code, pre { overflow-wrap: anywhere; white-space: pre-wrap; }
+    @media (max-width: 640px) { body .okay-table { font-size: 0.85em; }
+      body .okay-table td, body .okay-table th { overflow-wrap: anywhere; padding: 8px 5px; } }
+  </style>
+</head>
+<body>
+  <header><div class="bar"><a class="brand" href="./" title="The wallet's start">OKAY MUTUAL</a><span class="tag">mutual credit, beside money</span><a class="guide" href="../">About</a></div></header>
+  <div id="app"></div>
+  <footer><div class="bar">
+    Built on <a href="https://github.com/okay-effects" target="_blank" rel="noopener noreferrer">okay-effects</a> —
+    algebraic effects for Scala
+    <a class="more" href="https://okay-effects.github.io/#author" target="_blank" rel="noopener noreferrer">Need more?</a>
+  </div></footer>
+  <script src="main.js"></script>
+</body>
+</html>
