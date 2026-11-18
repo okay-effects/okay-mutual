@@ -208,3 +208,11 @@ tests. Checked in a browser on the live app: opened by a shop-style link (`?node
 client opens an account and lands on the payment. Not checked live: an owner saving the link in a real shop's
 panel (it needs an owner's sign-in) — the mall's `UnitsSuite` covers it. Next for the mall: the units' part of an
 order at checkout and the order marked by the payment seen on the shop's chain (okay-shop's pages).
+
+After sprint 8, the same day (operator: "the next step"): AN ORDER'S PART IN UNITS, in okay-mall (c8db2c1, deployed;
+its specs/mall.md "Okay Mutual: an order's part in units"). An order's page says how much of its price may be paid
+in units and links the app with `amount` and `for=<the order's number>`; the shop's object reads the account's
+chain from this node's public API (`/api/accounts/<id>/chain?from=`), adds up the receipts that name an order, and
+shows them to the client and the owner. Nothing here changed for it: the app's link and the node's API were enough.
+Left there: the order marked paid by what is seen; the same for bookings; records checked by signatures — which
+needs the module `chain` released as a library.
