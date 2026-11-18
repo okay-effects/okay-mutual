@@ -131,4 +131,5 @@ person's selling becomes a business — and a single legal opinion can answer th
 7. Does anything change when two communities open trust lines to each other across a border?
 
 More detail for the lawyer is in [the protocol](../specs/protocol.md): what a record is, who signs what, who can do
-what.
+what. How the whole could be organised — a foundation, the communities, the builders — is in
+[who owns what](organisation.md), with a [draft statute](statute.md).

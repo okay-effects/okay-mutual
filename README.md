@@ -10,9 +10,10 @@ There is no coin and nothing to invest in. Every member holds their own keys, ev
 run a community's node, and communities connect by trust lines they choose themselves.
 
 Читать по-русски: [идея](docs/ru/idea.md), [право](docs/ru/legal.md), [как это работает](docs/ru/how-it-works.md), [вопросы](docs/ru/faq.md),
-[запуск узла](docs/ru/run-a-node.md) · Українською: [ідея](docs/uk/idea.md), [право](docs/uk/legal.md), [як це працює](docs/uk/how-it-works.md),
-[запитання](docs/uk/faq.md), [запуск вузла](docs/uk/run-a-node.md) · Po polsku: [idea](docs/pl/idea.md), [prawo](docs/pl/legal.md),
-[jak to działa](docs/pl/how-it-works.md), [pytania](docs/pl/faq.md), [uruchomienie węzła](docs/pl/run-a-node.md)
+[запуск узла](docs/ru/run-a-node.md), [организация](docs/ru/organisation.md) · Українською: [ідея](docs/uk/idea.md), [право](docs/uk/legal.md), [як це працює](docs/uk/how-it-works.md),
+[запитання](docs/uk/faq.md), [запуск вузла](docs/uk/run-a-node.md), [організація](docs/uk/organisation.md) · Po polsku: [idea](docs/pl/idea.md), [prawo](docs/pl/legal.md),
+[jak to działa](docs/pl/how-it-works.md), [pytania](docs/pl/faq.md), [uruchomienie węzła](docs/pl/run-a-node.md),
+[organizacja](docs/pl/organisation.md), [projekt statutu fundacji](docs/pl/statute.md)
 
 - **[The idea](docs/idea.md)** — the problem, what mutual credit is, where it has worked for ninety years, what
   this is not.
@@ -24,6 +25,9 @@ run a community's node, and communities connect by trust lines they choose thems
   services, crypto-assets, consumer credit), what applies anyway (tax, data, contracts), the questions for a lawyer.
 - **[Have a node](docs/run-a-node.md)** — three ways: create a community on a hub from the app, deploy your own
   hub to Cloudflare, run it on your machine; and who governs a community.
+- **[Who owns what](docs/organisation.md)** — a proposal: a foundation for the code, the name and the public hub,
+  each community its own legal person, the builders ordinary businesses; with a [draft statute](docs/statute.md)
+  for a lawyer.
 - **[The protocol](specs/protocol.md)** — the design for those who build: records, chains, nodes, trust lines.
 - **[The prototype's spec](specs/mutual.md)** — the rules, the measures of a network's health, what is tested
   first.
