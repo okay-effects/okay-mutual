@@ -50,6 +50,9 @@ Settings are in `worker/wrangler.toml`:
 | `HUB_OPEN` | `1`: anyone may create a community on your hub; anything else: only who has `HUB_TOKEN` | `1` |
 | `HUB_PER_DAY` | how many communities one address may create a day | `3` |
 | `HUB_MAX` | how many communities there may be in all | `500` |
+| `HUB_PERSONAL` | which ways with private people a community here may choose: `business`, `earned`, `vouched`, `record`, `line` (comma-separated) | all |
+| `HUB_MAX_CREDIT` | the most a community may set as a new business's credit line, in hundredths (0: any) | `0` |
+| `HUB_MAX_PERSONAL` | the most a private person may owe in any community here, in hundredths (0: any) | `0` |
 
 To keep the hub for yourself, set `HUB_OPEN = ""`, run `npx wrangler secret put HUB_TOKEN` in `worker/`, and
 create communities with a request that carries the header `x-hub-token`.

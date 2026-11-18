@@ -100,6 +100,37 @@ Wystarcza to kasjerowi i dyrektorowi, a łatwo to wytłumaczyć.
 Jeszcze niezbudowane: konto wspólne, którego posiadaczem jest inne konto wspólne, oraz odbieranie pożyczonego
 budżetu z aplikacji.
 
+## Polityki: każdy poziom ustala własną
+
+Nic tu nie jest ustalone raz dla wszystkich. Każdy poziom ustala własną politykę — w granicach tego, na co pozwala
+poziom wyżej:
+
+- **Operator huba** mówi, jakie mogą być społeczności na jego maszynie: które sposoby postępowania z osobami
+  prywatnymi mogą wybrać, jaka może być najwyższa początkowa linia firmy i ile najwyżej może być winna osoba.
+  Operator, który chce gościć tylko ostrożne społeczności, tak to ustawia i żadna społeczność u niego nie pójdzie
+  dalej.
+- **Społeczność** mówi, jak się do niej dołącza (otwarcie albo za zgodą), jaką linię i pułap dostaje nowa firma,
+  czy rodziny i zespoły mogą otwierać konta wspólne, ile czeka odzyskiwanie konta — i jak traktuje **osoby
+  prywatne**:
+
+  | Wybór społeczności | Osoba prywatna |
+  |---|---|
+  | tylko firmy | nie ma konta |
+  | najpierw zarób *(domyślnie)* | nie ma linii i nie można jej pożyczyć: zarabia, potem wydaje |
+  | tylko linie pożyczone | nie ma własnej linii od społeczności, ale uczestnik może pożyczyć część swojej |
+  | linia po historii | dostaje linię od społeczności, gdy zarobiła ustaloną kwotę |
+  | linie dla wszystkich | otwiera konto od razu z linią, jak firma |
+
+  Przy każdym wyborze poza dwoma pierwszymi społeczność ustala też, ile najwyżej może być winna osoba. Politykę
+  zmienia się z biura społeczności (*Społeczność → Polityka*) podpisanym słowem tych, którzy nią zarządzają;
+  zmiana obowiązuje od razu, linie przyznane wcześniej zostają.
+- **Rodzina, zespół, firma** mówi, kto jest posiadaczem jej konta, ile każdy posiadacz może wydać na płatność i
+  na tydzień oraz powyżej jakiej kwoty potrzeba dwóch podpisów.
+- **Osoba** mówi, które urządzenia mają dostęp do jej konta i ile każde może wydawać.
+
+Dwa pierwsze wybory nie dają kredytu konsumentowi; pozostałe dają — a z nim pytania z
+[notatek prawnych](legal.md).
+
 ## Węzły
 
 Węzeł to społeczność z komputerem: przyjmuje uczestników, ustala limity, porządkuje zapisy każdego konta

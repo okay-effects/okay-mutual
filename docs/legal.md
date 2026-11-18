@@ -41,6 +41,14 @@ Two more, which are choices a community makes rather than properties of the code
   by work or goods sold to members, or units a business gives — and then spends them. No credit is given to a
   consumer, so the rules on consumer credit do not arise. A community may choose otherwise: admit only businesses,
   or give private people credit lines too and take those rules on.
+- **The other choices, and what each takes on.** The policy is the community's own, and it can change it (see
+  [how it works](how-it-works.md#policies-each-level-sets-its-own)). Between "earn first" and "lines for all" there
+  are two middle ways: a person may be lent a line by a member who answers for it, or be given one by the community
+  after they have earned a set amount — both with a bound on what a person may owe. Each of them is credit to a
+  consumer, small and interest-free, and brings the consumer-credit question below; the bound keeps what is at
+  stake small, it does not answer the question. **A hub's operator can rule these choices out** for every
+  community it hosts (`HUB_PERSONAL`), or bound them (`HUB_MAX_PERSONAL`) — which is how an operator stays inside
+  the profile it has had checked.
 - **A legal person for the community** — an association or a cooperative whose members keep accounts with each
   other — rather than an operator who "runs a currency".
 

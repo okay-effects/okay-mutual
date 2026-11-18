@@ -15,6 +15,8 @@ import java.nio.file.{Files, Paths}
  *   HUB_OPEN     `1` (the default here): whoever reaches this machine makes a community; anything else: only who
  *                has HUB_TOKEN
  *   HUB_PER_DAY  how many communities an address may make a day (default 20 here)    HUB_MAX   in all (500)
+ *   HUB_PERSONAL, HUB_MAX_CREDIT, HUB_MAX_PERSONAL   what the communities here may be (docs/run-a-node.md): the
+ *                ways with private people, the most a business's default line, the most a person may owe
  *   SITE         the site's directory to serve (default `target/site`: `sbt site`)
  */
 object Serve:
@@ -23,7 +25,9 @@ object Serve:
     val site = Paths.get(env.getOrElse("SITE", "target/site")).toAbsolutePath
     val port = env.get("PORT").flatMap(_.toIntOption).getOrElse(8787)
     val vars = Map("HUB_OPEN" -> env.getOrElse("HUB_OPEN", "1"), "HUB_TOKEN" -> env.getOrElse("HUB_TOKEN", ""),
-      "HUB_PER_DAY" -> env.getOrElse("HUB_PER_DAY", "20"), "HUB_MAX" -> env.getOrElse("HUB_MAX", "500"))
+      "HUB_PER_DAY" -> env.getOrElse("HUB_PER_DAY", "20"), "HUB_MAX" -> env.getOrElse("HUB_MAX", "500")) ++
+      // what the hub's communities may be: said only when the operator says it
+      List("HUB_PERSONAL", "HUB_MAX_CREDIT", "HUB_MAX_PERSONAL").flatMap(v => env.get(v).map(v -> _))
     val host = Host.start(NodeApp, NodeApp.actors, HostConfig(dir = dir, port = port,
       host = env.getOrElse("HOST", "127.0.0.1"), static = Option.when(Files.isDirectory(site))(site), vars = vars))
     System.err.println(s"the hub is up; its data: $dir")

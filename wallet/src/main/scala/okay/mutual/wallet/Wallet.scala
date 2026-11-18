@@ -79,6 +79,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("admitted", _) => w.admitsItself
     case ("rules", _) => w.rulesChanged
     case ("business", _) => w.onlyBusinesses
+    case ("shared", _) => w.sharedOff
     case ("taken", _) => w.openAlready
     case ("token", _) => w.notTheToken
     case ("set", _) => w.setUpAlready
@@ -124,23 +125,32 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
   }
 
   /** A COMMUNITY MADE: its node at the hub, then its own account opened by this device's key — its founder's */
-  private def create: Unit ! R =
+  private def create: Unit ! R = Node.bounds[R].flatMap(creating)
+
+  /** the ways a community may have with private people, of those its hub allows */
+  private def ways(allowed: Set[String]): List[(String, String)] = List(w.peopleEarn -> "earned",
+    w.businessesOnly -> "business", w.peopleVouched -> "vouched", w.peopleRecord -> "record", w.peopleCredit -> "")
+    .filter(way => allowed(way._2))
+
+  private def creating(hub: Bounds): Unit ! R =
+    val most = if hub.maxCredit > 0 then units(hub.maxCredit).min(BigDecimal(100)) else BigDecimal(100)
     edit[(String, String, String, Boolean, String, BigDecimal, BigDecimal, String)](w.createCommunity, Form(
       said(Field.text(w.communityName)), said(Field.text(w.place).hinted(w.placeHint)),
       said(Field.text(w.unitLabel).initially("PLN")),
       said(Field.choice(w.howJoin, w.byAdmission -> false, w.joinOpen -> true).initially(false)),
       // private people take part, and where a community starts they earn before they spend (docs/legal.md: no
       // credit is given to a consumer, so the rules on consumer credit do not arise)
-      said(Field.choice(w.whoMayJoin, w.peopleEarn -> "earned", w.businessesOnly -> "business", w.peopleCredit -> "")
-        .initially("earned")),
-      said(Field.decimal(w.newcomersLine).initially(BigDecimal(100)).check(w.notBelowZero)(_ >= 0)),
+      said(Field.choice(w.whoMayJoin, ways(hub.personal)*).initially(ways(hub.personal).headOption.fold("")(_._2))),
+      said(Field.decimal(w.newcomersLine).initially(most).check(w.notBelowZero)(_ >= 0)),
       said(Field.decimal(w.newcomersCeiling).initially(BigDecimal(300)).check(w.notBelowZero)(_ >= 0)),
       said(Field.longText(w.rulesLabel).hinted(w.rulesHint).initially(w.standardRules))),
       Part.text(w.createText)).flatMap {
       case None => pure(())
       case Some((name, place, unit, open, only, line, ceiling, rules)) =>
-        Node.make[R](place.trim.toLowerCase, name, unit.trim, open, cents(line), cents(ceiling), only, rules.trim)
-          .flatMap {
+        // where the hub bounds what a person may owe, a community starts at that bound; its office sets its own
+        val owing = if Set("vouched", "record", "")(only) then hub.maxPersonal else 0L
+        Node.make[R](place.trim.toLowerCase, name, unit.trim, open, cents(line), cents(ceiling), only, rules.trim,
+          if owing > 0 then cents(line).min(owing) else cents(line), owing).flatMap {
           case Left(r) => inform(w.notSetUp, r.why match
               case "taken" => w.placeTaken
               case "body" => w.placeBad
@@ -571,9 +581,10 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         }.andThen(defer(asking(about, key)))
       case Some((a, true)) =>
         // a private person where people earn first: no credit line to give, and the form says so
-        val earning = about.only == "earned" && a.of == "personal"
+        val earning = a.of == "personal" && Set("earned", "vouched", "record")(about.only)
         edit[(BigDecimal, BigDecimal)](w.admitOf(a.name), Form(
-          said(Field.money(w.creditLine, about.unit).initially(if earning then BigDecimal(0) else units(about.credit))
+          said(Field.money(w.creditLine, about.unit).initially(if earning then BigDecimal(0) else
+            units(if a.of == "personal" then about.personalCredit else about.credit))
             .check(w.notBelowZero)(_ >= 0)),
           said(Field.money(w.ceiling, about.unit).initially(units(about.ceiling)).check(w.notBelowZero)(_ >= 0))),
           (if earning then Seq(Part.info(w.noCreditHere)) else Nil)*).flatMap {
@@ -747,12 +758,15 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         w.sum -> Cell.Money(units(all.map(_._2.balance).sum), about.unit)), Part.text(w.sumText), table)(
         Button.select(w.setLimits, table)(x => Some(Right(x))),
         Button(w.requestsButton(asked.size))(Some(Left(1))), Button(w.trustLines)(Some(Left(2))),
-        Button(w.rulesButton)(Some(Left(3))), Button(w.recoveriesButton(lostOnes.size))(Some(Left(4))),
+        Button(w.rulesButton)(Some(Left(3))), Button(w.policy)(Some(Left(5))),
+        Button(w.recoveriesButton(lostOnes.size))(Some(Left(4))),
         Button(w.back)(None))).flatMap {
         case None => pure(())
         case Some(Left(1)) => asking(about, key).andThen(defer(office(about, key)))
         case Some(Left(4)) => losses(about, key).andThen(defer(office(about, key)))
         case Some(Left(2)) => lines(about, key).andThen(defer(office(about, key)))
+        // its policy changed, what the app knows of the community is asked again: back to the start
+        case Some(Left(5)) => policy(about, key)
         // the community's rules: from then on the ones a newcomer accepts
         case Some(Left(_)) => Node.rules[R].flatMap((text, _) => edit[Option[String]](w.rulesOf(about.name),
             Form.one(said(Field.longText(w.rulesLabel).hinted(w.rulesHint).initially(text).optional))).flatMap {
@@ -778,6 +792,57 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     }
   }))
 
+  /** THE COMMUNITY'S POLICY (specs/protocol.md "Policies"): how one joins, what a business and a person are given,
+   * whether families and teams share accounts, how long a recovery waits — the community's own to change, inside
+   * what the hub it is at allows; in force from then on, the lines given before left as they are */
+  private def policy(about: About, key: String): Unit ! R =
+    def m(c: Long) = money(c, about.unit)
+    def saved(result: Either[Refusal, Unit]): Unit ! R = result match
+      case Right(_) => inform(w.policySaved, about.name)
+      case Left(r) if r.why == "policy" => inform(w.notSet, if r.detail.startsWith("hub") then w.hubForbids else
+          w.policyBad)
+      case Left(r) => inform(w.notSet, refusal(r, about.unit))
+    val notBelow = (a: BigDecimal) => a >= 0
+    show(Screen[Int](s"${w.policy} · ${about.name}")(Part.text(w.policyText), Part.details(
+      w.howJoin -> (if about.open then w.joinOpen else w.byAdmission), w.newcomersLine -> m(about.credit),
+      w.newcomersCeiling -> m(about.ceiling), w.sharedAllowed -> (if about.shared then w.yes else w.no),
+      w.recoveryWait -> about.days.toString,
+      w.whoMayJoin -> ways(Bounds().personal).find(_._2 == about.only).fold(about.only)(_._1),
+      w.personLine -> m(about.personalCredit),
+      w.personMax -> (if about.personalMax > 0 then m(about.personalMax) else w.noBound),
+      w.earnedBefore -> m(about.after)))(Button(w.policyGeneral, Style.Primary)(1), Button(w.policyPeople)(2),
+      Button(w.back)(0))).flatMap {
+      case 1 => edit[(Boolean, BigDecimal, BigDecimal, Boolean, Long)](w.policyGeneral, Form(
+          said(Field.choice(w.howJoin, w.byAdmission -> false, w.joinOpen -> true).initially(about.open)),
+          said(Field.money(w.newcomersLine, about.unit).initially(units(about.credit)).check(w.notBelowZero)(notBelow)),
+          said(Field.money(w.newcomersCeiling, about.unit).initially(units(about.ceiling))
+            .check(w.notBelowZero)(notBelow)),
+          said(Field.choice(w.sharedAllowed, w.yes -> true, w.no -> false).initially(about.shared)),
+          said(Field.whole(w.recoveryWait).initially(about.days.toLong).check(w.waitRange)(d => d >= 1 && d <= 90))))
+          .flatMap {
+          case None => pure(())
+          case Some((open, line, ceiling, shared, days)) => command(key, "policy",
+              "join" -> Json.str(if open then "open" else "admitted"), "credit" -> Json.num(cents(line)),
+              "ceiling" -> Json.num(cents(ceiling)), "shared" -> Json.bool(shared), "wait" -> Json.num(days))
+              .flatMap(saved)
+        }
+      case 2 =>
+        val most = Field.money(w.personMax, about.unit).hinted(w.personMaxHint)
+        edit[(String, BigDecimal, Option[BigDecimal], BigDecimal)](w.policyPeople, Form(
+          said(Field.choice(w.whoMayJoin, ways(about.hub.personal)*).initially(about.only)),
+          said(Field.money(w.personLine, about.unit).hinted(w.personLineHint).initially(units(about.personalCredit))
+            .check(w.notBelowZero)(notBelow)),
+          said((if about.personalMax > 0 then most.initially(units(about.personalMax)) else most).optional),
+          said(Field.money(w.earnedBefore, about.unit).hinted(w.earnedBeforeHint).initially(units(about.after))
+            .check(w.notBelowZero)(notBelow))), Part.text(w.policyPeopleText)).flatMap {
+          case None => pure(())
+          case Some((only, line, owing, after)) => command(key, "policy", "only" -> Json.str(only),
+              "personalCredit" -> Json.num(cents(line)), "personalMax" -> Json.num(owing.fold(0L)(cents)),
+              "after" -> Json.num(cents(after))).flatMap(saved)
+        }
+      case _ => pure(())
+    }
+
   // ---- the accounts this device holds
 
   private def accounts(about: About): Unit ! R = held.flatMap { hs =>
@@ -797,7 +862,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
   /** THE ACCOUNTS THIS PERSON SHARES (specs/protocol.md "Keys": a family, a team): held by the person's own account,
    * so found by asking the node what that account holds — on a new device as on the old one. A new one is opened by
    * the person's account: this device signs, the record says for whom */
-  private def shared(about: About): Unit ! R = Device.ready[R].flatMap(pub => held.flatMap { hs =>
+  private def shared(about: About): Unit ! R = if !about.shared then inform(w.sharedAccounts, w.sharedOff) else
+    Device.ready[R].flatMap(pub => held.flatMap { hs =>
     hs.foldLeft(pure[Vector[State], R](Vector.empty))((acc, h) => acc.flatMap(all => Node.account[R](h._1).map(
       _.filter(_.grant(pub).exists(_.manage)).fold(all)(all :+ _)))).flatMap { own =>
       if own.isEmpty then inform(w.sharedAccounts, w.sharedNeedsOwn)

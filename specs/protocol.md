@@ -351,6 +351,33 @@ What "Keys" designed, as built — and where it is narrower:
   holder that may only spend, and against a mistake — not against one who may manage.
 - Not in it: a shared account on the board; its recovery (its holders recover their own accounts).
 
+## Policies (sprint 7)
+
+EACH LEVEL SETS ITS OWN POLICY INSIDE WHAT THE LEVEL ABOVE ALLOWS. Nothing above a level sets it FOR that level:
+the level above only says how far it may go.
+
+| Level | Who sets it, how | What it says |
+|---|---|---|
+| a hub | its operator, where it is deployed (`HUB_*`) | who may make a community (`HUB_OPEN`, `HUB_TOKEN`, `HUB_PER_DAY`, `HUB_MAX`); what a community here may be: `HUB_PERSONAL` (the ways with private people), `HUB_MAX_CREDIT`, `HUB_MAX_PERSONAL` |
+| a community | those who may manage its own account, by the command `policy {…}` | `join` (open, admitted); `credit`, `ceiling` (a new business's); `only` — private people: `business` none, `earned` no line and none lent, `vouched` only a line a member lends, `record` a line the community gives once the person has earned `after`, empty a line as anyone's (`personalCredit` at opening); `personalMax` — the most a person may owe, own line and lent; `shared` — accounts of families and teams; `wait` — days a recovery is announced |
+| a shared account | its holders that may manage, by records of its chain | its holders (members' accounts), each one's limits a payment and a period, the threshold of two holders |
+| a person's account | its devices that may manage, by records | its devices, each one's limits |
+
+- A community's policy is read by anyone (`/.well-known/okay-mutual.json`, with the hub's bounds beside it: the
+  room it has); a hub's bounds at `/.well-known/okay-mutual-hub.json`.
+- A change is checked against the hub's bounds as they are then (`NodeEnv.allowed`), kept in the node's
+  directory, and IN FORCE AT ONCE for every account: an account's object asks the policy in force when a line is
+  set or lent, not the one it was opened under. What was given before stays — a policy narrows what may be given
+  from now on, it takes nothing back (taking back is a `limits` command, an account at a time).
+- Where a hub bounds what a person may owe, a community that lets people owe at all must say its own bound, no
+  higher.
+- `earned` in an account's state: all it was ever paid — what `record` asks about. It counts from when a node
+  runs this version: an account's earlier receipts are in its chain, not in the count.
+- A policy is not on a chain: it is the community's standing word, not a record of an account. What it allowed
+  is on the chains — every `limits` and `vouched` it let through.
+- Not built: a level between a community and a shared account (a federation's policy over its communities); a
+  member's own narrower policy for what it accepts.
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

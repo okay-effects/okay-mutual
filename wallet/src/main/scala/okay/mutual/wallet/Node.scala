@@ -15,9 +15,14 @@ enum Net[X]:
   /** the wallet's address with the node in use in it: what a member sends to one it invites */
   case Invite() extends Net[String]
 
-/** what a node says it is (`/.well-known/okay-mutual.json`) */
+/** what a hub allows its communities: the ways with private people, the most a business's default line, the most a
+ * person may owe (0: any) */
+final case class Bounds(personal: Set[String] = Set("business", "earned", "vouched", "record", ""),
+                        maxCredit: Long = 0L, maxPersonal: Long = 0L)
+/** what a node says it is (`/.well-known/okay-mutual.json`): its key, its unit, its name — and its policy */
 final case class About(key: String, unit: String, name: String, open: Boolean, credit: Long, ceiling: Long,
-                       only: String = "")
+                       only: String = "", personalCredit: Long = 0L, personalMax: Long = 0L, after: Long = 0L,
+                       shared: Boolean = true, days: Int = 7, hub: Bounds = Bounds())
 /** a community as its hub lists it */
 final case class Listed(slug: String, name: String, unit: String, open: Boolean)
 /** a node this one keeps an account for (a trust line): its key, its address, its name, the account's id here */
@@ -56,7 +61,16 @@ object Node:
   def about[R[_]: Has[Net]]: Option[About] ! R = call[R]("GET", "/.well-known/okay-mutual.json").map((status, j) =>
     if status != 200 then None else scala.util.Try(About(j("key").string, j("unit").string, j("name").string,
       j("join").string == "open", j("credit").long, j("ceiling").long,
-      j.field("only").collect { case Json.Str(s) => s }.getOrElse(""))).toOption)
+      j.field("only").collect { case Json.Str(s) => s }.getOrElse(""),
+      j.field("personalCredit").fold(j("credit").long)(_.long), j.field("personalMax").fold(0L)(_.long),
+      j.field("after").fold(0L)(_.long), j.field("shared").forall(_.boolean), j.field("wait").fold(7)(_.long.toInt),
+      j.field("hub").fold(Bounds())(bounded))).toOption)
+
+  private def bounded(j: Json): Bounds = scala.util.Try(Bounds(j("personal").list.map(_.string).toSet,
+    j("maxCredit").long, j("maxPersonal").long)).getOrElse(Bounds())
+  /** what the hub this app is at allows a community made there */
+  def bounds[R[_]: Has[Net]]: Bounds ! R =
+    perform[Net](Net.AtHub("GET", "/.well-known/okay-mutual-hub.json", None)).map((_, j) => bounded(j))
 
   def members[R[_]: Has[Net]]: Vector[Member] ! R = call[R]("GET", "/api/members").map((_, j) =>
     scala.util.Try(j("members").list.map(m => Member(m("id").string, m("name").string, m("of").string)))
@@ -129,10 +143,12 @@ object Node:
 
   /** a community made at the hub: its address there and its setup token */
   def make[R[_]: Has[Net]](slug: String, name: String, unit: String, open: Boolean, credit: Long, ceiling: Long,
-                           only: String = "", rules: String = ""): Either[Refusal, (String, String)] ! R =
+                           only: String = "", rules: String = "", personalCredit: Long = 0L,
+                           personalMax: Long = 0L): Either[Refusal, (String, String)] ! R =
     perform[Net](Net.AtHub("POST", "/api/nodes", Some(Json.obj("slug" -> Json.str(slug), "name" -> Json.str(name),
       "unit" -> Json.str(unit), "join" -> Json.str(if open then "open" else "admitted"),
       "credit" -> Json.num(credit), "ceiling" -> Json.num(ceiling), "only" -> Json.str(only),
+      "personalCredit" -> Json.num(personalCredit), "personalMax" -> Json.num(personalMax),
       "rules" -> Json.str(rules))))).map((status, j) =>
       if status == 200 then scala.util.Try((j("address").string, j("token").string)).toOption
         .toRight(Refusal(200, "answer", "")) else Left(refusal(status, j)))

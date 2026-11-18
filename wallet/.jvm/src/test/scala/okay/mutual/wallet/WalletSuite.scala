@@ -503,7 +503,7 @@ class WalletSuite extends munit.FunSuite:
     val waits = fresh.play()
     assert(Seen.of(waits).contains("Info: Your community confirmed it. This device holds the account from 2026-11-25"),
       Seen.of(waits))
-    assert(Seen.of(fresh.play(Act.press("Take the account up"))).contains("the waiting week is not over"))
+    assert(Seen.of(fresh.play(Act.press("Take the account up"))).contains("the waiting time is not over"))
     // an old device, were it only mislaid, is warned and can say no
     val warned = anna.play()
     assert(Seen.of(warned).contains("Warning: Someone asked this account back for another device"), Seen.of(warned))
@@ -630,4 +630,45 @@ class WalletSuite extends munit.FunSuite:
       Some("Taken off"))
     assert(Seen.of(pays(tablet, "Shop", "1")).contains("does not hold the account"))
     assertEquals(town.checkedShared(home).map(_.balance), Right(2000L))
+  }
+
+  test("the community's policy: changed from its office, inside what the hub allows; in force at once") {
+    val hub = Hubs("HUB_PERSONAL" -> "business,earned,vouched,record", "HUB_MAX_PERSONAL" -> "5000")
+    val founder = new Phone(hub)
+    founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "The Guild",
+      "Its place in the address" -> "guild", "How one joins" -> "open to anyone"), Act.press("OK"))
+    def said = hub.json(hub.get("/n/guild/.well-known/okay-mutual.json"))
+    assertEquals((said("only").string, said("join").string), ("earned", "open"))
+    def joins(name: String, kind: String): Phone =
+      val phone = new Phone(hub, node = "/n/guild")
+      phone.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> name,
+        "Account" -> kind), Act.press("OK"))
+      phone
+    val (shop, anna) = (joins("The shop", "Business"), joins("Anna", "Personal"))
+    assert(Seen.of(anna.play()).contains("You can still spend: 0.00"), Seen.of(anna.play()))
+    // the office shows the policy in force
+    val shown = founder.play(Act.press("Community"), Act.press("Policy"))
+    assert(Seen.of(shown).contains("Who may join: businesses, and private people who earn before they spend") &&
+      Seen.of(shown).contains("Days a recovery waits: 7"), Seen.of(shown))
+    def people(fields: (String, String)*) = founder.play(Act.press("Community"), Act.press("Policy"),
+      Act.press("Private people"), Act.press("Save", fields*))
+    // members may lend a person a line, 30.00 at most: Anna, who was there before, can be lent one at once
+    val saved = people("Who may join" -> "businesses, and private people with only a line a member lends them",
+      "The most a person may owe" -> "30")
+    assertEquals(saved.at.map(_.title), Some("The policy is saved"), Seen.of(saved))
+    assertEquals((said("only").string, said("personalMax").long), ("vouched", 3000L))
+    shop.play(Act.press("Vouch"), Act.press("Save", "For" -> "Anna", "Part of your credit line" -> "20"))
+    assert(Seen.of(anna.play()).contains("You can still spend: 20.00"), Seen.of(anna.play()))
+    // past what the hub's operator allows a person to owe: said, and nothing changes
+    val over = people("The most a person may owe" -> "60")
+    assert(Seen.of(over).contains("does not allow that"), Seen.of(over))
+    assertEquals(said("personalMax").long, 3000L)
+    // no accounts of families here, a recovery waits three days
+    val general = founder.play(Act.press("Community"), Act.press("Policy"), Act.press("Joining and businesses"),
+      Act.press("Save", "Accounts of families and teams" -> "No", "Days a recovery waits" -> "3"))
+    assertEquals(general.at.map(_.title), Some("The policy is saved"), Seen.of(general))
+    assertEquals((said("shared").boolean, said("wait").long), (false, 3L))
+    assert(Seen.of(anna.play(Act.press("Accounts"), Act.press("Shared accounts"))).contains("no shared accounts"))
+    // nobody but the community's own holders sees its office
+    assert(!shop.play().at.get.buttons.exists(_.label == "Community"))
   }

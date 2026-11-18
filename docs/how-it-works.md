@@ -93,6 +93,34 @@ director, small enough to explain.
 
 Not built yet: a shared account held by another shared account, and taking a lent budget back from the app.
 
+## Policies: each level sets its own
+
+Nothing here is decided once for everybody. Each level sets its own policy, inside what the level above allows:
+
+- **A hub's operator** says what communities on that machine may be: which ways with private people they may
+  choose, the most a business's starting line, the most a person may owe. An operator who wants to host only the
+  cautious kind says so, and no community there can go further.
+- **A community** says how one joins (open, or by admission), what line and ceiling a new business gets, whether
+  families and teams may share accounts, how long a recovery waits — and how it treats **private people**:
+
+  | The community's choice | A private person |
+  |---|---|
+  | businesses only | has no account |
+  | earn first *(the default)* | has no line and is lent none: earns, then spends |
+  | lent lines only | has no line from the community, but a member may lend part of their own |
+  | a line after a record | is given a line by the community once they have earned a set amount |
+  | lines for all | opens with a line, as a business does |
+
+  With any choice but the first two the community also says the most a person may owe. It changes its policy from
+  its office (*Community → Policy*), by the signed word of those who govern it; the change is in force at once, and
+  lines given before stay.
+- **A family, a team, a company** says who holds its account, how much each holder may spend a payment and a week,
+  and above what amount two holders must sign.
+- **A person** says which devices hold their account and how much each may spend.
+
+The first two choices keep credit away from consumers; the others give it, and with it the questions in
+[the legal notes](legal.md).
+
 ## Nodes
 
 A node is a community with a computer: it admits members, sets limits, puts each account's records in order and

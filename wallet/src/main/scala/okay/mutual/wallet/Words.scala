@@ -134,6 +134,13 @@ trait Words:
   def confirmPayment: String; def proposedBy: String; def proposed: String
   def proposedText(amount: String, who: String): String; def needsAnother: String; def needsSecond: String
   def twoKind(amount: String): String; def proposedKind(amount: String): String
+  // ---- the community's policy
+  def policy: String; def policyText: String; def policyGeneral: String; def policyPeople: String
+  def policyPeopleText: String; def peopleVouched: String; def peopleRecord: String
+  def personLine: String; def personLineHint: String; def personMax: String; def personMaxHint: String
+  def noBound: String; def earnedBefore: String; def earnedBeforeHint: String; def sharedAllowed: String
+  def recoveryWait: String; def waitRange: String; def policySaved: String; def policyBad: String
+  def hubForbids: String; def sharedOff: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -341,13 +348,14 @@ object Words:
     val notCopied = "This browser does not let the page copy. Select the table and copy it by hand."
     val lostDevices = "I lost my devices"
     val lostText = "Choose your account. This device makes a new key and asks your community to confirm it is you. " +
-      "Once it has, the key holds your account after a week — time for you to say no if someone else asked."
+      "Once it has, the key holds your account after its waiting time (a week, unless it says otherwise) — " +
+      "time for you to say no if someone else asked."
     val itIsMine = "This is my account"
     val askedBack = "You asked your account back"
     def askedBackText(community: String) = s"$community has to confirm it is you: get in touch with it. Nothing " +
       "changes until it does."
     def confirmedBack(day: String) = s"Your community confirmed it. This device holds the account from $day."
-    val notYetBack = "Not yet: the waiting week is not over."; val backNow = "Take the account up"
+    val notYetBack = "Not yet: the waiting time is not over."; val backNow = "Take the account up"
     val forgetAsking = "Forget this"
     def recoveryWarning(key: String, day: String) = s"Someone asked this account back for another device ($key), " +
       s"and your community confirmed it. That device holds the account from $day. If it was not you, cancel it now."
@@ -357,9 +365,10 @@ object Words:
       "The account's old devices can still cancel for a week."
     val noRecoveries = "nobody asks"; val confirmIdentity = "It is them: confirm"
     def confirmQuestion(name: String) = s"Are you sure the one who asks is $name? Their new device will hold the " +
-      "account in a week."
+      "account after the community's waiting time."
     val recoveryAnnounced = "Announced"
-    def recoveryAnnouncedText(name: String) = s"$name's new device holds the account in a week, unless an old " +
+    def recoveryAnnouncedText(name: String) = s"$name's new device holds the account after the waiting time, " +
+      "unless an old " +
       "device cancels."
     val dropAsking = "Not them: drop"
     val board = "Board"
@@ -406,3 +415,24 @@ object Words:
     val needsSecond = "This payment needs a second holder."
     def twoKind(amount: String) = if amount.isEmpty then "one holder is enough" else s"two holders above $amount"
     def proposedKind(amount: String) = s"payment of $amount proposed"
+    val policy = "Policy"
+    val policyText = "The community's own policy: in force from the moment it is saved, for every account. Lines " +
+      "given before stay as they are. The hub this community is at may allow less than is offered elsewhere."
+    val policyGeneral = "Joining and businesses"; val policyPeople = "Private people"
+    val policyPeopleText = "Giving a private person credit, even without interest, may fall under the rules on " +
+      "consumer credit. Where people earn before they spend, no credit is given and the question does not arise."
+    val peopleVouched = "businesses, and private people with only a line a member lends them"
+    val peopleRecord = "businesses, and private people given a line once they have earned"
+    val personLine = "A new person's credit line"
+    val personLineHint = "where private people have lines from the start"
+    val personMax = "The most a person may owe"
+    val personMaxHint = "own line and lent together; leave empty: no bound"
+    val noBound = "no bound"
+    val earnedBefore = "Earned before a line is given"
+    val earnedBeforeHint = "what a person has to have been paid before the community gives a line"
+    val sharedAllowed = "Accounts of families and teams"
+    val recoveryWait = "Days a recovery waits"; val waitRange = "from 1 to 90"
+    val policySaved = "The policy is saved"
+    val policyBad = "This is not a policy the community can have: check the amounts."
+    val hubForbids = "The hub this community is at does not allow that."
+    val sharedOff = "This community has no shared accounts."

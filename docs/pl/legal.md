@@ -43,6 +43,14 @@ Jeszcze dwie, które są wyborami społeczności, a nie właściwościami kodu:
   firma — a potem je wydaje. Konsumentowi nie udziela się kredytu, więc przepisy o kredycie konsumenckim się nie
   pojawiają. Społeczność może wybrać inaczej: przyjmować tylko firmy albo dawać linie kredytowe także osobom
   prywatnym i wziąć te przepisy na siebie.
+- **Inne wybory i co każdy za sobą pociąga.** Polityka jest własną sprawą społeczności i można ją zmieniać
+  (zob. [jak to działa](how-it-works.md)). Między „najpierw zarób” a „linie dla wszystkich” są dwie drogi
+  pośrednie: osobie może pożyczyć linię uczestnik, który za nią odpowiada, albo społeczność przyznaje linię po
+  tym, jak osoba zarobiła ustaloną kwotę — w obu przypadkach z granicą tego, ile osoba może być winna. Każda z
+  nich to kredyt dla konsumenta, niewielki i bez odsetek, i niesie ze sobą opisane niżej pytanie o kredyt
+  konsumencki; granica zmniejsza stawkę, ale na pytanie nie odpowiada. **Operator huba może wykluczyć te wybory**
+  dla wszystkich społeczności u siebie (`HUB_PERSONAL`) albo je ograniczyć (`HUB_MAX_PERSONAL`) — tak operator
+  pozostaje w profilu, który sprawdził u prawnika.
 - **Osoba prawna dla społeczności** — stowarzyszenie albo spółdzielnia, których uczestnicy prowadzą rachunki między
   sobą — a nie operator, który „prowadzi walutę”.
 

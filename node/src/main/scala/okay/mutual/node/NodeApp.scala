@@ -59,7 +59,8 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  * credit}` — an account kept for another node (a trust line): how far that community may owe this one; `rules
  * {text}` — the community's rules, from then on the ones a newcomer accepts; `policy {join, only, credit, ceiling,
  * personalCredit, personalMax, after, shared, wait}` — the community's policy (what is not said stays), inside what
- * its hub allows: in force for every account from then on, the lines given before left as they are; `recover {account}` — the community
+ * its hub allows: in force for every account from then on, the lines given before left as they are;
+ * `recover {account}` — the community
  * knows who asks that account back: the recovery announced on its chain, in force after the waiting period
  * (`NodeApp.waiting`) unless a device that still holds the account cancels it; `forget {account}` — the asking dropped
  */
@@ -76,7 +77,8 @@ object NodeApp extends App:
   override def fetch(r: Request): Response ! Cloud =
     if r.method == "OPTIONS" then pure(Response(204, Http.cors, ""))
     else SignerHere.run((r.method, r.path.split('/').toList.filter(_.nonEmpty)) match
-      case ("GET", List(".well-known", "okay-mutual-hub.json")) => HubEnv.read[Live].map(hub => Http.json(Json.Obj(Vector(
+      case ("GET", List(".well-known", "okay-mutual-hub.json")) => HubEnv.read[Live].map(hub => Http.json(
+          Json.Obj(Vector(
           "v" -> Json.num(Record.version), "making" -> Json.str(if hub.open then "open" else "token")) ++
           HubEnv.bounds(hub))))
       case ("GET", List("api", "nodes")) => hub(Request.get("/_hub/nodes")).map(answered)
@@ -112,9 +114,10 @@ object NodeApp extends App:
 
   private def route(env: NodeEnv, r: Request, method: String, path: List[String]): Response ! Live =
     (method, path) match
-      case ("GET", List(".well-known", "okay-mutual.json")) => pure(Http.json(Json.Obj(Vector(
+      // what it is, its policy, and what the hub it is at allows a community: the room its policy has
+      case ("GET", List(".well-known", "okay-mutual.json")) => HubEnv.read[Live].map(hub => Http.json(Json.Obj(Vector(
           "v" -> Json.num(Record.version), "key" -> Json.str(env.pub), "unit" -> Json.str(env.unit),
-          "name" -> Json.str(env.name)) ++ NodeEnv.policy(env))))
+          "name" -> Json.str(env.name)) ++ NodeEnv.policy(env) :+ ("hub" -> Json.Obj(HubEnv.bounds(hub))))))
       case ("GET", List("api", "members")) => directory(env, Request.get("/_dir/members")).map(answered)
       case ("GET", List("api", "head")) => directory(env, Request.get("/_dir/head")).map(answered)
       case ("GET", List("api", "community")) => directory(env, Request.get("/_dir/community")).map(answered)

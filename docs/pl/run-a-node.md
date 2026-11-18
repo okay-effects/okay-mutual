@@ -52,6 +52,9 @@ go nie opuszcza. Ustawienia są w `worker/wrangler.toml`:
 | `HUB_OPEN` | `1`: każdy może utworzyć społeczność na twoim hubie; cokolwiek innego: tylko ten, kto ma `HUB_TOKEN` | `1` |
 | `HUB_PER_DAY` | ile społeczności można utworzyć z jednego adresu w ciągu dnia | `3` |
 | `HUB_MAX` | ile społeczności może być łącznie | `500` |
+| `HUB_PERSONAL` | które sposoby postępowania z osobami prywatnymi może wybrać społeczność tutaj: `business`, `earned`, `vouched`, `record`, `line` (po przecinku) | wszystkie |
+| `HUB_MAX_CREDIT` | najwyższa linia kredytowa nowej firmy, jaką może ustawić społeczność, w setnych (0: dowolna) | `0` |
+| `HUB_MAX_PERSONAL` | ile najwyżej może być winna osoba prywatna w dowolnej społeczności tutaj, w setnych (0: dowolnie) | `0` |
 
 Żeby zachować hub dla siebie, ustaw `HUB_OPEN = ""`, uruchom `npx wrangler secret put HUB_TOKEN` w `worker/`
 i twórz społeczności żądaniem z nagłówkiem `x-hub-token`.

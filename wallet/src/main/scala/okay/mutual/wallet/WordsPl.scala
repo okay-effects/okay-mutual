@@ -227,7 +227,7 @@ object WordsPl extends Words:
   def askedBackText(community: String) = s"$community musi potwierdzić, że to Ty: skontaktuj się z nią. Dopóki " +
     "tego nie zrobi, nic się nie zmienia."
   def confirmedBack(day: String) = s"Społeczność potwierdziła. To urządzenie przejmuje konto od $day."
-  val notYetBack = "Jeszcze nie: tydzień oczekiwania nie minął."; val backNow = "Przejmij konto"
+  val notYetBack = "Jeszcze nie: czas oczekiwania nie minął."; val backNow = "Przejmij konto"
   val forgetAsking = "Zapomnij"
   def recoveryWarning(key: String, day: String) = s"Ktoś poprosił o odzyskanie tego konta na inne urządzenie " +
     s"($key), a społeczność to potwierdziła. Tamto urządzenie przejmie konto od $day. Jeśli to nie Ty — anuluj teraz."
@@ -236,9 +236,11 @@ object WordsPl extends Words:
   val recoveriesText = "Potwierdzaj tylko wtedy, gdy masz pewność, że to uczestnik: porozmawiaj z nim, nie ufaj " +
     "wiadomości. Stare urządzenia konta mogą jeszcze przez tydzień anulować."
   val noRecoveries = "nikt nie prosi"; val confirmIdentity = "To ta osoba: potwierdź"
-  def confirmQuestion(name: String) = s"Czy na pewno prosi właśnie $name? Nowe urządzenie przejmie konto za tydzień."
+  def confirmQuestion(name: String) = s"Czy na pewno prosi właśnie $name? Nowe urządzenie przejmie konto po " +
+    "czasie oczekiwania przyjętym w społeczności."
   val recoveryAnnounced = "Ogłoszono"
-  def recoveryAnnouncedText(name: String) = s"Nowe urządzenie uczestnika $name przejmie konto za tydzień, chyba że " +
+  def recoveryAnnouncedText(name: String) = s"Nowe urządzenie uczestnika $name przejmie konto po czasie " +
+    "oczekiwania, chyba że " +
     "stare urządzenie anuluje."
   val dropAsking = "To nie ta osoba: odrzuć"
   val board = "Tablica"
@@ -287,3 +289,25 @@ object WordsPl extends Words:
   def twoKind(amount: String) = if amount.isEmpty then "wystarczy jeden posiadacz" else
     s"dwóch posiadaczy powyżej $amount"
   def proposedKind(amount: String) = s"zaproponowano płatność $amount"
+  val policy = "Polityka"
+  val policyText = "Własna polityka społeczności: obowiązuje od chwili zapisania, dla każdego konta. Linie przyznane " +
+    "wcześniej zostają bez zmian. Hub, na którym działa społeczność, może pozwalać na mniej niż gdzie indziej."
+  val policyGeneral = "Dołączanie i firmy"; val policyPeople = "Osoby prywatne"
+  val policyPeopleText = "Kredyt dla osoby prywatnej, nawet bez odsetek, może podlegać przepisom o kredycie " +
+    "konsumenckim. Tam, gdzie ludzie najpierw zarabiają, a potem wydają, kredytu się nie udziela i problem " +
+    "nie powstaje."
+  val peopleVouched = "firmy oraz osoby prywatne — tylko z linią pożyczoną przez uczestnika"
+  val peopleRecord = "firmy oraz osoby prywatne — linia po tym, jak osoba zarobiła"
+  val personLine = "Linia kredytowa nowej osoby prywatnej"
+  val personLineHint = "tam, gdzie osoby prywatne mają linie od początku"
+  val personMax = "Ile najwyżej może być winna osoba"
+  val personMaxHint = "własna linia i pożyczona razem; zostaw puste: bez ograniczenia"
+  val noBound = "bez ograniczenia"
+  val earnedBefore = "Zarobione przed przyznaniem linii"
+  val earnedBeforeHint = "ile osobie musiano zapłacić, zanim społeczność przyzna linię"
+  val sharedAllowed = "Konta rodzin i zespołów"
+  val recoveryWait = "Ile dni czeka odzyskiwanie"; val waitRange = "od 1 do 90"
+  val policySaved = "Polityka zapisana"
+  val policyBad = "Takiej polityki społeczność mieć nie może: sprawdź kwoty."
+  val hubForbids = "Hub, na którym działa ta społeczność, na to nie pozwala."
+  val sharedOff = "W tej społeczności nie ma kont wspólnych."
