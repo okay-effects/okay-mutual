@@ -148,7 +148,7 @@ His requirement from the start ("families and organisations with shared budgets"
   (`family`) or a team (`team`: a business's) opened by a member's account with no line of its own (a budget is
   lent — `vouch` — or given by the community; a family's never goes below zero where people earn first); who
   holds what (`GET /api/held?by=`). Done when: NodeSuite.
-- [ ] **the app** — Accounts → shared accounts: made, used as one's own from every device of the person; holders
+- [x] **the app** — Accounts → shared accounts: made, used as one's own from every device of the person; holders
   (members, with limits), the threshold, payments that wait for a second holder; checked from the first record with
   the holders' chains; four languages. Done when: WalletSuite.
 - [ ] **publish** — Worker, Pages, docs in four languages, README, protocol.

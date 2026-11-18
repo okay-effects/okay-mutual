@@ -562,3 +562,72 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(anna.play(Act.press("Board"), Act.press("I offer"), Act.press("Save", "What" -> "Bread",
       "In units, %" -> "150")).problems.size, 1)
   }
+
+  test("a shared account: opened from the app, held by members' accounts, used from any device; two signatures") {
+    val town = Town()
+    val (anna, jan, shop) = (joined(town, "Anna"), joined(town, "Jan"), joined(town, "Shop", "Business"))
+    val (annas, jans) = (anna.account, jan.account)
+    def pays(phone: Phone, to: String, amount: String) = phone.play(Act.press("Pay"), Act.press("Save", "To" -> to,
+      "Amount" -> amount, "For what" -> "paint"), Act.press("Yes"))
+    // Anna opens the family's account: her ACCOUNT holds it, her phone signs
+    val made = anna.play(Act.press("Accounts"), Act.press("Shared accounts"), Act.press("New shared account"),
+      Act.press("Save", "Its name" -> "Home"), Act.press("OK"))
+    assertEquals(made.at.map(_.title), Some("Home"), Seen.of(made))
+    assertEquals(made.at.get.buttons.map(_.label), List("Pay", "History", "Holders", "Check the node", "Accounts"))
+    val home = anna.account
+    assertEquals(town.checkedShared(home).map(s => (s.of, s.grants.map(_.key), s.floor)),
+      Right(("family", Vector(annas), 0L)))
+    assertEquals(pays(shop, "Home", "60").at.map(_.title), Some("Paid"))
+    // Jan's account a holder, 50.00 a week; he finds the account from his own phone and pays from it
+    val added = anna.play(Act.press("Holders"), Act.press("Add a holder"), Act.press("Save", "Member" -> "Jan",
+      "At most a week" -> "50"))
+    assertEquals(added.at.map(_.title), Some("Added"), Seen.of(added))
+    val found = jan.play(Act.press("Accounts"), Act.press("Shared accounts"))
+    assert(Seen.of(found).contains("Home | shared: family"), Seen.of(found))
+    assertEquals(jan.play(Act.press("Accounts"), Act.press("Shared accounts"), Act.choose("Use", "Home")).at
+      .map(_.title), Some("Home"))
+    assertEquals(pays(jan, "Shop", "20").at.map(_.title), Some("Paid"))
+    val holders = jan.play(Act.press("Holders"))
+    assert(Seen.of(holders).contains("Anna | spend and manage") && Seen.of(holders).contains(
+      "Jan (you) | spend | 50.00 PLN in 7 days"), Seen.of(holders))
+    // two signatures above 10.00: Jan's payment waits; he cannot confirm his own; Anna does
+    val set = anna.play(Act.press("Holders"), Act.press("Two signatures"), Act.press("Save",
+      "Two holders for a payment above" -> "10"))
+    assertEquals(set.at.map(_.title), Some("Set"), Seen.of(set))
+    val waits = pays(jan, "Shop", "15")
+    assertEquals(waits.at.map(_.title), Some("It waits for a second holder"), Seen.of(waits))
+    assert(Seen.of(jan.play()).contains("Balance: 40.00"))
+    val own = jan.play(Act.press("To confirm (1)"), Act.choose("Confirm and pay", "Shop"))
+    assert(Seen.of(own).contains("another holder has to confirm"), Seen.of(own))
+    val listed = anna.play(Act.press("To confirm (1)"))
+    assert(Seen.of(listed).contains("Shop | 15.00 PLN | Jan"), Seen.of(listed))
+    val confirmed = anna.play(Act.press("To confirm (1)"), Act.choose("Confirm and pay", "Shop"))
+    assertEquals(confirmed.at.map(_.title), Some("Paid"), Seen.of(confirmed))
+    assert(Seen.of(anna.play()).contains("Balance: 25.00"))
+    assert(!anna.play().at.get.buttons.exists(_.label.startsWith("To confirm")))
+    // what it was for went with the proposal to the payment; the history says who and what
+    assert(Seen.of(shop.play(Act.press("History"))).contains("received | Home | 15.00 PLN | paint"))
+    val history = Seen.of(anna.play(Act.press("History")))
+    assert(history.contains("holder Jan added") && history.contains("two holders above 10.00 PLN") &&
+      history.contains("payment of 15.00 PLN proposed | Shop"), history)
+    // the node, checked: every record signed for a holder is checked against that holder's own chain
+    val checked = anna.play(Act.press("Check the node"))
+    assert(Seen.of(checked).contains("every signature holds; they make a balance of 25.00"), Seen.of(checked))
+    assertEquals(town.checkedShared(home).map(_.balance), Right(2500L))
+    // Jan's new tablet, signed in to HIS account once, finds the family's account and pays from it
+    assertEquals(jan.play(Act.press("Accounts"), Act.choose("Use", "Jan")).at.map(_.title), Some("Jan"))
+    val tablet = Phone(town)
+    tablet.play(Act.press("Add this device to my account"))
+    assertEquals(jan.play(Act.press("Devices"), Act.press("Add a device"), Act.press("Save",
+      "The new device's key" -> tablet.key, "May manage the account" -> "true")).at.map(_.title), Some("Added"))
+    tablet.play(Act.press("Add this device to my account"), Act.press("It is added", "The account's id" -> jans),
+      Act.press("OK"))
+    assertEquals(tablet.play(Act.press("Accounts"), Act.press("Shared accounts"), Act.choose("Use", "Home")).at
+      .map(_.title), Some("Home"))
+    assertEquals(pays(tablet, "Shop", "5").at.map(_.title), Some("Paid"))
+    // taken off by Anna, Jan pays from it no more
+    assertEquals(anna.play(Act.press("Holders"), Act.choose("Take off", "Jan"), Act.press("Yes")).at.map(_.title),
+      Some("Taken off"))
+    assert(Seen.of(pays(tablet, "Shop", "1")).contains("does not hold the account"))
+    assertEquals(town.checkedShared(home).map(_.balance), Right(2000L))
+  }

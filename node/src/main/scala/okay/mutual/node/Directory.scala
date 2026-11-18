@@ -249,7 +249,8 @@ object Hub extends Actor:
                   Http.post("/_dir/env", NodeEnv.write(env)))
                 // its rules, when its maker wrote some
                 made.flatMap(kept => if kept.status != 200 then pure(Http.refused("taken", 409)) else
-                  j.field("rules").collect { case Json.Str(t) if t.trim.nonEmpty => t }.fold(pure[Unit, Live](()))(text =>
+                  j.field("rules").collect { case Json.Str(t) if t.trim.nonEmpty => t }.fold(
+                    pure[Unit, Live](()))(text =>
                     okay.serverless.cloud.Objects.call[Live](Directory.namespace, place, Http.post("/_dir/rules",
                       Json.obj("text" -> Json.str(text)))).as(())).as(Http.json(Json.obj("slug" -> Json.str(place),
                     "key" -> Json.str(pair.pub), "token" -> Json.str(token)))))

@@ -78,6 +78,10 @@ object Node:
       "rules" -> Json.str(rules))))
       .map(answer => if answer._1 == 202 then Right(None) else stated(answer).map(Some(_)))
 
+  /** the accounts that the account `by` holds: a family's, a team's */
+  def heldBy[R[_]: Has[Net]](by: String): Vector[String] ! R = call[R]("GET", s"/api/held?by=$by").map((_, j) =>
+    scala.util.Try(j("accounts").list.map(_.string)).getOrElse(Vector.empty))
+
   def requests[R[_]: Has[Net]]: Vector[Asked] ! R = call[R]("GET", "/api/requests").map((_, j) =>
     scala.util.Try(j("requests").list.map(q => Asked(q("id").string, q("name").string, q("of").string)))
       .getOrElse(Vector.empty))

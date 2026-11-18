@@ -50,12 +50,12 @@ final case class Record(account: String, seq: Long, prev: String, at: Long, body
 
 /** A KEY THAT SIGNED FOR AN ACCOUNT it holds: `account`'s chain says, at its record `seq`, that `key` may manage
  * it — so the key's signature is that account's word wherever the account is a holder */
-final case class Act(key: String, account: String, seq: Long)
+final case class Acting(key: String, account: String, seq: Long)
 
 /** A RECORD AS IT TRAVELS: its text — the bytes that are hashed and signed, never written again by a reader —, the
  * signatures over it, each by a key, and for which accounts those keys signed (`acts`: beside the signatures, not
  * under them — anyone checks each against the named account's own chain) */
-final case class Signed(text: String, sigs: Vector[(String, String)], acts: Vector[Act] = Vector.empty):
+final case class Signed(text: String, sigs: Vector[(String, String)], acts: Vector[Acting] = Vector.empty):
   def hash: String = Sha256.hex(text)
 
 object Record:
@@ -123,5 +123,5 @@ object Signed:
   def parse(j: Json): Option[Signed] = scala.util.Try {
     val sigs = j("sigs").list
     Signed(j("record").string, sigs.map(s => s("key").string -> s("sig").string), sigs.flatMap(s =>
-      s.field("for").collect { case Json.Str(a) => Act(s("key").string, a, s.field("seq").fold(0L)(_.long)) }))
+      s.field("for").collect { case Json.Str(a) => Acting(s("key").string, a, s.field("seq").fold(0L)(_.long)) }))
   }.toOption

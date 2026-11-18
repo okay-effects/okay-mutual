@@ -11,7 +11,8 @@ import okay.serverless.cloud.{Request, Response}
  * policy of joining — `open`: whoever asks is opened an account with the default limits; else only those the
  * community's holders admit; `only`: whom it admits — `business`: businesses and the self-employed only; `earned`:
  * private people too, whose accounts never go below zero (they earn, then spend: no credit is given to a consumer —
- * docs/legal.md); empty: private people with credit lines as anyone's. Data, made when the node is created and kept in the node's own directory: a deployment
+ * docs/legal.md); empty: private people with credit lines as anyone's. Data, made when the node is created and
+ * kept in the node's own directory: a deployment
  * holds as many nodes as people make
  */
 final case class NodeEnv(slug: String, pub: String, secret: String, unit: String, name: String, open: Boolean,
@@ -51,7 +52,8 @@ object Http:
   /** a node is asked from any page — a wallet works with every node — and nothing here trusts a cookie: who asks is
    * known by a signature alone, so every origin may ask */
   val cors: Map[String, String] = Map("Access-Control-Allow-Origin" -> "*",
-    "Access-Control-Allow-Headers" -> "content-type, x-setup-token, x-hub-token", "Access-Control-Allow-Methods" -> "GET, POST")
+    "Access-Control-Allow-Headers" -> "content-type, x-setup-token, x-hub-token",
+    "Access-Control-Allow-Methods" -> "GET, POST")
   /** an object's answer given to whoever asked: the headers that let any origin ask, ONCE — an answer that came
    * through an object carries them already, in whatever case the platform gave them back, and a browser refuses
    * `Access-Control-Allow-Origin: *, *` */

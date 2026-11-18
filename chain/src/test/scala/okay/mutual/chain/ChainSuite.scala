@@ -40,7 +40,7 @@ class ChainSuite extends munit.FunSuite:
       None)
     val s = Signed("text", Vector("K" -> "sig"))
     assertEquals(Signed.parse(Signed.json(s)), Some(s))
-    val acted = Signed("text", Vector("K" -> "sig", "N" -> "sig2"), Vector(Act("K", "anna", 3)))
+    val acted = Signed("text", Vector("K" -> "sig", "N" -> "sig2"), Vector(Acting("K", "anna", 3)))
     assertEquals(Signed.parse(Signed.json(acted)), Some(acted))
   }
 
@@ -49,11 +49,11 @@ class ChainSuite extends munit.FunSuite:
     val (anna, jans) = (Writer(node, phone), Writer(node, jan))
     // the family's account: opened by Anna's ACCOUNT — her phone signs, the record says for whom
     val open = Record("", 1, "", 2000, Body.Open(node.pub, "family", anna.id, "PLN"))
-    def held(a: Act): Boolean ! Fake.W = Check.holds[Fake.W](if a.account == anna.id then anna.records
+    def held(a: Acting): Boolean ! Fake.W = Check.holds[Fake.W](if a.account == anna.id then anna.records
       else jans.records, a)
     def signedFor(r: Record, by: Pair, who: Writer): Signed =
       val s = Fake(Check.signed[Fake.W](r, node, by))
-      s.copy(acts = Vector(Act(by.pub, who.id, who.state.get.seq)))
+      s.copy(acts = Vector(Acting(by.pub, who.id, who.state.get.seq)))
     var chain = Vector(signedFor(open, phone, anna))
     def state = Fake(Check.chain[Fake.W](chain, held))
     def say(by: Pair, who: Writer, at: Long)(body: Body) =

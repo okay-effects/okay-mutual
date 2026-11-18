@@ -469,7 +469,7 @@ class NodeSuite extends munit.FunSuite:
     // a family's account is people's too: opened by her account, it has no line and is lent none
     val text = Record.text(Record("", 1, "", hub.now, Body.Open(about("key").string, "family", anna.id, "PLN")))
     val home = hub.json(hub.post(at("/api/accounts"), Json.obj("record" -> Signed.json(Signed(text, Vector(
-      anna.key.pub -> SignerJdk.sign(anna.key.secret, text)), Vector(Act(anna.key.pub, anna.id, 0)))),
+      anna.key.pub -> SignerJdk.sign(anna.key.secret, text)), Vector(Acting(anna.key.pub, anna.id, 0)))),
       "name" -> Json.str("Home"))))("state")("id").string
     assertEquals(shop.say(Body.Vouch(home, 1000)).status, 200)
     assertEquals((hub.json(hub.get(at(s"/api/accounts/$home")))("floor").long, shop.state("lent").long), (0L, 1000L))

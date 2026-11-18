@@ -35,6 +35,8 @@ object WordsPl extends Words:
     case "business" => "firmowe"
     case "community" => "społeczność"
     case "line" => "inna społeczność"
+    case "family" => "wspólne: rodzina"
+    case "team" => "wspólne: zespół"
     case other => other
   val communityName = "Nazwa społeczności"; val setupToken = "Token założyciela"
   val setupText = "Własne konto społeczności otwiera się kluczem tego urządzenia. Kto ma klucz, który może nim " +
@@ -251,3 +253,37 @@ object WordsPl extends Words:
   val posted = "Ogłoszenie jest na tablicy"; val notPosted = "Nie udało się"
   val boardFull = "Na tablicy nie ma miejsca na kolejne Twoje ogłoszenie: najpierw zdejmij jedno."
   val takeOffEntry = "Zdejmij z tablicy"
+  val sharedAccounts = "Konta wspólne"
+  val sharedText = "Konto rodziny lub zespołu należy do kont jego uczestników, nie do urządzeń: każdy posiadacz " +
+    "korzysta z niego z dowolnego swojego urządzenia, a zgubiony telefon wymienia się raz — na własnym koncie osoby."
+  val noShared = "nie masz jeszcze kont wspólnych"; val newShared = "Nowe konto wspólne"
+  val sharedName = "Nazwa"
+  val sharedNeedsOwn = "Najpierw otwórz własne konto: konto wspólne należy do kont jego uczestników."
+  val sharedOpenedText = "Konto jest otwarte, jesteś jego posiadaczem. Nie ma własnej linii kredytowej: wydaje " +
+    "to, co mu zapłacono, albo linię pożyczoną przez uczestnika. Pozostałych dodaj w sekcji „Posiadacze”."
+  val holders = "Posiadacze"
+  val holdersText = "Kto może działać w imieniu tego konta: konta uczestników, każde z tym, co może i ile. " +
+    "Posiadacz korzysta z konta z dowolnego swojego urządzenia."
+  val addHolder = "Dodaj posiadacza"; val holderWho = "Uczestnik"
+  def holderAdded(name: String) = s"dodano posiadacza: $name"
+  def holderRemoved(name: String) = s"usunięto posiadacza: $name"
+  val you = "ty"
+  val twoHolders = "Dwa podpisy"; val twoAbove = "Dwóch posiadaczy dla płatności powyżej"
+  val twoHint = "zostaw puste: dla każdej płatności wystarczy jeden posiadacz"
+  val twoSet = "Ustawiono"
+  def twoSetText(amount: String) = s"Płatność powyżej $amount wymaga teraz dwóch posiadaczy: jeden ją proponuje, " +
+    "drugi potwierdza."
+  val twoOff = "Teraz dla każdej płatności wystarczy jeden posiadacz."
+  def toConfirm(n: Int) = s"Do potwierdzenia ($n)"; val toConfirmTitle = "Płatności czekające na drugiego posiadacza"
+  val toConfirmText = "Płatność powyżej progu konta proponuje jeden posiadacz, a potwierdza drugi. " +
+    "Płatność niepotwierdzona w ciągu tygodnia wygasa."
+  val nothingWaits = "nic nie czeka"
+  val confirmPayment = "Potwierdź i zapłać"; val proposedBy = "Zaproponował(a)"
+  val proposed = "Płatność czeka na drugiego posiadacza"
+  def proposedText(amount: String, who: String) = s"$amount dla: $who przekracza próg tego konta: w ciągu tygodnia " +
+    "musi ją potwierdzić inny posiadacz. Na razie nic nie zapłacono."
+  val needsAnother = "Tę płatność zaproponowałeś(-aś) ty: potwierdzić ją musi inny posiadacz."
+  val needsSecond = "Ta płatność wymaga drugiego posiadacza."
+  def twoKind(amount: String) = if amount.isEmpty then "wystarczy jeden posiadacz" else
+    s"dwóch posiadaczy powyżej $amount"
+  def proposedKind(amount: String) = s"zaproponowano płatność $amount"

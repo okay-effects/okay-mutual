@@ -106,7 +106,8 @@ object AccountObject extends Actor:
     Check.signers[Live](signed).flatMap { keys =>
       val named = signed.acts.filter(a => keys(a.key) && a.account != self && a.account.matches("[0-9a-f]{64}"))
         .distinctBy(a => a.key -> a.account).take(4)
-      named.foldLeft(pure[(Vector[Act], Set[String]), Live]((Vector.empty, keys)))((acc, a) => acc.flatMap((kept, all) =>
+      val none = pure[(Vector[Acting], Set[String]), Live]((Vector.empty, keys))
+      named.foldLeft(none)((acc, a) => acc.flatMap((kept, all) =>
         Objects.call[Live](namespace, a.account, Request.get("/_acct/state").copy(headers = Map(
           "x-node" -> List(env.pub)))).map(r => StateJson.read(Http.answer(r)).filter(p => r.status == 200 &&
           p.grant(a.key).exists(_.manage)) match
@@ -225,7 +226,8 @@ object AccountObject extends Actor:
                         case Body.Propose(_, _, hash, _) if memo.nonEmpty && Sha256.hex(memo) == hash =>
                           Durable.put[Json, Step](memoKey(next.head), Json.str(memo))
                         case _ => unit[Step]
-                      val more: Unit ! Step = proposed.andThen(name.fold(unit[Step])(n => Durable.put[Json, Step](nameKey(n),
+                      val more: Unit ! Step = proposed.andThen(name.fold(unit[Step])(n =>
+                        Durable.put[Json, Step](nameKey(n),
                         Json.num(next.seq)))).andThen(flight.fold(unit[Step])(f => Durable.put[Json, Step](
                         flightKey(next.head), f).andThen(Durable.wakeAt[Step](now + retry)).andThen(
                         f.field("memo").collect { case m @ Json.Str(text) if text.nonEmpty => m }.fold(unit[Step])(m =>

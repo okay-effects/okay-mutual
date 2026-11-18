@@ -38,16 +38,16 @@ object Check:
 
   /** WHO SIGNED, WITH THE ACCOUNTS THEY SIGNED FOR: the keys whose signatures hold, and each account a record names
    * for one of them (`acts`) — when `held` says that account's chain makes the key its managing holder there */
-  def acting[R[_]](s: Signed, held: Act => Boolean ! R)(using In[Signer, R]): Set[String] ! R =
+  def acting[R[_]](s: Signed, held: Acting => Boolean ! R)(using In[Signer, R]): Set[String] ! R =
     signers[R](s).flatMap(keys => s.acts.filter(a => keys(a.key)).foldLeft(pure[Set[String], R](keys))((acc, a) =>
       acc.flatMap(all => held(a).map(yes => if yes then all + a.account else all))))
 
   /** nobody acts for an account: the check of a chain whose holders are keys alone */
-  def nobody[R[_]]: Act => Boolean ! R = _ => pure(false)
+  def nobody[R[_]]: Acting => Boolean ! R = _ => pure(false)
 
   /** whether `chain` — an account's records from its first — makes the act's key a managing holder at the record
    * the act names: an auditor's `held`, with nothing taken on trust */
-  def holds[R[_]](records: Vector[Signed], a: Act)(using In[Signer, R]): Boolean ! R =
+  def holds[R[_]](records: Vector[Signed], a: Acting)(using In[Signer, R]): Boolean ! R =
     chain[R](records.take(a.seq.toInt)).map(_.exists(p => p.id == a.account && p.seq == a.seq &&
       p.grant(a.key).exists(_.manage)))
 
@@ -60,7 +60,7 @@ object Check:
     chain[R](records, nobody[R])
 
   /** the same for an account some of whose holders are accounts: `held` answers for each act */
-  def chain[R[_]](records: Vector[Signed], held: Act => Boolean ! R)(using In[Signer, R])
+  def chain[R[_]](records: Vector[Signed], held: Acting => Boolean ! R)(using In[Signer, R])
     : Either[(Int, Fault), State] ! R =
     records.zipWithIndex.foldLeft(pure[Either[(Int, Fault), Option[State]], R](Right(None)))((acc, si) =>
       acc.flatMap {

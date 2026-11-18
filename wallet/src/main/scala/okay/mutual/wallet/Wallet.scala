@@ -67,6 +67,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("ceiling", d) => w.overCeiling(money(d.toLongOption.getOrElse(0L), unit))
     case ("limit", "payment") => w.limitPayment
     case ("limit", _) => w.limitWeek
+    case ("unsigned", "second") => w.needsSecond
+    case ("member", _) => w.sharedNeedsOwn
     case ("unsigned", _) => w.unsigned
     case ("forbidden", "manage") => w.onlyManage
     case ("forbidden", "last") => w.lastManager
@@ -243,11 +245,17 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case None => confirm(w.notAtNode, name).flatMap(yes => if yes then forget(id) else pure(()))
     case Some(s) => Device.ready[R].flatMap(key => Node.community[R].flatMap { community =>
         community.fold(pure[Boolean, R](false))(c => Node.account[R](c).map(_.exists(_.grant(key).exists(_.manage))))
-          .flatMap { governs =>
-            val buttons = List(Button[Int](w.pay, Style.Primary)(1), Button[Int](w.history)(2),
-              Button[Int](w.vouch)(3), Button[Int](w.devices)(4), Button[Int](w.checkNode)(5)) ++
+          .flatMap(g => Clock.now[R].map(g -> _)).flatMap { (governs, now) =>
+            // an account a family or a team shares: its holders are accounts; it stands on no board, invites nobody
+            val shared = Wallet.shared(s.of)
+            val waits = s.proposed.count(_.at > now - Chain.life)
+            val buttons = List(Button[Int](w.pay, Style.Primary)(1)) ++
+              (if waits > 0 then List(Button[Int](w.toConfirm(waits))(11)) else Nil) ++
+              List(Button[Int](w.history)(2)) ++ (if shared then Nil else List(Button[Int](w.vouch)(3))) ++
+              List(Button[Int](if shared then w.holders else w.devices)(4), Button[Int](w.checkNode)(5)) ++
               (if governs then List(Button[Int](w.community)(6)) else Nil) ++
-              List(Button[Int](w.board)(10), Button[Int](w.invite)(8), Button[Int](w.accounts)(7)) ++
+              (if shared then Nil else List(Button[Int](w.board)(10), Button[Int](w.invite)(8))) ++
+              List(Button[Int](w.accounts)(7)) ++
               // a recovery announced for another device: this one, which still holds the account, can say no
               s.recovering.toList.map(_ => Button[Int](w.cancelRecovery, Style.Danger)(9))
             val warning = s.recovering.toList.map((k, after) => Part.warning(w.recoveryWarning(short(k), day(after))))
@@ -263,7 +271,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               case 1 => pay(about, s)
               case 2 => history(about, s)
               case 3 => vouch(about, s)
-              case 4 => devices(about, s, key)
+              case 4 => me(s).flatMap(devices(about, s, _))
+              case 11 => me(s).flatMap(confirming(about, s, _))
               case 5 => check(about, s.id)
               case 6 => office(about, key)
               case 8 => Node.invite[R].flatMap(link => show(Screen[Unit](w.invite)(Part.text(w.inviteText),
@@ -281,8 +290,18 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     Node.account[R](s.id).flatMap { fresh =>
       val now0 = fresh.getOrElse(s)
       Clock.now[R].flatMap(now => Device.signed[R](Record(now0.id, now0.seq + 1, now0.head, now.max(now0.at),
-        body(now))).flatMap(Node.append[R](s.id, _, memo))).map(_.map(now0 -> _))
+        body(now))).flatMap(acted(now0, _)).flatMap(Node.append[R](s.id, _, memo))).map(_.map(now0 -> _))
     }
+
+  /** WHO THIS DEVICE IS TO AN ACCOUNT: its own key where the key holds it; else the account of this device — one it
+   * holds here — that is the account's holder (a family's, a team's: held by its members' accounts) */
+  private def me(s: State): String ! R = Device.ready[R].flatMap(pub =>
+    if s.grant(pub).isDefined then pure(pub)
+    else held.map(_.map(_._1).find(h => s.grant(h).isDefined).getOrElse(pub)))
+
+  /** a record signed by this device, said to be signed FOR the account it acts through, when it does */
+  private def acted(s: State, signed: Signed): Signed ! R = Device.ready[R].flatMap(pub => me(s).map(who =>
+    if who == pub then signed else signed.copy(acts = Vector(Acting(pub, who, 0)))))
 
   /** the other members here; another community's account is none of them — its members are paid through it */
   private def others(s: State): Vector[Member] ! R =
@@ -327,6 +346,13 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           if !yes then pure(())
           // the payment's name: one a payment, so sent again — a second press, a lost answer — it is paid once;
           // a member of another community is named with its node's key: `<account>@<key>`
+          // above the account's threshold of two holders: proposed here, confirmed by another holder
+          else if s.two > 0 && cents(amount) > s.two then say(s, now => Body.Propose(
+            line.fold(to)(l => s"$to@${l.node}"), cents(amount), if memo.isEmpty then "" else Sha256.hex(memo),
+            Sha256.hex(s"${s.id}:${s.seq}:$now").take(24)), memo).flatMap {
+            case Right(_) => inform(w.proposed, w.proposedText(money(cents(amount), about.unit), who))
+            case Left(r) => inform(w.notPaid, refusal(r, about.unit))
+          }
           else say(s, now => Body.Send(line.fold(to)(l => s"$to@${l.node}"), cents(amount),
             if memo.isEmpty then "" else Sha256.hex(memo), Sha256.hex(s"${s.id}:${s.seq}:$now").take(24)), memo)
             .flatMap {
@@ -368,8 +394,15 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           case Body.Receive(from, _, a) => (w.received, name(from), a)
           case Body.Bounce(_, a) => (w.cameBackKind, "", a)
           case Body.Limits(credit, ceiling) => (w.limitsKind(m(credit), m(ceiling)), about.name, 0L)
-          case Body.Granted(g) => (w.deviceAdded(short(g.key)), "", 0L)
-          case Body.Revoke(k) => (w.deviceRemoved(short(k)), "", 0L)
+          // a holder that is a member's account is said by its name; a device, by its key
+          case Body.Granted(g) => (ms.find(_.id == g.key).fold(w.deviceAdded(short(g.key)))(m =>
+              w.holderAdded(m.name)), "", 0L)
+          case Body.Revoke(k) => (ms.find(_.id == k).fold(w.deviceRemoved(short(k)))(m => w.holderRemoved(m.name)),
+              "", 0L)
+          case Body.Recover(k, _) => (w.recoveryAnnounced, short(k), 0L)
+          case Body.Recovered(k) => (w.deviceAdded(short(k)), "", 0L)
+          case Body.Two(above) => (w.twoKind(if above > 0 then m(above) else ""), "", 0L)
+          case Body.Propose(to, a, _, _) => (w.proposedKind(m(a)), name(to), 0L)
           case Body.Vouch(to, a) => (w.lineLent(m(a)), name(to), 0L)
           case Body.Vouched(from, _, a) => (w.lineReceived(m(a)), name(from), 0L)
           case Body.Release(a) => (w.lineGivenBack(m(a)), "", 0L)
@@ -391,7 +424,11 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   // ---- devices: who may act for the account
 
-  private def devices(about: About, s: State, mine: String): Unit ! R =
+  /** THE HOLDERS OF AN ACCOUNT: a person's are devices' keys; a shared account's (a family's, a team's) are its
+   * members' accounts. Added with what each may and how much, taken off, and the threshold above which a payment
+   * needs two of them */
+  private def devices(about: About, s: State, mine: String): Unit ! R = Node.members[R].flatMap { ms =>
+    val shared = Wallet.shared(s.of)
     def may(g: Grant) = (g.spend, g.manage) match
       case (true, true) => w.spendAndManage
       case (true, false) => w.spend
@@ -401,14 +438,25 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       Option.when(g.period > 0)(w.inDays(money(g.period, about.unit), g.per / 86400000L))).flatten match
       case Nil => w.accountsOwn
       case some => some.mkString(", ")
-    val table = Table(s.grants.toList)(Column.text(w.key)(g => short(g.key) + (if g.key == mine then
-      " " + w.thisDevice else "")), Column.text(w.may)(may), Column.text(w.atMost)(limit)).keyedBy(_.key)
-    show(Screen[Option[Option[Grant]]](w.devices)(Part.text(w.devicesText), Part.details(w.accountsId -> s.id),
-      table)(Button(w.addDevice, Style.Primary)(Some(None)),
-      Button.select(w.takeOff, table, Style.Danger)(g => Some(Some(g))), Button(w.back)(None))).flatMap {
+    def who(key: String): String = ms.find(_.id == key).fold(short(key))(_.name)
+    val table = Table(s.grants.toList)(Column.text(if shared then w.holderWho else w.key)(g => who(g.key) +
+      (if g.key == mine then " " + (if shared then s"(${w.you})" else w.thisDevice) else "")),
+      Column.text(w.may)(may), Column.text(w.atMost)(limit)).keyedBy(_.key)
+    val two = Part.details(w.twoHolders -> (if s.two > 0 then w.twoKind(money(s.two, about.unit)) else w.twoKind("")))
+    show(Screen[Option[Either[Int, Grant]]](if shared then w.holders else w.devices)(
+      Part.text(if shared then w.holdersText else w.devicesText), Part.details(w.accountsId -> s.id), two, table)(
+      Button(if shared then w.addHolder else w.addDevice, Style.Primary)(Some(Left(1))),
+      Button.select(w.takeOff, table, Style.Danger)(g => Some(Right(g))), Button(w.twoHolders)(Some(Left(2))),
+      Button(w.back)(None))).flatMap {
       case None => pure(())
-      case Some(None) => edit[(String, Boolean, Option[BigDecimal], Option[BigDecimal])](w.addDevice, Form(
-          said(Field.text(w.newKey).hinted(w.newKeyHint)), said(Field.flag(w.mayManage)),
+      case Some(Left(1)) =>
+        // a shared account's new holder is chosen among the members; a person's new device is named by its key
+        val candidates = ms.filter(m => (m.of == "personal" || m.of == "business") && s.grant(m.id).isEmpty)
+        val holder = if shared then Field.choice(w.holderWho, candidates.map(m => m.name -> m.id)*)
+          else Field.text(w.newKey).hinted(w.newKeyHint)
+        if shared && candidates.isEmpty then inform(w.addHolder, w.noMembers)
+        else edit[(String, Boolean, Option[BigDecimal], Option[BigDecimal])](if shared then w.addHolder else
+          w.addDevice, Form(said(holder), said(Field.flag(w.mayManage)),
           said(Field.money(w.atMostPayment, about.unit).optional),
           said(Field.money(w.atMostWeek, about.unit).optional))).flatMap {
           case None => pure(())
@@ -416,22 +464,62 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
             val period = weekly.fold(0L)(cents)
             say(s, _ => Body.Granted(Grant(key.trim, spend = true, manage, payment.fold(0L)(cents), period,
               if period > 0 then week else 0L))).flatMap {
-              case Right(_) => inform(w.added, w.addedText)
+              case Right(_) => inform(w.added, if shared then w.holderAdded(who(key.trim)) else w.addedText)
               case Left(r) => inform(w.notAdded, refusal(r, about.unit))
             }
         }
-      case Some(Some(g)) => confirm(w.takeOffQuestion(short(g.key)), w.takeOff).flatMap(yes =>
+      case Some(Left(_)) =>
+        val above = Field.money(w.twoAbove, about.unit).hinted(w.twoHint)
+        edit[Option[BigDecimal]](w.twoHolders, Form.one(said((if s.two > 0 then above.initially(units(s.two))
+          else above).optional))).flatMap {
+          case None => pure(())
+          case Some(amount) => say(s, _ => Body.Two(amount.fold(0L)(cents))).flatMap {
+              case Right(_) => inform(w.twoSet, amount.filter(_ > 0).fold(w.twoOff)(a =>
+                  w.twoSetText(money(cents(a), about.unit))))
+              case Left(r) => inform(w.notSet, refusal(r, about.unit))
+            }
+        }
+      case Some(Right(g)) => confirm(w.takeOffQuestion(who(g.key)), w.takeOff).flatMap(yes =>
           if !yes then pure(()) else say(s, _ => Body.Revoke(g.key)).flatMap {
-            case Right(_) => inform(w.takenOff, w.takenOffText)
+            case Right(_) => inform(w.takenOff, if shared then w.holderRemoved(who(g.key)) else w.takenOffText)
             case Left(r) => inform(w.notTakenOff, refusal(r, about.unit))
           })
     }
+  }
+
+  /** THE PAYMENTS THAT WAIT FOR A SECOND HOLDER: confirmed by one who did not propose — its own `send` of the same
+   * payment, with what the proposer said it is for */
+  private def confirming(about: About, s: State, mine: String): Unit ! R = Clock.now[R].flatMap(now =>
+    Node.members[R].flatMap { ms =>
+      def name(id: String): String = if id == mine then w.you else
+        ms.find(_.id == id.takeWhile(_ != '@')).fold(short(id))(_.name)
+      val waits = s.proposed.filter(_.at > now - Chain.life).toList
+      val table = Table(waits)(Column.text(w.to)(p => name(p.to)),
+        Column.money(w.amount, about.unit)(p => units(p.amount)), Column.text(w.proposedBy)(p => name(p.by)),
+        Column.text(w.day)(p => day(p.at))).keyedBy(_.hash).whenEmpty(w.nothingWaits)
+      show(Screen[Option[Proposal]](w.toConfirmTitle)(Part.text(w.toConfirmText), table)(
+        Button.select(w.confirmPayment, table, Style.Primary)(Some(_)), Button(w.back)(None))).flatMap {
+        case None => pure(())
+        case Some(p) if p.by == mine => inform(w.toConfirmTitle, w.needsAnother)
+        case Some(p) => Node.chain[R](s.id).flatMap { lines =>
+            val memo = lines.find(_.signed.hash == p.hash).fold("")(_.memo)
+            say(s, _ => Body.Send(p.to, p.amount, p.memo, p.name), memo).flatMap {
+              case Right((was, after)) if after.balance == was.balance => inform(w.cameBack, w.cameBackText(name(p.to)))
+              case Right((_, after)) => inform(w.paid, w.paidText(money(p.amount, about.unit), name(p.to),
+                  money(after.balance, about.unit)))
+              case Left(r) => inform(w.notPaid, refusal(r, about.unit))
+            }
+          }
+      }
+    })
 
   // ---- the node, checked
 
   private def check(about: About, id: String): Unit ! R =
     working[R](w.checking)(Part.text(w.checkingText)).andThen(Node.chain[R](id)).flatMap(lines =>
-      Check.chain[R](lines.map(_.signed)).flatMap(folded =>
+      // a record signed for a holder that is an account is checked against that account's own chain
+      Check.chain[R](lines.map(_.signed), a => Node.chain[R](a.account).flatMap(c =>
+        Check.holds[R](c.map(_.signed), a))).flatMap(folded =>
       Node.account[R](id).flatMap(stated => Node.proof[R](id).flatMap { proof =>
         proof.fold(pure[Boolean, R](false))(p => Signer.verify[R](about.key, p.head.text,
           p.head.sigs.find(_._1 == about.key).fold("")(_._2))).flatMap { signed =>
@@ -570,7 +658,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         case Some(Right(l)) =>
           val mine = l.account == s.id
           val buttons = (if mine then List(Button[Int](w.takeOffEntry, Style.Danger)(2))
-            else if l.kind == "offer" then List(Button[Int](w.pay, Style.Primary)(1)) else Nil) :+ Button[Int](w.back)(0)
+            else if l.kind == "offer" then List(Button[Int](w.pay, Style.Primary)(1)) else Nil) :+
+            Button[Int](w.back)(0)
           show(Screen[Int](l.title)((Part.details(
             w.boardKind -> (if l.kind == "offer" then w.offers else w.wants), w.member -> who(l.account),
             w.price -> price(l), w.inUnits -> s"${l.share}%") +: l.text.linesIterator.filter(_.trim.nonEmpty)
@@ -591,7 +680,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   /** THIS DEVICE ASKS AN ACCOUNT BACK: its own new key, signed to show it holds it; the community is to confirm */
   private def lost(about: About): Unit ! R = Node.members[R].flatMap { ms =>
-    val table = Table(ms.filter(_.of != "line").toList)(Column.text(w.yourName)(_.name),
+    val table = Table(ms.filter(m => m.of != "line" && !Wallet.shared(m.of)).toList)(Column.text(w.yourName)(_.name),
       Column.text(w.accountKind)(m => w.kind(m.of))).keyedBy(_.id).whenEmpty(w.noMembers)
     show(Screen[Option[Member]](w.lostDevices)(Part.text(w.lostText), table)(
       Button.select(w.itIsMine, table)(Some(_)), Button(w.back)(None))).flatMap {
@@ -694,8 +783,9 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
   private def accounts(about: About): Unit ! R = held.flatMap { hs =>
     val table = Table(hs.toList)(Column.text(w.anAccount)(_._2), Column.text(w.id)(h => short(h._1))).keyedBy(_._1)
     show(Screen[Option[Option[String]]](w.accounts)(Part.text(w.accountsText), table)(
-      Button.select(w.use, table)(h => Some(Some(h._1))), Button(w.openOrAdd)(Some(None)),
-      Button(w.anotherCommunity)(Some(Some(""))), Button(w.back)(None))).flatMap {
+      Button.select(w.use, table)(h => Some(Some(h._1))), Button(w.sharedAccounts)(Some(Some("+"))),
+      Button(w.openOrAdd)(Some(None)), Button(w.anotherCommunity)(Some(Some(""))), Button(w.back)(None))).flatMap {
+      case Some(Some("+")) => shared(about)
       // another community: no node in use — the wallet asks which (what it holds at this one is kept)
       case Some(Some("")) => keep[R]("node", "")
       case Some(Some(id)) => keepHere("current", id)
@@ -703,3 +793,46 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       case None => pure(())
     }
   }
+
+  /** THE ACCOUNTS THIS PERSON SHARES (specs/protocol.md "Keys": a family, a team): held by the person's own account,
+   * so found by asking the node what that account holds — on a new device as on the old one. A new one is opened by
+   * the person's account: this device signs, the record says for whom */
+  private def shared(about: About): Unit ! R = Device.ready[R].flatMap(pub => held.flatMap { hs =>
+    hs.foldLeft(pure[Vector[State], R](Vector.empty))((acc, h) => acc.flatMap(all => Node.account[R](h._1).map(
+      _.filter(_.grant(pub).exists(_.manage)).fold(all)(all :+ _)))).flatMap { own =>
+      if own.isEmpty then inform(w.sharedAccounts, w.sharedNeedsOwn)
+      else own.foldLeft(pure[Vector[String], R](Vector.empty))((acc, p) => acc.flatMap(all =>
+        Node.heldBy[R](p.id).map(all ++ _))).flatMap(ids => Node.members[R].flatMap { ms =>
+        val table = Table(ids.distinct.flatMap(i => ms.find(_.id == i)).toList)(Column.text(w.anAccount)(_.name),
+          Column.text(w.accountKind)(m => w.kind(m.of))).keyedBy(_.id).whenEmpty(w.noShared)
+        show(Screen[Option[Option[Member]]](w.sharedAccounts)(Part.text(w.sharedText), table)(
+          Button.select(w.use, table)(m => Some(Some(m))), Button(w.newShared, Style.Primary)(Some(None)),
+          Button(w.back)(None))).flatMap {
+          case None => pure(())
+          case Some(Some(m)) => remember(m.id, m.name)
+          case Some(None) =>
+            // a family's is people's; a team's is a business's to open
+            val opener = own.find(_.of != "personal").getOrElse(own.head)
+            val kinds = (if about.only == "business" then Nil else List(w.kind("family") -> "family")) ++
+              (if opener.of == "personal" then Nil else List(w.kind("team") -> "team"))
+            edit[(String, String)](w.newShared, Form(said(Field.text(w.sharedName)),
+              said(Field.choice(w.accountKind, kinds*).initially(kinds.head._2)))).flatMap {
+              case None => pure(())
+              case Some((name, of)) =>
+                val by = if of == "team" then opener else own.head
+                Clock.now[R].flatMap(now => Device.signed[R](Record("", 1, "", now, Body.Open(about.key, of, by.id,
+                  about.unit)))).flatMap(signed => Node.open[R](signed.copy(acts = Vector(Acting(pub, by.id, 0))),
+                  name)).flatMap {
+                  case Right(Some(s)) => remember(s.id, name).andThen(inform(w.opened, w.sharedOpenedText))
+                  case Right(None) => pure(())
+                  case Left(r) => inform(w.notOpened, refusal(r, about.unit))
+                }
+            }
+        }
+      })
+    }
+  })
+
+object Wallet:
+  /** an account held by its members' accounts: a family's, a team's */
+  def shared(of: String): Boolean = of == "family" || of == "team"

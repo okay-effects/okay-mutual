@@ -84,7 +84,7 @@ final class Wallet(net: Net, val key: Pair = SignerJdk.generate()):
   /** a record signed by `by` FOR the account of `who`, which `by` holds */
   def signedFor(r: Record, who: Wallet, by: Pair): Json =
     val text = Record.text(r)
-    Signed.json(Signed(text, Vector(by.pub -> SignerJdk.sign(by.secret, text)), Vector(Act(by.pub, who.id, 0))))
+    Signed.json(Signed(text, Vector(by.pub -> SignerJdk.sign(by.secret, text)), Vector(Acting(by.pub, who.id, 0))))
   /** this account's next record, said by a device of `who` for `who`'s account — a holder of this one */
   def sayFor(who: Wallet, body: Body, by: Pair, memo: String = ""): Response =
     net.post(s"/api/accounts/$id/records", Json.obj("record" -> signedFor(next(body), who, by),

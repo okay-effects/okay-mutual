@@ -71,7 +71,8 @@ trait Words:
   // ---- the community's office
   def members: String; def sum: String; def sumText: String; def member: String; def creditLine: String
   def ceiling: String; def noMembers: String; def setLimits: String; def limitsOf(name: String): String
-  def notBelowZero: String; def limitsSet: String; def limitsSetText(name: String, line: String, ceiling: String): String
+  def notBelowZero: String; def limitsSet: String
+  def limitsSetText(name: String, line: String, ceiling: String): String
   def notSet: String
   // ---- the accounts this device holds
   def accountsText: String; def id: String; def use: String; def openOrAdd: String
@@ -122,6 +123,17 @@ trait Words:
   def entryText: String; def price: String; def priceHint: String; def byAgreement: String
   def inUnits: String; def inUnitsHint: String; def shareRange: String
   def posted: String; def notPosted: String; def boardFull: String; def takeOffEntry: String
+  // ---- an account shared by a family or a team; two holders for a large payment
+  def sharedAccounts: String; def sharedText: String; def noShared: String; def newShared: String
+  def sharedName: String; def sharedNeedsOwn: String; def sharedOpenedText: String
+  def holders: String; def holdersText: String; def addHolder: String; def holderWho: String
+  def holderAdded(name: String): String; def holderRemoved(name: String): String; def you: String
+  def twoHolders: String; def twoAbove: String; def twoHint: String; def twoSet: String
+  def twoSetText(amount: String): String; def twoOff: String
+  def toConfirm(n: Int): String; def toConfirmTitle: String; def toConfirmText: String; def nothingWaits: String
+  def confirmPayment: String; def proposedBy: String; def proposed: String
+  def proposedText(amount: String, who: String): String; def needsAnother: String; def needsSecond: String
+  def twoKind(amount: String): String; def proposedKind(amount: String): String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -153,7 +165,11 @@ object Words:
     val opened = "Your account is open"
     def openedText(line: String) = s"Your credit line is $line: you can buy before you have sold."
     val notOpened = "Not opened"
-    def kind(of: String) = if of == "line" then "another community" else of
+    def kind(of: String) = of match
+      case "line" => "another community"
+      case "family" => "shared: family"
+      case "team" => "shared: team"
+      case other => other
     val communityName = "The community's name"; val setupToken = "Setup token"
     val setupText = "The community's own account is opened with this device's key. Whoever holds a key that may " +
       "manage it sets the members' limits; more such keys are added under Devices."
@@ -199,7 +215,8 @@ object Words:
     val accountsId = "The account's id"; val key = "Key"; val may = "May"; val atMost = "At most"
     val thisDevice = "(this device)"; val spendAndManage = "spend and manage"; val spend = "spend"
     val manage = "manage"; val nothing = "nothing"
-    def aPayment(amount: String) = s"$amount a payment"; def inDays(amount: String, days: Long) = s"$amount in $days days"
+    def aPayment(amount: String) = s"$amount a payment"
+    def inDays(amount: String, days: Long) = s"$amount in $days days"
     val accountsOwn = "the account's own"
     val addDevice = "Add a device"; val takeOff = "Take off"; val newKey = "The new device's key"
     val newKeyHint = "shown there under Add this device to my account"; val mayManage = "May manage the account"
@@ -357,3 +374,35 @@ object Words:
     val posted = "It is on the board"; val notPosted = "Not done"
     val boardFull = "The board has no room for another entry of yours: take one off first."
     val takeOffEntry = "Take off the board"
+    val sharedAccounts = "Shared accounts"
+    val sharedText = "An account of a family or of a team is held by its members' accounts, not by devices: each " +
+      "holder uses it from any device of their own, and a lost phone is replaced once, in the person's own account."
+    val noShared = "you share no account yet"; val newShared = "New shared account"
+    val sharedName = "Its name"
+    val sharedNeedsOwn = "Open your own account first: a shared account is held by its members' accounts."
+    val sharedOpenedText = "The account is open and you hold it. It has no credit line of its own: it spends what " +
+      "it is paid, or a line a member lends it. Add the others under Holders."
+    val holders = "Holders"
+    val holdersText = "Who may act for this account: members' accounts, each with what it may do and how much. A " +
+      "holder uses it from any device of their own."
+    val addHolder = "Add a holder"; val holderWho = "Member"
+    def holderAdded(name: String) = s"holder $name added"; def holderRemoved(name: String) = s"holder $name taken off"
+    val you = "you"
+    val twoHolders = "Two signatures"; val twoAbove = "Two holders for a payment above"
+    val twoHint = "leave empty: one holder is enough for any payment"
+    val twoSet = "Set"
+    def twoSetText(amount: String) = s"A payment above $amount now needs two holders: one proposes it, another " +
+      "confirms."
+    val twoOff = "One holder is enough for any payment now."
+    def toConfirm(n: Int) = s"To confirm ($n)"; val toConfirmTitle = "Payments that wait for a second holder"
+    val toConfirmText = "A payment above the account's threshold is proposed by one holder and confirmed by " +
+      "another. One not confirmed within a week lapses."
+    val nothingWaits = "nothing waits"
+    val confirmPayment = "Confirm and pay"; val proposedBy = "Proposed by"
+    val proposed = "It waits for a second holder"
+    def proposedText(amount: String, who: String) = s"$amount to $who is above this account's threshold: another " +
+      "holder has to confirm it within a week. Nothing has been paid yet."
+    val needsAnother = "You proposed this payment: another holder has to confirm it."
+    val needsSecond = "This payment needs a second holder."
+    def twoKind(amount: String) = if amount.isEmpty then "one holder is enough" else s"two holders above $amount"
+    def proposedKind(amount: String) = s"payment of $amount proposed"
