@@ -30,4 +30,19 @@ lazy val mutual = crossProject(JVMPlatform, JSPlatform).crossType(CrossType.Pure
   .settings(name := "okay-mutual",
     libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-serverless" % okayServerless, munit.value))
 
-lazy val root = (project in file(".")).aggregate(mutual.jvm, mutual.js).settings(publish / skip := true)
+/** THE CHAINS (specs/protocol.md, stage 1): an account's signed records, their hashes, the fold that makes the
+ * balance, the checks, fork proofs; signing as the effect `Signer` — the JDK's and Web Crypto's behind it. On
+ * okay-scala alone: a wallet in a page links nothing else */
+lazy val chain = crossProject(JVMPlatform, JSPlatform).crossType(CrossType.Pure).in(file("chain"))
+  .settings(name := "okay-mutual-chain",
+    libraryDependencies ++= Seq("io.github.okay-effects" %%% "okay-scala" % "0.1.1",
+      "io.github.okay-effects" %%% "okay-effects-json" % "0.1.1", munit.value))
+  .jvmSettings(
+    Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-jvm",
+    Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "test" / "scala-jvm")
+  .jsSettings(
+    Compile / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "main" / "scala-js",
+    Test / unmanagedSourceDirectories += baseDirectory.value.getParentFile / "src" / "test" / "scala-js")
+
+lazy val root = (project in file(".")).aggregate(mutual.jvm, mutual.js, chain.jvm, chain.js)
+  .settings(publish / skip := true)

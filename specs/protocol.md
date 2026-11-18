@@ -72,8 +72,11 @@ under     the holder that gave this grant
 ```
 
 - **The hierarchy is who gave what.** A grant is given by a holder that may `manage`, and never gives more than the
-  giver has. Whoever gave a grant can take it back, with everything given under it: a lost phone is cut off from
-  the laptop in one record, and what the phone had handed on goes with it.
+  giver has. A holder taken off (`revoke`) goes with everything given under it: a lost phone is cut off from the
+  laptop in one record, and the limited keys the phone had handed on go with it.
+- **The holders that may `manage` are equals.** Any of them can take off any holder — also the one that once signed
+  it in: the first phone is lost, the laptop it added takes it off and goes on, on its own. One that may manage
+  always stays. (A thief with such a device can do the same: that is what recovery's delay and the node are for.)
 - **A person** is an account held by its devices' keys: the first device opens it and may `manage`; the next device
   shows its new key (a QR code), an old one signs it in.
 - **A family, a team, a company** is an account held by ACCOUNTS: the family's account names Anna's and Jan's
@@ -113,7 +116,8 @@ by, sig   the key that signed — and, when it acts for a holder account, that a
 node sig  the node's signature: "I ordered this as seq N of this account and my rules allowed it"
 ```
 
-- **A debit needs a holder's key**: `send`, `vouch`, `grant`, `revoke`, `close`. Nobody, the node included, moves a member's
+- **A debit needs a holder's key**: `send` by one that may spend; `vouch`, `grant`, `revoke`, `close` by one that
+  may manage. Nobody, the node included, moves a member's
   credit without it.
 - **A credit and a rule are the node's**: `receive`, `bounce`, `limits`, `recover`, signed by the node alone — a
   member need not be online to be paid, and credit policy is the community's.
@@ -218,9 +222,15 @@ the member, in vouching, in limits that grow with history.
 
 ## Stages (each tested before the next)
 
-1. **Chains.** The record's canonical bytes and hash; signing and checking as an effect (`Signer`), WebCrypto and
-   the JVM behind it; the fold; fork proofs. Pure and small: the kernel everything else stands on. Test vectors that
-   a node in another language must reproduce.
+1. **Chains.** BUILT (module `chain`, `okay.mutual.chain`, on okay-scala alone). A record is a text — JSON — that is
+   hashed and signed as it is and parsed by its reader from those same bytes, so no two encoders need to agree
+   (`Record`, `Signed`); SHA-256 pure (`Sha256`); signing and checking as the effect `Signer`, the JDK's and Web
+   Crypto's behind it; the fold and its rules (`Chain.step`, `State`, `Fault`); the checks that need signatures
+   (`Check`: a record's signers, a whole chain, a fork's proof). Kinds: `open`, `send`, `receive`, `bounce`,
+   `limits`, `grant`, `revoke`, `vouch`, `vouched`, `release`, `released`. `ChainSuite` (the rules, signatures
+   faked) and `Laws` (one program every handler must satisfy, with a record signed by the JDK and one by Web Crypto
+   kept as vectors) on the JVM and Scala.js. NOT in it, left for the node's stage: a holder that is an account, two
+   signatures, recovery, `close`; the size of what the fold keeps (every payment's name, every send not bounced).
 2. **A node.** An object an account; `send` / `receive` / `bounce`; the node's co-signature, directory, head and
    inclusion proofs; its HTTP API and descriptor. The 0.1.0 suites re-read as the node's.
 3. **The wallet.** Keys on the device, signing, the checks of §6; in okay-mall, in place of the present page.

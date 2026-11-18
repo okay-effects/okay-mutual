@@ -24,8 +24,9 @@ run a community's node, and communities connect by trust lines they choose thems
 | A single community's ledger on a small cloud service or one machine | runs, tested |
 | The measures of a network's health (velocity, who both sells and buys, stale balances) | runs, tested |
 | A member's page: sign-in by an emailed link, balance, history, payment | built in a host application (not public), not yet deployed |
-| Members' own keys, a signed chain per account | designed ([protocol](specs/protocol.md), stage 1) |
-| Device keys, family and company accounts, budgets | designed |
+| A signed chain per account: records, hashes, the balance as their fold, fork proofs | runs, tested (JVM and Scala.js; the JDK's and Web Crypto's signatures check each other's) |
+| A key a device, with its own limits; a lost device cut off | runs, tested (in the chain's rules; no app yet) |
+| Family and company accounts, budgets, two signatures, recovery | designed |
 | Nodes anyone runs, signed summaries, checking by the member's app | designed |
 | Trust lines between communities | designed |
 

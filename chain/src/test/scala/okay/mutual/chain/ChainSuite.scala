@@ -1,0 +1,215 @@
+package okay.mutual.chain
+
+import okay.scala3.*
+
+/** THE CHAINS' RULES (specs/protocol.md "An account's chain", "Keys, devices and who may act"), signatures faked */
+class ChainSuite extends munit.FunSuite:
+  private val node = Fake.pair("node")
+  private val phone = Fake.pair("phone")
+  private val laptop = Fake.pair("laptop")
+  private val tablet = Fake.pair("tablet")
+  private val day = 86400000L
+
+  /** an account opened by the phone, with a line of 100.00 and a ceiling of 300.00 */
+  private def account(): Writer =
+    val w = Writer(node, phone)
+    assert(w.node(Body.Limits(10000, 30000)).isRight)
+    w
+
+  test("SHA-256: the standard's vectors, one and two blocks") {
+    assertEquals(Sha256.hex(""), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    assertEquals(Sha256.hex("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    assertEquals(Sha256.hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
+      "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1")
+    assertEquals(Sha256.hex("a" * 1000), "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3")
+    assertEquals(Sha256.hex("zażółć gęślą jaźń"), Sha256.hex("zażółć gęślą jaźń"))
+  }
+
+  test("a record's text is read back as it was written; a text of another version or shape is no record") {
+    val bodies = Vector[Body](Body.Open("N", "personal", "K", "PLN"), Body.Send("to", 4000, "memo", "k1"),
+      Body.Receive("from", "ref", 1), Body.Bounce("ref", 2), Body.Limits(1, 2),
+      Body.Granted(Grant("K2", spend = true, manage = false, 100, 500, 7 * day)), Body.Revoke("K2"),
+      Body.Vouch("to", 3), Body.Vouched("from", "ref", 3), Body.Release(3), Body.Released("ref", 3))
+    for b <- bodies do
+      val r = Record("acc", 7, "prev", 123L, b)
+      assertEquals(Record.parse(Record.text(r)), Some(r), b.kind)
+    assertEquals(Record.parse("{}"), None)
+    assertEquals(Record.parse("not json"), None)
+    assertEquals(Record.parse(Record.text(Record("a", 1, "", 1, Body.Release(1))).replace("\"v\":1", "\"v\":2")),
+      None)
+    val s = Signed("text", Vector("K" -> "sig"))
+    assertEquals(Signed.parse(Signed.json(s)), Some(s))
+  }
+
+  test("an account opens by its node and its first key; its id is the hash of that record") {
+    val w = Writer(node, phone)
+    val s = w.state.get
+    assertEquals((s.id, s.head, s.seq, s.balance, s.node), (w.records.head.hash, w.records.head.hash, 1L, 0L, node.pub))
+    assertEquals(s.grants, Vector(Grant(phone.pub, spend = true, manage = true)))
+    val open = Record("", 1, "", 1, Body.Open(node.pub, "personal", phone.pub, "PLN"))
+    def opened(by: Pair*) = Fake(Check.signed[Fake.W](open, by*).flatMap(Check.step[Fake.W](None, _)))
+    assertEquals(opened(phone), Left(Fault.Unsigned("node")))
+    assertEquals(opened(node), Left(Fault.Unsigned("holder")))
+    assertEquals(opened(node, phone).map(_.seq), Right(1L))
+    assertEquals(Fake(Check.signed[Fake.W](open.copy(seq = 2), node, phone).flatMap(Check.step[Fake.W](None, _))),
+      Left(Fault.Place("open")))
+  }
+
+  test("a record is the next only in its place: its account, its number, the head before it, not earlier") {
+    val w = account()
+    val good = w.next(Body.Send("other", 100, "", ""))
+    assertEquals(w.add(good.copy(account = "other"), node, phone), Left(Fault.Place("account")))
+    assertEquals(w.add(good.copy(seq = good.seq + 1), node, phone), Left(Fault.Place("seq")))
+    assertEquals(w.add(good.copy(prev = "0" * 64), node, phone), Left(Fault.Place("prev")))
+    assertEquals(w.add(good.copy(at = w.now - 1), node, phone), Left(Fault.Place("time")))
+    assertEquals(w.add(good, node, phone).map(_.seq), Right(3L))
+    // the same record again is no longer the next
+    assertEquals(w.add(good, node, phone), Left(Fault.Place("seq")))
+  }
+
+  test("a debit needs a holder's key and the node's; a credit and a rule are the node's alone") {
+    val w = account()
+    val send = w.next(Body.Send("other", 100, "", ""))
+    assertEquals(w.add(send, node), Left(Fault.Unsigned("holder")))
+    assertEquals(w.add(send, phone), Left(Fault.Unsigned("node")))
+    assertEquals(w.add(send, node, laptop), Left(Fault.Unsigned("holder")))
+    // a signature of another text is none
+    val forged = Signed(Record.text(send), Vector(node.pub -> "00", phone.pub -> "00"))
+    assertEquals(Fake(Check.step[Fake.W](w.state, forged)), Left(Fault.Unsigned("node")))
+    assertEquals(w.add(send, node, phone).map(_.balance), Right(-100L))
+    assertEquals(w.add(w.next(Body.Receive("other", "ref", 50)), phone), Left(Fault.Unsigned("node")))
+    assertEquals(w.node(Body.Receive("other", "ref", 50)).map(_.balance), Right(-50L))
+  }
+
+  test("the balance is the fold: sends within the floor, receipts within the ceiling, a bounce returns a send") {
+    val w = account()
+    assertEquals(w.by(phone)(Body.Send("b", 10001, "", "")), Left(Fault.Credit(1)))
+    assertEquals(w.by(phone)(Body.Send("b", 0, "", "")), Left(Fault.Amount))
+    assertEquals(w.by(phone)(Body.Send(w.id, 1, "", "")), Left(Fault.Forbidden("same")))
+    assertEquals(w.by(phone)(Body.Send("b", 4000, "", "k1")).map(_.balance), Right(-4000L))
+    val sent = w.state.get.head
+    // a payment's name is in the chain once
+    assertEquals(w.by(phone)(Body.Send("b", 4000, "", "k1")), Left(Fault.Named))
+    assertEquals(w.node(Body.Receive("c", "r", 34001)), Left(Fault.Ceiling(1)))
+    assertEquals(w.node(Body.Receive("c", "r", 34000)).map(_.balance), Right(30000L))
+    assertEquals(w.node(Body.Bounce("nothing", 4000)), Left(Fault.Unknown("nothing")))
+    assertEquals(w.node(Body.Bounce(sent, 3999)), Left(Fault.Unknown(sent)))
+    assertEquals(w.node(Body.Bounce(sent, 4000)).map(_.balance), Right(34000L))
+    assertEquals(w.node(Body.Bounce(sent, 4000)), Left(Fault.Unknown(sent)))
+    // the limits change, never to a floor above the debt there is
+    val d = account()
+    d.by(phone)(Body.Send("b", 8000, "", ""))
+    assertEquals(d.node(Body.Limits(7999, 30000)), Left(Fault.Credit(1)))
+    assertEquals(d.node(Body.Limits(20000, 30000)).map(_.floor), Right(-20000L))
+  }
+
+  test("a device has its own key: granted by one that may manage, never more than the giver has, limited") {
+    val w = account()
+    w.node(Body.Limits(100000, 300000))
+    // the laptop: a full holder; the tablet under it: 50.00 a payment, 120.00 a week
+    assertEquals(w.by(laptop)(Body.Granted(Grant(laptop.pub, true, true))), Left(Fault.Unsigned("holder")))
+    assert(w.by(phone)(Body.Granted(Grant(laptop.pub, spend = true, manage = true))).isRight)
+    assertEquals(w.by(phone)(Body.Granted(Grant(laptop.pub, true, true))), Left(Fault.Forbidden("held")))
+    assert(w.by(laptop)(Body.Granted(Grant(tablet.pub, spend = true, manage = false, 5000, 12000, 7 * day))).isRight)
+    assertEquals(w.state.get.grant(tablet.pub).flatMap(_.under), Some(laptop.pub))
+    assertEquals(w.by(tablet)(Body.Granted(Grant("Pkid", true, false))), Left(Fault.Forbidden("manage")))
+    assertEquals(w.by(tablet)(Body.Send("b", 5001, "", "")), Left(Fault.Limit("payment")))
+    assert(w.by(tablet)(Body.Send("b", 5000, "", "")).isRight)
+    w.now += day
+    assert(w.by(tablet)(Body.Send("b", 5000, "", "")).isRight)
+    assertEquals(w.by(tablet)(Body.Send("b", 2001, "", "")), Left(Fault.Limit("period")))
+    // the phone's spending is its own: no limit, and not counted as the tablet's
+    assert(w.by(phone)(Body.Send("b", 20000, "", "")).isRight)
+    // a week after the first payment its amount is out of the window
+    w.now += 6 * day + 1
+    assert(w.by(tablet)(Body.Send("b", 5000, "", "")).isRight)
+    assertEquals(w.by(tablet)(Body.Send("b", 2001, "", "")), Left(Fault.Limit("period")))
+    // a limited giver gives no more than it has, and a period with its window
+    val l = account()
+    val giver = Grant(laptop.pub, spend = true, manage = true, 5000, 12000, 7 * day)
+    assert(l.by(phone)(Body.Granted(giver)).isRight)
+    assertEquals(l.by(laptop)(Body.Granted(Grant(tablet.pub, true, false))), Left(Fault.Limit("payment")))
+    assertEquals(l.by(laptop)(Body.Granted(Grant(tablet.pub, true, false, 5001, 12000, 7 * day))),
+      Left(Fault.Limit("payment")))
+    assertEquals(l.by(laptop)(Body.Granted(Grant(tablet.pub, true, false, 5000, 12001, 7 * day))),
+      Left(Fault.Limit("period")))
+    assertEquals(l.by(laptop)(Body.Granted(Grant(tablet.pub, true, false, 5000, 12000, day))),
+      Left(Fault.Limit("period")))
+    assertEquals(l.by(phone)(Body.Granted(Grant(tablet.pub, true, false, 0, 100, 0))), Left(Fault.Amount))
+    assert(l.by(laptop)(Body.Granted(Grant(tablet.pub, true, false, 2000, 6000, 7 * day))).isRight)
+  }
+
+  test("a lost device is cut off with all it gave; the holders that may manage are equals; one always stays") {
+    val w = account()
+    w.by(phone)(Body.Granted(Grant(laptop.pub, spend = true, manage = true)))
+    w.by(phone)(Body.Granted(Grant(tablet.pub, spend = true, manage = false, 5000, 12000, 7 * day)))
+    val watch = Fake.pair("watch")
+    w.by(laptop)(Body.Granted(Grant(watch.pub, spend = true, manage = false, 1000, 2000, day)))
+    assertEquals(w.by(tablet)(Body.Revoke(phone.pub)), Left(Fault.Forbidden("manage")))
+    assertEquals(w.by(phone)(Body.Revoke("Pnobody")), Left(Fault.Unknown("Pnobody")))
+    // the phone — the first key — is lost: the laptop takes it off, and the tablet the phone gave goes with it
+    assertEquals(w.by(laptop)(Body.Revoke(phone.pub)).map(_.grants.map(g => g.key -> g.under)),
+      Right(Vector(laptop.pub -> None, watch.pub -> Some(laptop.pub))))
+    assertEquals(w.by(phone)(Body.Send("b", 1, "", "")), Left(Fault.Unsigned("holder")))
+    assertEquals(w.by(tablet)(Body.Send("b", 1, "", "")), Left(Fault.Unsigned("holder")))
+    assert(w.by(watch)(Body.Send("b", 1, "", "")).isRight)
+    // the last that may manage does not take itself off
+    assertEquals(w.by(laptop)(Body.Revoke(laptop.pub)), Left(Fault.Forbidden("last")))
+  }
+
+  test("vouching: a line lent by one that may manage, within its floor; returned in parts") {
+    val voucher = account()
+    val newcomer = Writer(node, laptop, "personal")
+    newcomer.node(Body.Limits(0, 10000))
+    assertEquals(newcomer.by(laptop)(Body.Send(voucher.id, 100, "", "")), Left(Fault.Credit(100)))
+    voucher.by(phone)(Body.Granted(Grant(tablet.pub, spend = true, manage = false)))
+    assertEquals(voucher.by(tablet)(Body.Vouch(newcomer.id, 3000)), Left(Fault.Forbidden("manage")))
+    assertEquals(voucher.by(phone)(Body.Vouch(voucher.id, 3000)), Left(Fault.Forbidden("same")))
+    assertEquals(voucher.by(phone)(Body.Vouch(newcomer.id, 3000)).map(_.floor), Right(-7000L))
+    val vouch = voucher.state.get.head
+    assertEquals(newcomer.node(Body.Vouched(voucher.id, vouch, 3000)).map(_.floor), Right(-3000L))
+    assertEquals(newcomer.node(Body.Vouched("another", "r", 1)), Left(Fault.Forbidden("vouched")))
+    assert(newcomer.by(laptop)(Body.Send("b", 3000, "", "")).isRight)
+    // the voucher's debt must fit the line it keeps
+    voucher.by(phone)(Body.Send("b", 7000, "", ""))
+    assertEquals(voucher.by(phone)(Body.Vouch(newcomer.id, 1)), Left(Fault.Credit(1)))
+    // the newcomer owes 3000 on the lent line: 1000 of it back once 1000 is earned
+    assertEquals(newcomer.node(Body.Release(1000)), Left(Fault.Credit(1000)))
+    newcomer.node(Body.Receive("b", "r", 1000))
+    assertEquals(newcomer.node(Body.Release(1000)).map(s => (s.floor, s.voucher)), Right((-2000L, Some(voucher.id))))
+    assertEquals(voucher.node(Body.Released(vouch, 1000)).map(_.floor), Right(-8000L))
+    assertEquals(voucher.node(Body.Released(vouch, 2001)), Left(Fault.Unknown(vouch)))
+    newcomer.node(Body.Receive("b", "r", 2000))
+    assertEquals(newcomer.node(Body.Release(2000)).map(s => (s.floor, s.voucher)), Right((0L, None)))
+    assertEquals(voucher.node(Body.Released(vouch, 2000)).map(s => (s.floor, s.lends.size)), Right((-10000L, 0)))
+    assertEquals(newcomer.node(Body.Release(1)), Left(Fault.Amount))
+  }
+
+  test("a whole chain is checked from its opening record: the account, or the first fault and where") {
+    val w = account()
+    w.by(phone)(Body.Send("b", 4000, "", "k1"))
+    w.node(Body.Receive("c", "r", 1000))
+    assertEquals(Fake(Check.chain[Fake.W](w.records)).map(s => (s.id, s.seq, s.balance)), Right((w.id, 4L, -3000L)))
+    // one record changed after it was signed: its signatures no longer hold
+    val changed = w.records.updated(2, w.records(2).copy(text = w.records(2).text.replace("4000", "40")))
+    assertEquals(Fake(Check.chain[Fake.W](changed)), Left(2 -> Fault.Unsigned("node")))
+    // one record left out: the next does not follow
+    assertEquals(Fake(Check.chain[Fake.W](w.records.patch(2, Nil, 1))), Left(2 -> Fault.Place("seq")))
+    assertEquals(Fake(Check.chain[Fake.W](Vector.empty)), Left(0 -> Fault.Malformed))
+  }
+
+  test("a fork's proof: two records in one place, and who signed both") {
+    val w = account()
+    val a = w.next(Body.Send("b", 4000, "", ""))
+    val b = w.next(Body.Send("c", 9000, "", ""))
+    def signed(r: Record, by: Pair*) = Fake(Check.signed[Fake.W](r, by*))
+    def fork(x: Signed, y: Signed) = Fake(Check.fork[Fake.W](x, y))
+    // the node ordered both: its key is in the proof, with the holder's
+    assertEquals(fork(signed(a, node, phone), signed(b, node, phone)), Set(node.pub, phone.pub))
+    // the holder signed two, the node took one: the holder's key alone
+    assertEquals(fork(signed(a, node, phone), signed(b, phone)), Set(phone.pub))
+    // the same record twice, another place, an opening record, a bad signature: nothing proved
+    assertEquals(fork(signed(a, node, phone), signed(a, node, phone)), Set.empty[String])
+    assertEquals(fork(signed(a, node), signed(b.copy(seq = b.seq + 1), node)), Set.empty[String])
+    assertEquals(fork(signed(a, node), Signed(Record.text(b), Vector(node.pub -> "00"))), Set.empty[String])
+  }
