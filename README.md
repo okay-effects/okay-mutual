@@ -41,7 +41,8 @@ run a community's node, and communities connect by trust lines they choose thems
 | Family and company accounts held by other accounts, budgets, two signatures, recovery | designed |
 | A hub of nodes: anyone creates a community by a call or from the wallet; each node's key made with it; accounts of different nodes apart | runs, tested; LIVE on Cloudflare Workers: https://okay-mutual.okay-effects.workers.dev (checked in a browser: two devices, a payment, the node verified) |
 | Joining by request where it is not open: asked from the wallet, admitted or rejected in the community's office | runs, tested |
-| Trust lines between communities | designed |
+| Trust lines between communities: each opens a line to the other, a member pays a member of the other; mirrored accounts, bounded by the receiver's trust; on one hub and between hubs | runs, tested |
+| A payment through a third community; lines between different units | designed |
 
 No community uses it yet. It has not been reviewed by a lawyer or a tax adviser.
 

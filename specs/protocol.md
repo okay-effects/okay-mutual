@@ -245,7 +245,20 @@ the member, in vouching, in limits that grow with history.
    `WalletSuite` plays it against the node in memory; checked in Chromium against a node on the host (two devices,
    a payment, a reload, the check, the key unextractable). English only; no admission screen where joining is not
    open; no QR scanning (the key is shown as a QR code and typed or pasted).
-4. **Trust lines.** A node as an account, transit messages and receipts, time-outs; two nodes in one test.
+4. **Trust lines.** BUILT (sprint 2), made exact: at node X one account for each peer Y, of `line`, HELD BY Y'S
+   NODE KEY, its credit X's trust in Y, its ceiling unbounded (`Peers.unbounded`: owing is no risk to the one who
+   owes). The command `line {address, credit}`: the peer says who it is and signs the opening record of its account
+   here (`POST …/api/line/open`; the same unit only), the account is opened, listed among the members under the
+   peer's name, kept as `dir/line/<peer key>`. A payment to `<account>@<peer key>`: the sender's `send` on its own
+   chain; this node's key signs a `send` on ITS account at the peer — an ordinary holder's record: the peer checks
+   its credit, co-signs, carries it to its member; taken there (the send stays in the account's `sent`), the peer's
+   account here is credited — else the amount goes back to its sender. The payment's name there is the hash of the
+   sender's record: tried again, paid once. No "transit message" and no "receipt" as kinds of their own: the
+   records the two nodes hold of each other's signatures ARE them. A peer on the same hub is reached through its
+   objects, another over HTTPS (`Peers`). `NodeSuite`: one hub and two hubs — paid, mirrored, sums zero, over the
+   peer's credit and a receiver at its ceiling bounced, no line, the way back; `WalletSuite`: the office's "Trust
+   lines", "To another community". NOT in it: a path through a third node, lines between units, a line lent
+   (`vouch`) across nodes, closing a line.
 5. **Witnesses, recovery, paths, offline** — in the order experience asks for them.
 
 ## Anyone has a node

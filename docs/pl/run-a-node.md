@@ -96,8 +96,9 @@ dziesięć minut i przyjmowane tylko raz.
 
 ## Czego jeszcze nie ma
 
-- Linie zaufania między społecznościami: zaprojektowane ([protokół](../../specs/protocol.md), po angielsku),
-  niezbudowane. Płatność dla uczestnika innej społeczności wraca.
+- Linie zaufania łączą dwie społeczności, z których każda otworzyła linię do drugiej (**Społeczność**, potem
+  **Linie zaufania**), w tej samej jednostce. Jeszcze nie ma: płatności przez trzecią społeczność i linii między
+  różnymi jednostkami.
 - Przeniesienie społeczności z jednego huba na inny razem z jej historią.
 - Konta rodzinne i firmowe, których posiadaczami są inne konta, dwa podpisy, odzyskiwanie utraconego klucza przez
   węzeł.

@@ -16,7 +16,7 @@ admits and gives you two limits:
 
 Your balance starts at zero. Amounts are counted in units; a unit counts as one unit of the national currency.
 
-## Your keys *(designed)*
+## Your keys
 
 When you open the app, your phone makes a **key**: a secret that never leaves the device, and a public half that
 identifies it. To pay, your phone signs the payment with its key. Without that signature nothing leaves your
@@ -28,7 +28,7 @@ key and shows it as a QR code; your phone signs "this key is mine too". If the p
 
 Each key can be limited: the work computer may spend at most 200 a week; the old tablet may only look.
 
-**If every device is lost**, people you named in advance (family, a friend) or your node can add a new key — but
+**If every device is lost** *(designed)*, people you named in advance (family, a friend) or your node can add a new key — but
 only after a waiting period that is announced openly, during which any surviving device can cancel. This is
 possible because members are known people: the community that trusted you with credit can also restore your access.
 
@@ -36,8 +36,7 @@ possible because members are known people: the community that trusted you with c
 
 You buy a haircut for 60.
 
-1. Your phone signs: *send 60 to the barber*. *(designed; in the prototype the node records it for you after you
-   sign in by an emailed link)*
+1. Your phone signs: *send 60 to the barber*.
 2. The node checks the signature and that 60 does not take you below your credit line, adds its own signature, and
    appends the record to your account's chain. You are debited.
 3. The node appends *received 60* to the barber's chain — unless the barber is at their ceiling, in which case the
@@ -78,7 +77,7 @@ A company does the same with its people, and can require **two signatures** abov
 is an account to which the company lends part of its credit line — the same mechanism as vouching — and takes it
 back when the budget is cut.
 
-## Nodes *(designed)*
+## Nodes
 
 A node is a community with a computer: it admits members, sets limits, puts each account's records in order and
 co-signs them. Anyone can run one — the code is open and runs on a small cloud service or a single machine.
@@ -91,7 +90,7 @@ checkable by anyone — that the node lied.
 A node is also somebody in the ordinary sense: a cooperative, an association, a company, answerable for its members
 and its taxes.
 
-## Between communities *(designed)*
+## Between communities
 
 Two nodes that know each other open a **trust line**: each gives the other an account in its own books, with a
 credit line and a ceiling like anyone else's. That says how much each community is willing to be owed by the other.

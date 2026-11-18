@@ -92,8 +92,8 @@ taken once.
 
 ## What is not there yet
 
-- Trust lines between communities: designed ([protocol](../specs/protocol.md)), not built. A payment to a member of
-  another community comes back.
+- Trust lines join two communities that each opened one to the other (**Community**, then **Trust lines**), in
+  the same unit. Not yet: a payment through a third community, and lines between different units.
 - Moving a community from one hub to another with its history.
 - Family and company accounts held by other accounts, two signatures, recovery of a lost key by the node.
 - Terms of use for a hub's operator; backups beyond what the platform or your own copies give.

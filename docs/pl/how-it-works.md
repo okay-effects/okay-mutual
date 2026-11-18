@@ -18,7 +18,7 @@ decyduje, kogo przyjmuje, i daje ci dwa ograniczenia:
 Twoje saldo zaczyna od zera. Kwoty liczy się w jednostkach; jednostka liczy się jak jedna jednostka waluty
 krajowej.
 
-## Twoje klucze *(zaprojektowane)*
+## Twoje klucze
 
 Kiedy otwierasz aplikację, twój telefon tworzy **klucz**: tajną część, która nigdy nie opuszcza urządzenia,
 i publiczną, po której można je rozpoznać. Żeby zapłacić, telefon podpisuje płatność swoim kluczem. Bez tego
@@ -32,7 +32,7 @@ upoważnił.
 Każdy klucz można ograniczyć: komputer w pracy może wydać najwyżej 200 tygodniowo; stary tablet może tylko
 podglądać.
 
-**Jeśli zginą wszystkie urządzenia**, osoby wskazane przez ciebie zawczasu (rodzina, przyjaciel) albo twój węzeł
+**Jeśli zginą wszystkie urządzenia** *(zaprojektowane)*, osoby wskazane przez ciebie zawczasu (rodzina, przyjaciel) albo twój węzeł
 mogą dodać nowy klucz — ale dopiero po okresie oczekiwania, który jest ogłaszany jawnie i w trakcie którego każde
 ocalałe urządzenie może to anulować. Jest to możliwe, bo uczestnicy to znani ludzie: społeczność, która zaufała ci
 na tyle, żeby dać kredyt, może też przywrócić ci dostęp.
@@ -41,8 +41,7 @@ na tyle, żeby dać kredyt, może też przywrócić ci dostęp.
 
 Idziesz do fryzjera i płacisz 60.
 
-1. Twój telefon podpisuje: *wyślij 60 fryzjerowi*. *(zaprojektowane; w prototypie węzeł zapisuje to za ciebie po
-   zalogowaniu się linkiem przysłanym e-mailem)*
+1. Twój telefon podpisuje: *wyślij 60 fryzjerowi*.
 2. Węzeł sprawdza podpis oraz to, czy po odjęciu 60 nie zejdziesz poniżej swojej linii kredytowej, dodaje własny
    podpis i dopisuje zapis do łańcucha twojego konta. Twoje konto zostaje obciążone.
 3. Węzeł dopisuje *otrzymano 60* do łańcucha fryzjera — chyba że fryzjer jest już na swoim pułapie; wtedy te 60 od
@@ -83,7 +82,7 @@ Firma robi to samo ze swoimi ludźmi i może wymagać **dwóch podpisów** powy�
 konto, któremu firma pożycza część swojej linii kredytowej — ten sam mechanizm co przy poręczeniu — i odbiera ją,
 kiedy budżet zostaje obcięty.
 
-## Węzły *(zaprojektowane)*
+## Węzły
 
 Węzeł to społeczność z komputerem: przyjmuje uczestników, ustala limity, porządkuje zapisy każdego konta
 i współpodpisuje je. Uruchomić go może każdy — kod jest otwarty i działa na niewielkiej usłudze w chmurze albo na
@@ -97,7 +96,7 @@ podsumowania, które sobie przeczą, to dowód — możliwy do sprawdzenia przez
 Węzeł jest też kimś w zwykłym sensie: spółdzielnią, stowarzyszeniem, firmą — odpowiada za swoich uczestników
 i za swoje podatki.
 
-## Między społecznościami *(zaprojektowane)*
+## Między społecznościami
 
 Dwa węzły, które się znają, otwierają **linię zaufania**: każdy daje drugiemu konto we własnych księgach, z linią
 kredytową i pułapem, tak jak każdemu innemu. To określa, ile druga społeczność może być winna pierwszej — i na

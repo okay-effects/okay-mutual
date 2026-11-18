@@ -42,19 +42,24 @@ key>}` on a's chain; X, with its node key, signs a `send` to b on `L_Y(X)` at Y 
 Y checks against the credit it gives X, co-signs and carries to b; then X credits `L_X(Y)`. Refused or bounced at Y:
 the amount back to a. The two line accounts mirror each other; each node's balances still sum to zero.
 
-- [ ] **lines in the node** — `line {address, credit}` command (the peer signs the opening record of its account
+- [x] **lines in the node** (DONE: `Peers`, `dir/line`, `across` in `AccountObject`, the `line` command; NodeSuite 15 green — one hub and two hubs over the network) — `line {address, credit}` command (the peer signs the opening record of its account
   here; same unit only), `dir/line/<peer>`; `GET …/api/lines`, `GET …/api/line?node=`, `POST …/api/line/open`; a
   flight to `id@<peer key>` carried across — a peer on the same hub by its objects, another by HTTPS; retried when
   the peer's line moved meanwhile; the payment's name makes a retry pay once. Done when: NodeSuite — two nodes on
   one hub and two hubs: paid, mirrored, sums zero, over the peer's credit bounced, no line bounced, the way back.
-- [ ] **lines in the wallet** — the office: "Trust lines" (open one by the other community's address, how far they
+- [x] **lines in the wallet** (DONE: the office's "Trust lines", "To another community", history by community; four languages; WalletSuite 10 green. Not run in Chromium against the jar: checked against the live Worker instead) — the office: "Trust lines" (open one by the other community's address, how far they
   may owe us; change it); Pay: "To another community" → its members → pay; history names the community. Four
   languages. Done when: played in WalletSuite; in Chromium against the jar.
-- [ ] **publish** — Worker and Pages redeployed; a second demo community with a line to the first; docs
+- [x] **publish** (DONE: Worker and Pages redeployed; LIVE check in Chromium on Cloudflare — `demo-hill` and
+  `demo-river` created from wallets, lines opened both ways, a member paid a member of the other, the receiver's
+  wallet verified its node; docs in four languages, README and the protocol say what runs. The two demo
+  communities' founders' keys were in the check's browser and are gone: nobody governs them) — Worker and Pages redeployed; a second demo community with a line to the first; docs
   (how-it-works, run-a-node, README, protocol) say what runs, in four languages.
 
 ## Later (BACKLOG)
 
+- A payment through a third community (a path); lines between different units (a rate); a line lent across
+  nodes; closing a line; a flight across a line retried by the alarm under test.
 - The demo community `demo` on the public hub is not set up (no community account): its setup token is in the
   operator's `.env` (`DEMO_SETUP_TOKEN`); whoever sets it up governs it. Demo members were made by the checks.
 - A shop of Okay Mall taking units: its community and account named in its config, shown on its pages.
