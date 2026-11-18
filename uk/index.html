@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Okay Mutual — обмін, коли бракує грошей</title>
+  <meta name="description" content="Відкрита мережа взаємного кредиту: люди й компанії продають і купують одне в одного за одиниці, які самі одне одному видають. Поруч із грошима, а не замість них.">
+  <link rel="icon" href="../icon.svg">
+  <style>
+    :root { --ink: #1c2b26; --accent: #2f5d50; --paper: #f7f4ee; --card: #fffdf9; --line: #e2dccf; --muted: #5d6b65; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink);
+      background: var(--paper); }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+    header .wrap { display: flex; align-items: baseline; gap: 18px; padding-top: 18px; padding-bottom: 18px;
+      flex-wrap: wrap; }
+    .brand { font-weight: 700; letter-spacing: .08em; color: var(--ink); text-decoration: none; }
+    header nav { margin-left: auto; display: flex; gap: 16px; flex-wrap: wrap; }
+    .langs { display: flex; gap: 10px; font-size: 14px; }
+    .langs a[aria-current] { color: var(--ink); font-weight: 700; text-decoration: none; }
+    a { color: var(--accent); }
+    h1 { font: 600 clamp(30px, 6vw, 46px)/1.12 Georgia, "Times New Roman", serif; margin: 34px 0 14px; }
+    h2 { font: 600 24px/1.25 Georgia, "Times New Roman", serif; margin: 44px 0 10px; }
+    .lead { font-size: 20px; color: var(--muted); max-width: 40em; }
+    .go { display: inline-block; margin: 18px 12px 0 0; padding: 13px 22px; border-radius: 12px; background: var(--ink);
+      color: #fff; text-decoration: none; font-weight: 600; }
+    .go.plain { background: none; color: var(--ink); border: 1px solid var(--line); }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; margin: 14px 0; font-variant-numeric: tabular-nums; }
+    td, th { padding: 7px 14px; border-top: 1px solid var(--line); text-align: right; }
+    td:first-child, th:first-child { text-align: left; }
+    th { border-top: 0; color: var(--muted); font-weight: 600; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+    .card h3 { margin: 0 0 6px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .note { color: var(--muted); font-size: 15px; }
+    footer { margin-top: 60px; border-top: 1px solid var(--line); }
+    footer .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding-top: 16px;
+      padding-bottom: 28px; font-size: 15px; color: var(--muted); }
+    footer .more { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header><div class="wrap"><a class="brand" href="./">OKAY MUTUAL</a>
+    <span class="langs"><a href="../">EN</a> <a href="../pl/">PL</a> <a href="../uk/" aria-current="true">UA</a> <a href="../ru/">RU</a></span>
+    <nav><a href="../wallet/?lang=uk">Гаманець</a>
+      <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/uk/how-it-works.md">Як це працює</a>
+      <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/uk/faq.md">Запитання</a>
+      <a href="https://github.com/okay-effects/okay-mutual">Код</a></nav></div></header>
+  <main class="wrap">
+    <h1>Обмін, коли бракує грошей — але не роботи, товарів і потреб.</h1>
+    <p class="lead">Okay Mutual — відкрита мережа взаємного кредиту. Люди й компанії продають і купують одне в одного за одиниці, які самі одне одному видають. Вона працює поруч зі звичайними грошима й нічого не замінює.</p>
+    <a class="go" href="../wallet/?lang=uk">Відкрити гаманець</a>
+    <a class="go plain" href="https://github.com/okay-effects/okay-mutual/blob/main/docs/uk/idea.md">Прочитати ідею</a>
+
+    <h2>Досить вести лік</h2>
+    <p>Кравець має вільні години, пекар — хліб, програміст зробив би кравцеві сторінку для запису клієнтів. Кожен чекає, доки спершу з’являться гроші. Дайте кожному рахунок, що починається з нуля, і нехай торгують:</p>
+    <div class="scroll"><table>
+      <tr><th>Що відбувається</th><th>Пекар</th><th>Кравець</th><th>Програміст</th></tr>
+      <tr><td>кравець перешиває пекареві піджак за 80</td><td>−80</td><td>+80</td><td>0</td></tr>
+      <tr><td>програміст робить кравцеві сторінку за 200</td><td>−80</td><td>−120</td><td>+200</td></tr>
+      <tr><td>пекар постачає офіс програміста на 150</td><td>+70</td><td>−120</td><td>+50</td></tr>
+    </table></div>
+    <p>Три угоди — і нікому не знадобилися гроші, щоб почати. Нижній рядок у сумі дає нуль, і так буде завжди: одиницю створює покупець у момент купівлі, і вона зникає, коли цей учасник продає. Немає емітента, немає відсотків, нема чого майнити й нема в що інвестувати.</p>
+
+    <h2>Чим ця мережа відрізняється</h2>
+    <div class="cards">
+      <div class="card"><h3>Ваші ключі — на ваших пристроях</h3><p>Кожен платіж підписано ключем, який створено на вашому телефоні чи комп’ютері і який ніколи його не залишає. Ніхто, зокрема й оператор, не може витратити за вас.</p></div>
+      <div class="card"><h3>Немає адміністратора всієї системи</h3><p>Кожна громада тримає власний вузол зі своїми правилами й керує собою сама. Громади поєднують лінії довіри, які вони самі обирають.</p></div>
+      <div class="card"><h3>Ви самі перевіряєте облік</h3><p>Гаманець перевіряє кожен запис, що вас стосується, і може довести, якщо вузол збрехав.</p></div>
+      <div class="card"><h3>Поруч із грошима</h3><p>Ціни залишаються в національній валюті. Угода може бути частково в одиницях, частково в грошах. Податки сплачуються грошима, як із будь-якого продажу.</p></div>
+    </div>
+
+    <h2>Що вже є</h2>
+    <p>Правила обліку, підписані ланцюжки рахунків, вузол громади й цей гаманець працюють і перевірені тестами. Лінії довіри між громадами спроєктовано, але ще не збудовано. Мережею поки що не користується жодна громада, і її не перевіряли юрист і податковий консультант. У <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a> (англійською) відокремлено те, що працює, від того, що спроєктовано.</p>
+    <p class="note">Це не криптовалюта, не мережевий маркетинг і не спосіб обійти податки. Система доводить, хто що обіцяв; змусити дотримати обіцянки вона не може. Це тримається на тому, що люди знають одне одного, на поруці й на лімітах, які зростають разом з історією дотриманих обіцянок.</p>
+
+    <h2>Запустіть вузол для своєї громади</h2>
+    <p>Код відкритий (Apache-2.0). Вузол — це одна команда на будь-якій машині з Java. Дивіться <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/uk/run-a-node.md">настанову</a>.</p>
+  </main>
+  <footer><div class="wrap">
+    Збудовано на <a href="https://github.com/okay-effects" target="_blank" rel="noopener noreferrer">okay-effects</a> —
+    алгебраїчні ефекти для Scala
+    <a class="more" href="https://okay-effects.github.io/#author" target="_blank" rel="noopener noreferrer">Потрібно більше?</a>
+  </div></footer>
+</body>
+</html>

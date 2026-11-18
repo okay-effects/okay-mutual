@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Okay Mutual — wymiana, gdy brakuje pieniędzy</title>
+  <meta name="description" content="Otwarta sieć kredytu wzajemnego: ludzie i firmy sprzedają sobie i kupują od siebie za jednostki, które sami sobie nawzajem wystawiają. Obok pieniądza, nie zamiast niego.">
+  <link rel="icon" href="../icon.svg">
+  <style>
+    :root { --ink: #1c2b26; --accent: #2f5d50; --paper: #f7f4ee; --card: #fffdf9; --line: #e2dccf; --muted: #5d6b65; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 17px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink);
+      background: var(--paper); }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+    header .wrap { display: flex; align-items: baseline; gap: 18px; padding-top: 18px; padding-bottom: 18px;
+      flex-wrap: wrap; }
+    .brand { font-weight: 700; letter-spacing: .08em; color: var(--ink); text-decoration: none; }
+    header nav { margin-left: auto; display: flex; gap: 16px; flex-wrap: wrap; }
+    .langs { display: flex; gap: 10px; font-size: 14px; }
+    .langs a[aria-current] { color: var(--ink); font-weight: 700; text-decoration: none; }
+    a { color: var(--accent); }
+    h1 { font: 600 clamp(30px, 6vw, 46px)/1.12 Georgia, "Times New Roman", serif; margin: 34px 0 14px; }
+    h2 { font: 600 24px/1.25 Georgia, "Times New Roman", serif; margin: 44px 0 10px; }
+    .lead { font-size: 20px; color: var(--muted); max-width: 40em; }
+    .go { display: inline-block; margin: 18px 12px 0 0; padding: 13px 22px; border-radius: 12px; background: var(--ink);
+      color: #fff; text-decoration: none; font-weight: 600; }
+    .go.plain { background: none; color: var(--ink); border: 1px solid var(--line); }
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; margin: 14px 0; font-variant-numeric: tabular-nums; }
+    td, th { padding: 7px 14px; border-top: 1px solid var(--line); text-align: right; }
+    td:first-child, th:first-child { text-align: left; }
+    th { border-top: 0; color: var(--muted); font-weight: 600; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+    .card h3 { margin: 0 0 6px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .note { color: var(--muted); font-size: 15px; }
+    footer { margin-top: 60px; border-top: 1px solid var(--line); }
+    footer .wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding-top: 16px;
+      padding-bottom: 28px; font-size: 15px; color: var(--muted); }
+    footer .more { margin-left: auto; }
+  </style>
+</head>
+<body>
+  <header><div class="wrap"><a class="brand" href="./">OKAY MUTUAL</a>
+    <span class="langs"><a href="../">EN</a> <a href="../pl/" aria-current="true">PL</a> <a href="../uk/">UA</a> <a href="../ru/">RU</a></span>
+    <nav><a href="../wallet/?lang=pl">Portfel</a>
+      <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/pl/how-it-works.md">Jak to działa</a>
+      <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/pl/faq.md">Pytania</a>
+      <a href="https://github.com/okay-effects/okay-mutual">Kod</a></nav></div></header>
+  <main class="wrap">
+    <h1>Wymiana, gdy brakuje pieniędzy — ale nie pracy, towarów i potrzeb.</h1>
+    <p class="lead">Okay Mutual to otwarta sieć kredytu wzajemnego. Ludzie i firmy sprzedają sobie i kupują od siebie za jednostki, które sami sobie nawzajem wystawiają. Działa obok zwykłych pieniędzy i niczego nie zastępuje.</p>
+    <a class="go" href="../wallet/?lang=pl">Otwórz portfel</a>
+    <a class="go plain" href="https://github.com/okay-effects/okay-mutual/blob/main/docs/pl/idea.md">Przeczytaj ideę</a>
+
+    <h2>Wystarczy prowadzić rachunek</h2>
+    <p>Krawcowa ma wolne godziny, piekarz ma chleb, programistka zrobiłaby krawcowej stronę do zapisów. Każde z nich czeka, aż najpierw pojawią się pieniądze. Daj każdemu konto, które zaczyna się od zera, i pozwól im handlować:</p>
+    <div class="scroll"><table>
+      <tr><th>Co się dzieje</th><th>Piekarz</th><th>Krawcowa</th><th>Programistka</th></tr>
+      <tr><td>krawcowa przerabia piekarzowi marynarkę za 80</td><td>−80</td><td>+80</td><td>0</td></tr>
+      <tr><td>programistka robi krawcowej stronę za 200</td><td>−80</td><td>−120</td><td>+200</td></tr>
+      <tr><td>piekarz zaopatruje biuro programistki za 150</td><td>+70</td><td>−120</td><td>+50</td></tr>
+    </table></div>
+    <p>Trzy transakcje — i nikt nie potrzebował pieniędzy, żeby zacząć. Dolny wiersz sumuje się do zera i zawsze tak będzie: jednostkę tworzy kupujący w chwili zakupu, a znika ona, gdy ten uczestnik sprzedaje. Nie ma emitenta, nie ma odsetek, nie ma czego kopać ani w co inwestować.</p>
+
+    <h2>Czym ta sieć się różni</h2>
+    <div class="cards">
+      <div class="card"><h3>Twoje klucze — na Twoich urządzeniach</h3><p>Każdą płatność podpisuje klucz, który powstał na Twoim telefonie lub komputerze i nigdy go nie opuszcza. Nikt, także operator, nie może wydać za Ciebie.</p></div>
+      <div class="card"><h3>Nie ma administratora całości</h3><p>Każda społeczność prowadzi własny węzeł według własnych zasad i sama sobą zarządza. Społeczności łączą linie zaufania, które same wybierają.</p></div>
+      <div class="card"><h3>Księgi sprawdzasz samodzielnie</h3><p>Portfel sprawdza każdy zapis, który Cię dotyczy, i potrafi udowodnić, że węzeł skłamał.</p></div>
+      <div class="card"><h3>Obok pieniądza</h3><p>Ceny zostają w walucie krajowej. Transakcja może być częściowo w jednostkach, częściowo w pieniądzach. Podatki płaci się pieniędzmi, jak od każdej sprzedaży.</p></div>
+    </div>
+
+    <h2>Na jakim jest etapie</h2>
+    <p>Zasady księgowania, podpisane łańcuchy kont, węzeł społeczności i ten portfel działają i są przetestowane. Linie zaufania między społecznościami są zaprojektowane, ale jeszcze niezbudowane. Z sieci nie korzysta na razie żadna społeczność i nie oceniał jej prawnik ani doradca podatkowy. <a href="https://github.com/okay-effects/okay-mutual#what-runs-today-and-what-is-designed">README</a> (po angielsku) oddziela to, co działa, od tego, co zaprojektowane.</p>
+    <p class="note">To nie kryptowaluta, nie marketing sieciowy i nie sposób na ominięcie podatków. System dowodzi, kto co obiecał; nie zmusi nikogo do dotrzymania obietnicy. To opiera się na tym, że ludzie się znają, na poręczeniach i na limitach, które rosną razem z historią dotrzymanych obietnic.</p>
+
+    <h2>Uruchom węzeł dla swojej społeczności</h2>
+    <p>Kod jest otwarty (Apache-2.0). Węzeł to jedno polecenie na dowolnej maszynie z Javą. Zobacz <a href="https://github.com/okay-effects/okay-mutual/blob/main/docs/pl/run-a-node.md">przewodnik</a>.</p>
+  </main>
+  <footer><div class="wrap">
+    Zbudowano na <a href="https://github.com/okay-effects" target="_blank" rel="noopener noreferrer">okay-effects</a> —
+    efekty algebraiczne dla Scali
+    <a class="more" href="https://okay-effects.github.io/#author" target="_blank" rel="noopener noreferrer">Potrzebujesz więcej?</a>
+  </div></footer>
+</body>
+</html>
