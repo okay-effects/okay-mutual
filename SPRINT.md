@@ -56,6 +56,24 @@ the amount back to a. The two line accounts mirror each other; each node's balan
   communities' founders' keys were in the check's browser and are gone: nobody governs them) — Worker and Pages redeployed; a second demo community with a line to the first; docs
   (how-it-works, run-a-node, README, protocol) say what runs, in four languages.
 
+## Sprint 3 — light by design: nothing that needs a licence (operator, 2026-11-18: "make it so that it needs no complex regulation — is that possible?")
+
+Answer and reasoning: docs/legal.md. The rules that keep the system out of the regulated kinds (money, payment
+services, crypto-assets, credit to consumers, deposits) become things the software DOES, not only says:
+
+- [ ] **legal.md** — what each rule avoids and why, what still applies whatever we do (tax, data protection,
+  contracts, platform reporting), the profile to start in, the questions left for one legal opinion. Four
+  languages. Not legal advice, and says so.
+- [ ] **a community's rules, accepted** — a community has its rules (a text its founder writes from a standard one:
+  units are a count of mutual obligations, never sold or exchanged for money; members are known; each pays its own
+  taxes; leaving settles the balance); `GET …/api/rules`; joining names the rules' hash — no account without it;
+  the `rules` command changes them. Done when: NodeSuite and WalletSuite (shown, accepted, refused without).
+- [ ] **businesses only** — a community may admit only businesses (the simplest footing: no consumer law, no
+  consumer credit); chosen at creation, kept by the node. Done when: tested in both suites.
+- [ ] **a statement for the books** — a member copies its deals as CSV (day, counterparty, amount, what for): a
+  deal in units is a sale to be booked and taxed as any other. Done when: played in WalletSuite.
+- [ ] **publish** — Worker, Pages; README and the site link legal.md.
+
 ## Later (BACKLOG)
 
 - A payment through a third community (a path); lines between different units (a rate); a line lent across
