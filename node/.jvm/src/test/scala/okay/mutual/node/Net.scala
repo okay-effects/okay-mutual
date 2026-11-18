@@ -23,9 +23,11 @@ final class Hubs(vars: (String, String)*):
       ("content-type" -> List("application/json"))))
   def json(r: Response): Json = Descent.parse(r.body).toOption.getOrElse(Json.Null)
   /** a node made here, as anyone makes one */
-  def make(slug: String, name: String, join: String = "open", from: String = "1.2.3.4"): Response =
+  def make(slug: String, name: String, join: String = "open", from: String = "1.2.3.4", only: String = "",
+           rules: String = ""): Response =
     post("/api/nodes", Json.obj("slug" -> Json.str(slug), "name" -> Json.str(name), "unit" -> Json.str("PLN"),
-      "join" -> Json.str(join), "credit" -> Json.num(10000), "ceiling" -> Json.num(30000)),
+      "join" -> Json.str(join), "credit" -> Json.num(10000), "ceiling" -> Json.num(30000),
+      "only" -> Json.str(only), "rules" -> Json.str(rules)),
       "cf-connecting-ip" -> from)
 
 /** A NODE IN A TEST: made on a hub (its own unless one is given), its calls under its place; its key the hub's

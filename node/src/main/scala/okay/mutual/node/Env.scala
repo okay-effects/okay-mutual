@@ -9,19 +9,21 @@ import okay.serverless.cloud.{Request, Response}
 /**
  * A NODE'S OWN (specs/protocol.md "A node"): its place in its hub (`slug`), its key pair, its unit and name, and its
  * policy of joining — `open`: whoever asks is opened an account with the default limits; else only those the
- * community's holders admit. Data, made when the node is created and kept in the node's own directory: a deployment
+ * community's holders admit; `only`: whom it admits at all — `business`: businesses and the self-employed only
+ * (docs/legal.md: no consumer law arises), empty: private people too. Data, made when the node is created and kept in the node's own directory: a deployment
  * holds as many nodes as people make
  */
 final case class NodeEnv(slug: String, pub: String, secret: String, unit: String, name: String, open: Boolean,
-                         credit: Long, ceiling: Long, setup: String)
+                         credit: Long, ceiling: Long, setup: String, only: String = "")
 
 object NodeEnv:
   def write(e: NodeEnv): Json.Obj = Json.obj("slug" -> Json.str(e.slug), "pub" -> Json.str(e.pub),
     "secret" -> Json.str(e.secret), "unit" -> Json.str(e.unit), "name" -> Json.str(e.name),
     "open" -> Json.bool(e.open), "credit" -> Json.num(e.credit), "ceiling" -> Json.num(e.ceiling),
-    "setup" -> Json.str(e.setup))
+    "setup" -> Json.str(e.setup), "only" -> Json.str(e.only))
   def read(j: Json): Option[NodeEnv] = scala.util.Try(NodeEnv(j("slug").string, j("pub").string, j("secret").string,
-    j("unit").string, j("name").string, j("open").boolean, j("credit").long, j("ceiling").long, j("setup").string))
+    j("unit").string, j("name").string, j("open").boolean, j("credit").long, j("ceiling").long, j("setup").string,
+    j.field("only").collect { case Json.Str(s) => s }.getOrElse("")))
     .toOption
 
 /** A HUB'S OWN: whether anyone may make a node here (`HUB_OPEN=1`) or only who has the hub's token (`HUB_TOKEN`), how

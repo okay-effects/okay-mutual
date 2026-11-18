@@ -394,3 +394,37 @@ class NodeSuite extends munit.FunSuite:
     val (n, s) = trading(north, south, "https://north.example/n/north", "https://south.example/n/south")
     traded(n, s)
   }
+
+  test("a community's rules: no account without accepting them as they are now; businesses only where it says so") {
+    val hub = Hubs()
+    assertEquals(hub.make("guild", "The Guild", only = "business", rules = "1. Units are not money.").status, 200)
+    assertEquals(hub.make("odd", "Odd", only = "people").status, 400)
+    def at(path: String) = s"/n/guild$path"
+    val about = hub.json(hub.get(at("/.well-known/okay-mutual.json")))
+    assertEquals(about("only").string, "business")
+    val rules = hub.json(hub.get(at("/api/rules")))
+    assertEquals((rules("text").string, rules("hash").string), ("1. Units are not money.",
+      Sha256.hex("1. Units are not money.")))
+    val key = SignerJdk.generate()
+    def join(of: String, accepted: Option[String]) =
+      val text = Record.text(Record("", 1, "", hub.now, Body.Open(about("key").string, of, key.pub, "PLN")))
+      hub.post(at("/api/accounts"), Json.Obj(Vector("record" -> Signed.json(Signed(text, Vector(key.pub ->
+        SignerJdk.sign(key.secret, text)))), "name" -> Json.str("A firm")) ++ accepted.map(h => "rules" -> Json.str(h))))
+    def refused(r: okay.serverless.cloud.Response) = (r.status, hub.json(r)("error").string)
+    assertEquals(refused(join("business", None)), (409, "rules"))
+    assertEquals(refused(join("business", Some("another hash"))), (409, "rules"))
+    assertEquals(refused(join("personal", Some(rules("hash").string))), (409, "business"))
+    assertEquals(join("business", Some(rules("hash").string)).status, 200)
+    // a node with no rules asks for none (the nodes made before there were any)
+    val plain = Net(hub = hub, slug = "plain", name = "Plain")
+    assertEquals(plain.json(plain.get("/api/rules"))("hash").string, "")
+    assertEquals(Wallet(plain).join("Anna").status, 200)
+    // the community changes its rules by a command: from then on those are the ones accepted
+    val town = Community(plain, "Olaf")
+    assertEquals(plain.command(town.founder.key, "cmd" -> Json.str("rules"), "at" -> Json.num(plain.now),
+      "text" -> Json.str("New rules.")).status, 200)
+    assertEquals(plain.json(plain.get("/api/rules"))("hash").string, Sha256.hex("New rules."))
+    assertEquals(Wallet(plain).join("Late").status, 409)
+    assertEquals(plain.command(town.one.key, "cmd" -> Json.str("rules"), "at" -> Json.num(plain.now),
+      "text" -> Json.str("Mine.")).status, 403)
+  }

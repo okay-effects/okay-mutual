@@ -17,6 +17,7 @@ import okay.serverless.cloud.{Actor, InActor, Request, Response}
  *   dir/head/<id>       the hash of the account's last record
  *   dir/number          how many times the heads changed: the head's number
  *   dir/line/<peer key> the account this node keeps for another node: its id, the peer's address and name
+ *   dir/rules           the community's rules: the text its members accept to join, and its hash
  *   dir/community       the id of the community's own account — its holders that may manage govern the node
  *   dir/command/<hash>  a command taken (never twice)
  *
@@ -34,6 +35,7 @@ object Directory extends Actor:
   private val number = s"$scope/number"
   private val community = s"$scope/community"
   private val lines = s"$scope/line/"
+  private val rules = s"$scope/rules"
 
   type Live[X] = (InActor + Signer)[X]
   private type Step[X] = (Live + Durable)[X]
@@ -102,7 +104,14 @@ object Directory extends Actor:
         _.fold(Http.refused("unknown", 404))(Http.json(_)))
     case ("POST", "/_dir/reject") =>
       step(Durable.delete[Step](requests + Http.body(r)("id").string)).as(Http.json(Json.obj()))
-// ---- trust lines (specs/protocol.md "Trust lines between nodes")
+    // ---- the community's rules (docs/legal.md): what a newcomer accepts, named by its hash
+    case ("GET", "/_dir/rules") => Http.read[Live](rules).map(r => Http.json(r.getOrElse(Json.obj(
+        "text" -> Json.str(""), "hash" -> Json.str("")))))
+    case ("POST", "/_dir/rules") =>
+      val text = scala.util.Try(Http.body(r)("text").string).getOrElse("").trim.take(Directory.longest)
+      step(Durable.put[Json, Step](rules, Json.obj("text" -> Json.str(text),
+        "hash" -> Json.str(if text.isEmpty then "" else Sha256.hex(text))))).as(Http.json(Json.obj()))
+    // ---- trust lines (specs/protocol.md "Trust lines between nodes")
     case ("GET", "/_dir/lines") => Http.all[Live](lines).map(ls => Http.json(Json.obj("lines" ->
         Json.Arr(ls.map(_._2).sortBy(_("name").string.toLowerCase)))))
     case ("GET", "/_dir/line") => Http.read[Live](lines + r.param("node").getOrElse("")).map(
@@ -132,6 +141,8 @@ object Directory extends Actor:
       }).map(fresh => if fresh then Http.json(Json.obj()) else Http.refused("used", 409))
     case _ => pure(Response.notFound())
 
+  /** how long a community's rules may be */
+  val longest = 8000
   /** how many may wait to be admitted at a time */
   val waiting = 200
 
@@ -167,6 +178,7 @@ object Hub extends Actor:
       j("unit").string.trim.take(8), j("join").string == "open", j("credit").long, j("ceiling").long,
       j("who").string)).toOption match
       case Some((place, name, unit, open, credit, ceiling, who)) if slug(place) && name.nonEmpty &&
+        j.field("only").forall(o => o == Json.str("business") || o == Json.str("")) &&
         unit.matches("[A-Za-z]{2,8}") && credit >= 0 && ceiling >= 0 =>
         Clock.now[Live].flatMap { now =>
           val made = s"$scope/made/$who/${now / 86400000L}"
@@ -185,11 +197,16 @@ object Hub extends Actor:
             case Some(why) => pure(Http.refused(why, if why == "taken" then 409 else 429))
             case None => Signer.generate[Live].flatMap { pair =>
                 val token = Sha256.hex(pair.secret + ":setup").take(32)
-                val env = NodeEnv(place, pair.pub, pair.secret, unit.toUpperCase, name, open, credit, ceiling, token)
-                okay.serverless.cloud.Objects.call[Live](Directory.namespace, place, Http.post("/_dir/env",
-                  NodeEnv.write(env))).map(kept => if kept.status != 200 then Http.refused("taken", 409)
-                  else Http.json(Json.obj("slug" -> Json.str(place), "key" -> Json.str(pair.pub),
-                    "token" -> Json.str(token))))
+                val env = NodeEnv(place, pair.pub, pair.secret, unit.toUpperCase, name, open, credit, ceiling, token,
+                  j.field("only").collect { case Json.Str(o) => o }.getOrElse(""))
+                val made = okay.serverless.cloud.Objects.call[Live](Directory.namespace, place,
+                  Http.post("/_dir/env", NodeEnv.write(env)))
+                // its rules, when its maker wrote some
+                made.flatMap(kept => if kept.status != 200 then pure(Http.refused("taken", 409)) else
+                  j.field("rules").collect { case Json.Str(t) if t.trim.nonEmpty => t }.fold(pure[Unit, Live](()))(text =>
+                    okay.serverless.cloud.Objects.call[Live](Directory.namespace, place, Http.post("/_dir/rules",
+                      Json.obj("text" -> Json.str(text)))).as(())).as(Http.json(Json.obj("slug" -> Json.str(place),
+                    "key" -> Json.str(pair.pub), "token" -> Json.str(token)))))
               }
           }
         }

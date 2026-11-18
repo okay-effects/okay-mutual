@@ -22,7 +22,9 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *   GET  /api/members                       its members: id, name, kind
  *   GET  /api/head                          its signed head
  *   GET  /api/community                     the id of the community's own account (null: not set up)
- *   POST /api/accounts                      {record, name}: an account opened by its first, signed record — or,
+ *   GET  /api/rules                         the community's rules — the text a newcomer accepts — and their hash
+ *   POST /api/accounts                      {record, name, rules}: an account opened by its first, signed record
+ *                                           (`rules`: the hash of the rules accepted — the ones in force) — or,
  *                                           where joining is not open, kept as a request (202)
  *   GET  /api/requests                      who waits to be admitted: id, name, kind
  *   GET  /api/accounts/<id>                 the account as its chain makes it
@@ -43,7 +45,8 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *
  * Commands (`{cmd, at, …}`, signed as their text, good for ten minutes, taken once): `limits {account, credit,
  * ceiling}`; `admit {id, credit, ceiling}` — one who asked is opened an account; `reject {id}`; `line {address,
- * credit}` — an account kept for another node (a trust line): how far that community may owe this one
+ * credit}` — an account kept for another node (a trust line): how far that community may owe this one; `rules
+ * {text}` — the community's rules, from then on the ones a newcomer accepts
  */
 object NodeApp extends App:
   val actors: Map[String, Actor] = Map(AccountObject.namespace -> AccountObject, Directory.namespace -> Directory,
@@ -92,16 +95,23 @@ object NodeApp extends App:
       case ("GET", List(".well-known", "okay-mutual.json")) => pure(Http.json(Json.obj(
           "v" -> Json.num(Record.version), "key" -> Json.str(env.pub), "unit" -> Json.str(env.unit),
           "name" -> Json.str(env.name), "join" -> Json.str(if env.open then "open" else "admitted"),
-          "credit" -> Json.num(env.credit), "ceiling" -> Json.num(env.ceiling))))
+          "credit" -> Json.num(env.credit), "ceiling" -> Json.num(env.ceiling), "only" -> Json.str(env.only))))
       case ("GET", List("api", "members")) => directory(env, Request.get("/_dir/members")).map(answered)
       case ("GET", List("api", "head")) => directory(env, Request.get("/_dir/head")).map(answered)
       case ("GET", List("api", "community")) => directory(env, Request.get("/_dir/community")).map(answered)
+      case ("GET", List("api", "rules")) => directory(env, Request.get("/_dir/rules")).map(answered)
       case ("GET", List("api", "requests")) => directory(env, Request.get("/_dir/requests")).map(l =>
           // who waits, never their records
           Http.json(Json.obj("requests" -> Json.Arr(scala.util.Try(Http.answer(l)("requests").list).getOrElse(
             Vector.empty).map(q => Json.obj("id" -> q("id"), "name" -> q("name"), "of" -> q("of"), "at" -> q("at")))))))
-      case ("POST", List("api", "accounts")) =>
-        if env.open then joined(env, Http.body(r), env.credit, env.ceiling) else requested(env, Http.body(r))
+      // an account asked for: by one the community admits at all, who accepted its rules as they are now
+      case ("POST", List("api", "accounts")) => directory(env, Request.get("/_dir/rules")).flatMap { rules =>
+          val (body, hash) = (Http.body(r), Http.answer(rules).field("hash").fold("")(_.string))
+          if env.only == "business" && asking(body).exists(_._3 != "business") then
+            pure(Http.refused("business", 409))
+          else if hash.nonEmpty && !body.field("rules").contains(Json.str(hash)) then pure(Http.refused("rules", 409))
+          else if env.open then joined(env, body, env.credit, env.ceiling) else requested(env, body)
+        }
       case ("GET", List("api", "accounts", a)) if id(a) => account(env, a, Request.get("/_acct/state")).map(answered)
       case ("GET", List("api", "accounts", a, "chain")) if id(a) => account(env, a,
           Request.get(s"/_acct/chain?from=${r.param("from").flatMap(_.toLongOption).getOrElse(1L)}")).map(answered)
@@ -201,6 +211,9 @@ object NodeApp extends App:
                 "ceiling" -> Json.num(if line then Peers.unbounded else ceiling)))).map(answered)
             }
           case _ => pure(Http.refused("command"))
+      case "rules" => scala.util.Try(c("text").string).toOption match
+          case Some(text) => directory(env, Http.post("/_dir/rules", Json.obj("text" -> Json.str(text)))).map(answered)
+          case None => pure(Http.refused("command"))
       case "line" => scala.util.Try((c("address").string.trim.stripSuffix("/"), c("credit").long)).toOption match
           case Some((address, credit)) if Peers.valid(address) && credit >= 0 => lined(env, address, credit)
           case _ => pure(Http.refused("command"))
