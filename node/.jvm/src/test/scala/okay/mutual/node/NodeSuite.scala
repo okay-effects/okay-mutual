@@ -60,6 +60,23 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(net.alarms(), 0)
   }
 
+  test("what a payment is for travels beside the chains: kept at both ends when its hash is the record's") {
+    val (net, anna, jan) = town()
+    def memos(w: Wallet) = net.json(net.get(s"/api/accounts/${w.id}/chain"))("records").list
+      .flatMap(_.field("memo").map(_.string))
+    val record = anna.next(Body.Send(jan.id, 4000, Sha256.hex("a jacket altered"), ""))
+    assertEquals(net.post(s"/api/accounts/${anna.id}/records", Json.obj("record" -> anna.signed(record),
+      "memo" -> Json.str("a jacket altered"))).status, 200)
+    assertEquals((memos(anna), memos(jan)), (Vector("a jacket altered"), Vector("a jacket altered")))
+    // other words than the hash names are not kept
+    val other = anna.next(Body.Send(jan.id, 100, Sha256.hex("bread"), ""))
+    net.post(s"/api/accounts/${anna.id}/records", Json.obj("record" -> anna.signed(other),
+      "memo" -> Json.str("something else")))
+    assertEquals((memos(anna).size, memos(jan).size, jan.balance), (1, 1, 4100L))
+    assertEquals(net.json(net.get("/api/community"))("community"), Json.Null)
+    assertEquals(net.checked(jan.id).map(_.balance), Right(4100L))
+  }
+
   test("refused: past the credit line, by a key that holds nothing, out of place, out of time") {
     val (net, anna, jan) = town()
     assertEquals(error(net, anna.pay(jan, 10001)), (409, "credit", Json.num(1)))

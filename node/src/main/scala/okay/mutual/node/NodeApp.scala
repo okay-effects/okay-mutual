@@ -12,11 +12,13 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *   GET  /.well-known/okay-mutual.json      what it is: its key, its unit, its name, whether anyone may join
  *   GET  /api/members                       its members: id, name, kind
  *   GET  /api/head                          its signed head
+ *   GET  /api/community                     the id of the community's own account (null: not set up)
  *   POST /api/accounts                      {record, name}: an account opened by its first, signed record
  *   GET  /api/accounts/<id>                 the account as its chain makes it
  *   GET  /api/accounts/<id>/chain?from=     its records, to check
  *   GET  /api/accounts/<id>/proof           the proof that its head is under the node's head
- *   POST /api/accounts/<id>/records         {record}: a holder's signed record — `send`, `vouch`, `grant`, `revoke`
+ *   POST /api/accounts/<id>/records         {record, memo?}: a holder's signed record — `send`, `vouch`, `grant`,
+ *                                           `revoke`; a payment's memo, when its hash is the record's
  *   POST /api/setup                         {record, name}: the community's own account, once (`x-setup-token`)
  *   POST /api/command                       {command, key, sig}: a command of one who may manage the community
  *
@@ -53,6 +55,7 @@ object NodeApp extends App:
           "credit" -> Json.num(env.credit), "ceiling" -> Json.num(env.ceiling))))
       case ("GET", List("api", "members")) => directory(Request.get("/_dir/members")).map(answered)
       case ("GET", List("api", "head")) => directory(Request.get("/_dir/head")).map(answered)
+      case ("GET", List("api", "community")) => directory(Request.get("/_dir/community")).map(answered)
       case ("POST", List("api", "accounts")) =>
         if !env.open then pure(Http.refused("admitted", 403))
         else joined(env, Http.body(r), env.credit, env.ceiling)
@@ -63,7 +66,8 @@ object NodeApp extends App:
       case ("GET", List("api", "accounts", a, "proof")) if id(a) =>
         directory(Request.get(s"/_dir/proof?account=$a")).map(answered)
       case ("POST", List("api", "accounts", a, "records")) if id(a) =>
-        account(a, Http.post("/_acct/append", Json.obj("record" -> Http.body(r)("record")))).map(answered)
+        account(a, Http.post("/_acct/append", Json.obj("record" -> Http.body(r)("record"),
+          "memo" -> Http.body(r).field("memo").getOrElse(Json.str(""))))).map(answered)
       case ("POST", List("api", "setup")) => setup(env, r)
       case ("POST", List("api", "command")) => command(env, Http.body(r))
       case _ => pure(Response.notFound())

@@ -16,6 +16,8 @@ import okay.serverless.cloud.{Actor, InActor, Objects, Request, Response}
  *   acct/name/<name>        the number of the record a named payment made
  *   acct/flight/<hash>      a `send` or a `vouch` of this account not yet taken or refused by its receiver
  *   acct/got/<ref>          a record of another account delivered here (once)
+ *   acct/memo/<hash>        what a payment is for, beside the chain (its record carries the memo's hash only):
+ *                           the sender's words, kept at both ends, erasable without breaking either chain
  *
  * The node's side of every record is its signature: it orders the chain and says its rules allowed the record. A
  * record is the next only if it names the head before it, so two requests that race cannot both be appended.
@@ -30,6 +32,7 @@ object AccountObject extends Actor:
   private def nameKey(name: String) = s"$scope/name/$name"
   private def flightKey(hash: String) = s"$scope/flight/$hash"
   private def gotKey(ref: String) = s"$scope/got/$ref"
+  private def memoKey(hash: String) = s"$scope/memo/$hash"
   /** how far a member's record may say its time is from the node's */
   val skew: Long = 10 * 60 * 1000L
   /** when a delivery not answered is tried again */
@@ -48,12 +51,17 @@ object AccountObject extends Actor:
       case ("GET", "/_acct/state") => state.map(_.fold(Http.refused("unknown", 404))(s => Http.json(StateJson.write(s))))
       case ("GET", "/_acct/chain") =>
         val from = r.param("from").flatMap(_.toLongOption).getOrElse(1L)
-        Http.all[Live](s"$scope/rec/").map(rs => Http.json(Json.obj("records" -> Json.Arr(rs.map(_._2)
-          .drop((from - 1).toInt.max(0))))))
+        Http.all[Live](s"$scope/rec/").flatMap(rs => Http.all[Live](s"$scope/memo/").map { ms =>
+          val memos = ms.map((k, v) => k.stripPrefix(s"$scope/memo/") -> v).toMap
+          // each record with its memo beside it, when there is one
+          Http.json(Json.obj("records" -> Json.Arr(rs.map(_._2).drop((from - 1).toInt.max(0)).map(j =>
+            Signed.parse(j).flatMap(s => memos.get(s.hash)).fold(j)(m => Json.Obj(j.record :+ ("memo" -> m)))))))
+        })
       case ("POST", "/_acct/open") => open(env, name, Http.body(r))
       case ("POST", "/_acct/append") => Signed.parse(Http.body(r)("record")) match
           case None => pure(Http.refused("record"))
-          case Some(signed) => append(env, signed)
+          case Some(signed) => append(env, signed, Http.body(r).field("memo").collect { case Json.Str(m) =>
+              m.replaceAll("\\s+", " ").trim.take(200) }.getOrElse(""))
       case ("POST", "/_acct/deliver") => deliver(env, Http.body(r))
       case ("POST", "/_acct/limits") => scala.util.Try((Http.body(r)("credit").long, Http.body(r)("ceiling").long))
           .toOption match
@@ -125,7 +133,7 @@ object AccountObject extends Actor:
   /** A MEMBER'S RECORD (`send`, `vouch`, `grant`, `revoke`): its holder's signature checked, the rules, the node's
    * signature, the chain's next; a `send` or a `vouch` then delivered to its receiver. A named payment sent again:
    * the record it made */
-  private def append(env: NodeEnv, signed: Signed): Response ! Live = state.flatMap {
+  private def append(env: NodeEnv, signed: Signed, memo: String): Response ! Live = state.flatMap {
     case None => pure(Http.refused("unknown", 404))
     case Some(s) => Record.parse(signed.text) match
         case None => pure(faulted(Fault.Malformed))
@@ -151,14 +159,18 @@ object AccountObject extends Actor:
                     case Left(fault) => pure(faulted(fault))
                     case Right(next) =>
                       val flight: Option[Json] = r.body match
-                        case Body.Send(to, amount, _, _) => Some(Json.obj("kind" -> Json.str("receive"),
-                            "to" -> Json.str(to), "amount" -> Json.num(amount)))
+                        // the memo goes with the payment only when it is the one the record's hash names
+                        case Body.Send(to, amount, hash, _) => Some(Json.obj("kind" -> Json.str("receive"),
+                            "to" -> Json.str(to), "amount" -> Json.num(amount),
+                            "memo" -> Json.str(if memo.nonEmpty && Sha256.hex(memo) == hash then memo else "")))
                         case Body.Vouch(to, amount) => Some(Json.obj("kind" -> Json.str("vouched"),
                             "to" -> Json.str(to), "amount" -> Json.num(amount)))
                         case _ => None
                       val more: Unit ! Step = name.fold(unit[Step])(n => Durable.put[Json, Step](nameKey(n),
                         Json.num(next.seq))).andThen(flight.fold(unit[Step])(f => Durable.put[Json, Step](
-                        flightKey(next.head), f).andThen(Durable.wakeAt[Step](now + retry))))
+                        flightKey(next.head), f).andThen(Durable.wakeAt[Step](now + retry)).andThen(
+                        f.field("memo").collect { case m @ Json.Str(text) if text.nonEmpty => m }.fold(unit[Step])(m =>
+                          Durable.put[Json, Step](memoKey(next.head), m)))))
                       commit(env, Some(s), signed, next, now, more).flatMap {
                         case Left(fault) => pure(faulted(fault))
                         case Right((full, _)) => flight.fold(unit[Live])(f => fly(env, next.head, f)).flatMap(_ =>
@@ -197,8 +209,10 @@ object AccountObject extends Actor:
             byNode(env, body).flatMap {
               case Left(Fault.Unknown("account")) => pure(Http.refused("unknown", 404))
               case Left(fault) => pure(faulted(fault))
-              case Right(_) => Durable.step[Step, Live, Unit](scope)(Durable.put[Json, Step](gotKey(ref),
-                  Json.bool(true))).as(Http.json(Json.obj("taken" -> Json.bool(true))))
+              case Right((taken, _)) => Durable.step[Step, Live, Unit](scope)(Durable.put[Json, Step](gotKey(ref),
+                  Json.bool(true)).andThen(j.field("memo").collect { case m @ Json.Str(text) if text.nonEmpty => m }
+                  .fold(unit[Step])(m => Durable.put[Json, Step](memoKey(taken.hash), m))))
+                  .as(Http.json(Json.obj("taken" -> Json.bool(true))))
             }
         }
 
@@ -209,7 +223,8 @@ object AccountObject extends Actor:
     case Some(s) =>
       val (kind, to, amount) = (f("kind").string, f("to").string, f("amount").long)
       Objects.call[Live](namespace, to, Http.post("/_acct/deliver", Json.obj("kind" -> Json.str(kind),
-        "from" -> Json.str(s.id), "ref" -> Json.str(hash), "amount" -> Json.num(amount)))).flatMap { answer =>
+        "from" -> Json.str(s.id), "ref" -> Json.str(hash), "amount" -> Json.num(amount),
+        "memo" -> f.field("memo").getOrElse(Json.str(""))))).flatMap { answer =>
         def landed: Unit ! Live = Durable.step[Step, Live, Unit](scope)(Durable.delete[Step](
           flightKey(hash)))
         if answer.status == 200 then landed
