@@ -111,28 +111,9 @@ have no place to say what they offer and what they need — which is what the wh
   its members to. In the app: the board, one's own entries, "Pay" from an offer. Done when: both suites.
 - [x] **publish** — Worker, Pages; docs in four languages (how-it-works: recovery no longer "designed"; the board).
 
-## Later (BACKLOG)
+## Later
 
-- ONE LEGAL OPINION on docs/legal.md's seven questions (MiCA's reach and platform reporting first) before any
-  community admits people its founder does not know. Then: terms for a hub's operator, a processing agreement.
-- The rules' acceptance recorded on the member's chain; members asked again when the rules change.
-- A payment through a third community (a path); lines between different units (a rate); a line lent across
-  nodes; closing a line; a flight across a line retried by the alarm under test.
-- The demo community `demo` on the public hub is not set up (no community account): its setup token is in the
-  operator's `.env` (`DEMO_SETUP_TOKEN`); whoever sets it up governs it. Demo members were made by the checks.
-- A shop of Okay Mall taking units: its community and account named in its config, shown on its pages.
-- Trust lines between nodes (protocol stage 4).
-- A holder that is an account (families, companies), two signatures, recovery by the node.
-- `release` of a lent line; a flight's retry under test; batching of the head.
-- Moving a node from a hub to its own deployment with its history (export, import).
-- Closure for the wallet's script (2.7 MB); QR scanning for adding a device.
-- A lawyer's and a tax adviser's review; the terms a hub's operator needs.
-
-Sprint 5 closed 2026-11-18: hub redeployed, Pages republished (gh-pages 8cc0fa8); checked in a browser against the
-live hub — an account opened in `demo`, an offer posted from the app, read back from `GET /n/demo/api/board`. The
-check left three test accounts named "Anna the tailor" in `demo` (one holds the offer). Seen and left: the app
-published on Pages asks the hub's root for `/.well-known/okay-mutual.json` before a community is chosen — a 404
-without CORS, an error in the console and nothing else.
+Everything not done is in [BACKLOG.md](BACKLOG.md), in order.
 
 ## Sprint 6 — shared accounts: a family, a team, two signatures (operator, 2026-11-18: "continue")
 

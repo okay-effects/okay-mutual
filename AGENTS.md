@@ -12,4 +12,6 @@ Read `specs/mutual.md` first: the spec is written before the code and kept true 
 - The invariant every change keeps: the balances sum to zero; both limits hold; the journal only grows.
 - Tests on both platforms (`sbt test`); test data is fictional.
 - Scala 3.3, lines at most 120 wide, English in code and docs. Scripts are scala-cli, never Python.
+- The plan: SPRINT.md (what is being done, its plan written before the work) and BACKLOG.md (what is not done,
+  in order; the operator's open decisions first).
 - Commits: plain messages, no attribution trailers.
