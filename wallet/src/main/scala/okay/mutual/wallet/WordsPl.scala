@@ -311,3 +311,7 @@ object WordsPl extends Words:
   val policyBad = "Takiej polityki społeczność mieć nie może: sprawdź kwoty."
   val hubForbids = "Hub, na którym działa ta społeczność, na to nie pozwala."
   val sharedOff = "W tej społeczności nie ma kont wspólnych."
+  val receive = "Odbierz"
+  val receiveText = "Pokaż ten kod albo wyślij ten link temu, kto Ci płaci: otwiera aplikację na płatności na to " +
+    "konto. Sklep umieszcza taki link na swojej stronie."
+  val notMemberHere = "Ten, komu ten link każe zapłacić, nie jest uczestnikiem tej społeczności."

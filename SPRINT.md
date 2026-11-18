@@ -189,3 +189,15 @@ the communities made before this sprint, read as they were (lines for all, a wee
 Policy screen is checked by WalletSuite only: no community on the live hub has an office whose key we hold (`demo`
 is not set up; the founders' keys of `demo-hill` and `demo-river` went with the browser that made them). A new
 Worker version reaches the edge and running objects within about a minute, as Pages does.
+
+## Sprint 8 — Okay Mall takes units (operator, 2026-11-18: "connect the mall")
+
+A shop of the mall says it takes units; its storefront says so with a link that opens the app at a payment to the
+shop. The mall holds no key and no unit: it shows a link its owner gave it (okay-mall specs/mall.md "Okay Mutual").
+
+- [x] **here** — "Receive": an account's link and code to be paid by (`?node=…&pay=<account>`, with `amount`,
+  `for`); the app opened by such a link goes to the payment, filled in, once the person holds an account there.
+  Four languages. Done when: WalletSuite.
+- [ ] **the mall** — a shop's "Okay Mutual" in its owner's panel (the link, the share of a price taken in units);
+  the storefront's line and foot link; only links to apps the operator lists. Done when: its suite; deployed.
+- [ ] **publish** — both; docs.

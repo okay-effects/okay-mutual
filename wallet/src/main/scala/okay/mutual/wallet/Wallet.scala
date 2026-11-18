@@ -251,7 +251,21 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   // ---- an account's home
 
-  private def home(about: About, id: String, name: String): Unit ! R = Node.account[R](id).flatMap {
+  /** AN ACCOUNT'S HOME — or, when the app was opened by a link that asks to be paid (`?pay=<account>`, kept as
+   * `pay`), the payment it asks for, filled in: once, and every field still the payer's to change */
+  private def home(about: About, id: String, name: String): Unit ! R = setting[R]("pay").flatMap { kept =>
+    kept.filter(_.nonEmpty).flatMap(t => Descent.parse(t).toOption).flatMap(j => scala.util.Try((j("to").string,
+      scala.util.Try(BigDecimal(j("amount").string)).getOrElse(BigDecimal(0)), j("for").string)).toOption) match
+      case None => account(about, id, name)
+      case Some(asked) => keep[R]("pay", "").andThen(Node.account[R](id)).flatMap {
+          case None => account(about, id, name)
+          case Some(s) => others(s).flatMap(ms =>
+            if ms.exists(_.id == asked._1) then paying(about, s, ms, None, Some(asked))
+            else inform(w.pay, w.notMemberHere))
+        }
+  }
+
+  private def account(about: About, id: String, name: String): Unit ! R = Node.account[R](id).flatMap {
     case None => confirm(w.notAtNode, name).flatMap(yes => if yes then forget(id) else pure(()))
     case Some(s) => Device.ready[R].flatMap(key => Node.community[R].flatMap { community =>
         community.fold(pure[Boolean, R](false))(c => Node.account[R](c).map(_.exists(_.grant(key).exists(_.manage))))
@@ -259,7 +273,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
             // an account a family or a team shares: its holders are accounts; it stands on no board, invites nobody
             val shared = Wallet.shared(s.of)
             val waits = s.proposed.count(_.at > now - Chain.life)
-            val buttons = List(Button[Int](w.pay, Style.Primary)(1)) ++
+            val buttons = List(Button[Int](w.pay, Style.Primary)(1), Button[Int](w.receive)(12)) ++
               (if waits > 0 then List(Button[Int](w.toConfirm(waits))(11)) else Nil) ++
               List(Button[Int](w.history)(2)) ++ (if shared then Nil else List(Button[Int](w.vouch)(3))) ++
               List(Button[Int](if shared then w.holders else w.devices)(4), Button[Int](w.checkNode)(5)) ++
@@ -283,6 +297,9 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               case 3 => vouch(about, s)
               case 4 => me(s).flatMap(devices(about, s, _))
               case 11 => me(s).flatMap(confirming(about, s, _))
+              // to be paid: the app's address at this community with this account in it — a link, a code to scan
+              case 12 => Node.invite[R].map(_ + "&pay=" + s.id).flatMap(link => show(Screen[Unit](w.receive)(
+                  Part.text(w.receiveText), Part.qr(link, w.receive), Part.code(link))(Button(w.back)(()))))
               case 5 => check(about, s.id)
               case 6 => office(about, key)
               case 8 => Node.invite[R].flatMap(link => show(Screen[Unit](w.invite)(Part.text(w.inviteText),

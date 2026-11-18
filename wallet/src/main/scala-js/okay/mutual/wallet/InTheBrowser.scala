@@ -50,14 +50,33 @@ object InTheBrowser:
           if NetInPage.hub.isEmpty && address.startsWith(own + "/n/") then address.stripPrefix(own) else address)
       }
 
+  /** A LINK THAT ASKS TO BE PAID (`?node=…&pay=<account>`, with `amount` and `for`): kept for the application,
+   * which goes to that payment once — and taken out of the address, so a reload does not ask again */
+  private def asked(): Unit =
+    val query = new dom.URLSearchParams(dom.window.location.search)
+    Option(query.get("pay")).filter(_.matches("[0-9a-f]{64}")).foreach { to =>
+      def said(name: String, most: Int) = Option(query.get(name)).fold("")(_.trim.take(most))
+      val amount = said("amount", 12)
+      dom.window.localStorage.setItem(NetInPage.prefix + "pay", okay.effects.json.Json.print(
+        okay.effects.json.Json.obj("to" -> okay.effects.json.Json.str(to),
+          "amount" -> okay.effects.json.Json.str(if amount.matches("[0-9]+(\\.[0-9]{1,2})?") then amount else ""),
+          "for" -> okay.effects.json.Json.str(said("for", 120)))))
+      List("pay", "amount", "for").foreach(query.delete)
+      val rest = query.toString
+      dom.window.history.replaceState(null, "", dom.window.location.pathname + (if rest.isEmpty then "" else
+        "?" + rest))
+    }
+
   def main(args: Array[String]): Unit =
     invited()
+    asked()
     val words = Words.of(language)
     dressed(words)
     // okay-faces' own words (Back, Help…) in the same language
     val skin = this.skin.copy(look = this.skin.look.copy(words = okay.faces.Words.of(words.code)))
     val root = Option(dom.document.getElementById("app")).getOrElse(dom.document.body)
-    val running = Async.start(Laminar.run(root, skin)(InThePage.kept(NetInPage.prefix)(InThePage.clipboard(ClockInPage.run(
+    val running = Async.start(Laminar.run(root, skin)(InThePage.kept(NetInPage.prefix)(InThePage.clipboard(
+      ClockInPage.run(
       SignerWeb.run(DeviceInPage.run(NetInPage.run(Wallet[Browser](words).main))))))))
     running.future.failed.foreach {
       case _: Cancelled => ()

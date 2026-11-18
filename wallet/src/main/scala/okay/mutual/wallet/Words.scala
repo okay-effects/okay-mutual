@@ -141,6 +141,8 @@ trait Words:
   def noBound: String; def earnedBefore: String; def earnedBeforeHint: String; def sharedAllowed: String
   def recoveryWait: String; def waitRange: String; def policySaved: String; def policyBad: String
   def hubForbids: String; def sharedOff: String
+  // ---- to be paid by a link
+  def receive: String; def receiveText: String; def notMemberHere: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -436,3 +438,7 @@ object Words:
     val policyBad = "This is not a policy the community can have: check the amounts."
     val hubForbids = "The hub this community is at does not allow that."
     val sharedOff = "This community has no shared accounts."
+    val receive = "Receive"
+    val receiveText = "Show this code or send this link to whoever pays you: it opens the app at a payment to this " +
+      "account. A shop puts the link on its page."
+    val notMemberHere = "The one this link asks you to pay is not a member of this community."

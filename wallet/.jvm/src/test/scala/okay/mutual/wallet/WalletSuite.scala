@@ -573,7 +573,7 @@ class WalletSuite extends munit.FunSuite:
     val made = anna.play(Act.press("Accounts"), Act.press("Shared accounts"), Act.press("New shared account"),
       Act.press("Save", "Its name" -> "Home"), Act.press("OK"))
     assertEquals(made.at.map(_.title), Some("Home"), Seen.of(made))
-    assertEquals(made.at.get.buttons.map(_.label), List("Pay", "History", "Holders", "Check the node", "Accounts"))
+    assertEquals(made.at.get.buttons.map(_.label), List("Pay", "Receive", "History", "Holders", "Check the node", "Accounts"))
     val home = anna.account
     assertEquals(town.checkedShared(home).map(s => (s.of, s.grants.map(_.key), s.floor)),
       Right(("family", Vector(annas), 0L)))
@@ -671,4 +671,26 @@ class WalletSuite extends munit.FunSuite:
     assert(Seen.of(anna.play(Act.press("Accounts"), Act.press("Shared accounts"))).contains("no shared accounts"))
     // nobody but the community's own holders sees its office
     assert(!shop.play().at.get.buttons.exists(_.label == "Community"))
+  }
+
+  test("to be paid by a link: an account's own link and code; the app opened by it goes to the payment, once") {
+    val town = Town()
+    val (shop, anna) = (joined(town, "The shop", "Business"), joined(town, "Anna", "Business"))
+    def asks(to: String, amount: String, what: String) = Json.print(Json.obj("to" -> Json.str(to),
+      "amount" -> Json.str(amount), "for" -> Json.str(what)))
+    val shown = shop.play(Act.press("Receive"))
+    assert(Seen.of(shown).contains(s"?node=${town.prefix}&pay=${shop.account}"), Seen.of(shown))
+    // what the page keeps of such a link: whom, how much, what for
+    anna.kept("pay") = asks(shop.account, "20.00", "order 17")
+    val form = anna.play()
+    assertEquals(form.at.map(_.title), Some("Pay"), Seen.of(form))
+    anna.kept("pay") = asks(shop.account, "20.00", "order 17")
+    val paid = anna.play(Act.press("Save"), Act.press("Yes"))
+    assertEquals(paid.at.map(_.title), Some("Paid"), Seen.of(paid))
+    assert(Seen.of(shop.play(Act.press("History"))).contains("received | Anna | 20.00 PLN | order 17"))
+    // once: the app is at home again
+    assertEquals(anna.play().at.map(_.title), Some("Anna"))
+    // one who is no member here is not paid
+    anna.kept("pay") = asks("0" * 64, "", "")
+    assert(Seen.of(anna.play()).contains("not a member of this community"))
   }
