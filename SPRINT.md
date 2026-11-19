@@ -236,4 +236,8 @@ confirms theirs. Two communities of ours are already governed by nobody.
   community's chain as a recovery — in force after the community's wait, cancelled by any manager that still
   holds a key. Only where joining is by admission: where anyone joins, anyone could vote themselves in. A
   member's age counted from the node's clock, not from the record the member wrote.
-- [ ] **publish** — Worker, Pages, docs ×4.
+- [x] **publish** — Worker, Pages, docs ×4.
+
+Sprint 10 closed 2026-11-20: hub redeployed, Pages republished (gh-pages 2f5c8c4). On the live hub the election
+answers (`demo` is open to anyone: no election there, as designed). The office's warning and the members' election
+are checked by the suites only — the live hub has no community whose office key we hold (BACKLOG item 7).
