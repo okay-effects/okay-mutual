@@ -223,3 +223,17 @@ community's legal person is for.
 code, the name and the public hub; each community its own legal person; the builders ordinary businesses — and
 docs/statute.md, a draft statute of the foundation with the list of where it is weak; both in four languages (the
 Polish statute is the working text). A proposal for a lawyer: nothing is decided or registered.
+
+## Sprint 10 — a community outlives its founder's phone (BACKLOG item 1; operator, 2026-11-20: "continue")
+
+A community's own account is recovered by nobody: its managers confirm everyone else's recovery, and nobody
+confirms theirs. Two communities of ours are already governed by nobody.
+
+- [ ] **two managers** — the office warns while one key governs the community and adds a second from there (a
+  device, another person's): the first thing a founder is asked to do.
+- [ ] **the members elect** — where every manager's key is gone: a member names a new manager's key, signed; when
+  more than half of the members who have been members a month say the same key, the node announces it on the
+  community's chain as a recovery — in force after the community's wait, cancelled by any manager that still
+  holds a key. Only where joining is by admission: where anyone joins, anyone could vote themselves in. A
+  member's age counted from the node's clock, not from the record the member wrote.
+- [ ] **publish** — Worker, Pages, docs ×4.

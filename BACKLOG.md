@@ -6,12 +6,13 @@ is started — its plan written there before the work. Written 2026-11-18 after 
 
 ## Decisions that are the operator's (nothing below them starts until said)
 
-- **D1. The public hub: a demonstration or hosting.** Whoever hosts a community's node holds its data and is its
-  host. Either the hub says it is a demonstration (for trying, its data erased from time to time, not for a real
-  community's accounts; perhaps a cap on a community's members) — or it is hosting and someone answers for it.
-  Items 2, 3 and 6 depend on the answer. Recommended: a demonstration.
-- **D2. The public hub's bounds**: whether communities there may give private people credit (`HUB_PERSONAL`,
-  `HUB_MAX_PERSONAL`). Now: everything allowed.
+- **D1. The public hub is HOSTING** (decided 2026-11-20). The operator hosts the communities made on it and
+  answers for that as a host: their data, a processing agreement, a privacy notice, backups, a way out. So items
+  2, 3 and 6 are owed, not optional. Open: under whose name the hosting is offered (the operator's own, his
+  business's) — a question for the lawyer and the accountant.
+- **D2. Private people may be given credit on the public hub** (decided 2026-11-20): every way with private
+  people stays allowed there (`HUB_PERSONAL` not set), no bound of the hub's; each community chooses, and one that
+  gives people credit takes on the consumer-credit question (docs/legal.md).
 - **D3. A community without a legal person**: rewrite docs/legal.md and docs/organisation.md to three steps — an
   informal group for a trial among people who know each other, an ordinary association, a legal person — in four
   languages, with the question of a civil-law partnership added for the lawyer. Now the documents recommend a
