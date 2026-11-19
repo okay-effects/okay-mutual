@@ -26,7 +26,8 @@ is started — its plan written there before the work. Written 2026-11-18 after 
 
 ## Before the first real members (in this order)
 
-1. **A founder's key lost locks the community.** A community's own account has nobody to confirm its recovery:
+1. DONE (sprint 10, 2026-11-20): the office's warning and a second manager; the members' election where
+   joining is by admission. Was: **A founder's key lost locks the community.** A community's own account has nobody to confirm its recovery:
    `demo-hill` and `demo-river` are already governed by nobody. How: making a community asks for a second manager
    — a second device or another member's key — before it admits anyone; the office warns while there is one
    manager; perhaps recovery of a community's account by a quorum of its members. Done when: a suite shows a

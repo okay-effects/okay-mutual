@@ -50,6 +50,7 @@ run a community's node, and communities connect by trust lines they choose thems
 | Policies set at every level: a hub's operator bounds its communities; a community changes its own policy (joining, lines, private people: none / earn first / lent lines / a line after a record / lines for all, shared accounts, the recovery's wait); an account its holders, limits and two-holder threshold | runs, tested |
 | To be paid by a link or a code ("Receive"); a shop of Okay Mall says it takes units and its storefront links the payment | runs, tested |
 | Stamp cards: a shop's card, a stamp and a reward by a code the customer scans — not units, kept beside the chains | runs, tested |
+| A community that outlives its founder's phone: a second manager from the office; where every manager's key is lost, the members elect one | runs, tested |
 | A shared account held by another shared account; taking a lent line back | designed |
 | A hub of nodes: anyone creates a community by a call or from the app; each node's key made with it; accounts of different nodes apart | runs, tested; LIVE on Cloudflare Workers: https://okay-mutual.okay-effects.workers.dev (checked in a browser: two devices, a payment, the node verified) |
 | Joining by request where it is not open: asked from the app, admitted or rejected in the community's office | runs, tested |

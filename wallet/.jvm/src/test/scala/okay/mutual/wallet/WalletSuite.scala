@@ -730,3 +730,56 @@ class WalletSuite extends munit.FunSuite:
     // a stamp is no unit
     assert(Seen.of(anna.play()).contains("Balance: 0.00") && Seen.of(shop.play()).contains("Balance: 0.00"))
   }
+
+  test("a community outlives its founder's phone: a second manager from the office; else the members elect one") {
+    val day = 86400000L
+    val hub = Hubs()
+    val founder = new Phone(hub)
+    founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "Our Town",
+      "Its place in the address" -> "our-town"), Act.press("OK"))
+    val community = founder.account
+    // one device governs: the office says so, and a second manager is added there as a device is
+    val office = founder.play(Act.press("Community"))
+    assert(Seen.of(office).contains("Warning: One device governs this community"), Seen.of(office))
+    val second = new Phone(hub, node = "/n/our-town")
+    second.play(Act.press("Add this device to my account"))
+    val added = founder.play(Act.press("Community"), Act.press("Managers"), Act.press("Add a device"),
+      Act.press("Save", "The new device's key" -> second.key, "May manage the account" -> "true"))
+    assertEquals(added.at.map(_.title), Some("Added"), Seen.of(added))
+    assert(!Seen.of(founder.play(Act.press("Community"))).contains("One device governs"))
+    // the members, for when both are lost
+    def joins(name: String): Phone =
+      val phone = new Phone(hub, node = "/n/our-town")
+      phone.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> name,
+        "Account" -> "Business"), Act.press("OK"))
+      founder.play(Act.press("Community"), Act.press("Requests (1)"), Act.choose("Admit", name), Act.press("Save"))
+      assertEquals(phone.play().at.map(_.title), Some(name))
+      phone
+    val (anna, jan, olaf) = (joins("Anna"), joins("Jan"), joins("Olaf"))
+    def elects(phone: Phone, fields: (String, String)*) = phone.play(Act.press("Check the node"),
+      Act.press("Elect a manager"), Act.press("Say this key", fields*))
+    // a member of a day has no say
+    assert(Seen.of(elects(anna)).contains("members for a month"), Seen.of(elects(anna)))
+    hub.now += 31 * day
+    val one = elects(anna)
+    assert(Seen.of(one).contains("Your word is kept: 1 of 2."), Seen.of(one))
+    val shown = jan.play(Act.press("Check the node"), Act.press("Elect a manager"))
+    assert(Seen.of(shown).contains("2 members of a month or more") && Seen.of(shown).contains("| 1 / 2"),
+      Seen.of(shown))
+    // Jan says Anna's key too: announced on the community's own chain; in force after the week
+    val two = elects(jan, "The new manager's device key" -> anna.key)
+    assert(Seen.of(two).contains("the key is announced on the community's chain"), Seen.of(two))
+    val waits = olaf.play(Act.press("Check the node"), Act.press("Elect a manager"))
+    assert(Seen.of(waits).contains("Info: Announced: the key"), Seen.of(waits))
+    assert(Seen.of(olaf.play(Act.press("Check the node"), Act.press("Elect a manager"),
+      Act.press("Take the account up"))).contains("Not yet"))
+    hub.now += 7 * day + 1000
+    val up = olaf.play(Act.press("Check the node"), Act.press("Elect a manager"), Act.press("Take the account up"))
+    assert(Seen.of(up).contains("The new manager governs now"), Seen.of(up))
+    // Anna's phone takes the community's account up and governs
+    val taken = anna.play(Act.press("Accounts"), Act.press("Open or add another"),
+      Act.press("Add this device to my account"), Act.press("It is added", "The account's id" -> community),
+      Act.press("OK"))
+    assertEquals(taken.at.map(_.title), Some("Our Town"), Seen.of(taken))
+    assert(taken.at.get.buttons.exists(_.label == "Community"))
+  }

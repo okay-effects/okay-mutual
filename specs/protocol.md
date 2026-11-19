@@ -399,6 +399,29 @@ beside the chains (`dir/card/<shop>`, `dir/stamps/<shop>/<customer>`), and may b
 - A photographed code is worth one stamp to whoever claims it first, as a paper stamp is.
 - Not built: a card of a shared account (a team's); a shop's list of its card holders; cards across communities.
 
+## A community outlives its founder's phone (sprint 10)
+
+A community's own account is an account as any — but its managers confirm everyone else's recovery, and nobody
+confirmed theirs.
+
+- **Two managers**: a second key that may manage the community's account, added as a device is. The office
+  warns while there is one. This is the answer for every community; what follows is for when it was not done.
+- **The members elect** (`POST /api/election {account, key, sig, candidate}`; `GET /api/election`): a member — a
+  person's or a business's account, a member for `NodeApp.seasoned` (a month) by the node's own clock — says
+  that the key `candidate` should manage: `sig`, by a key that manages the member's own account, over
+  `elect:<the community's account>:<candidate>`. One word a member, the last one said. When more than half of the
+  members with a say (two at least) say the same key, the node writes `recover {key, after}` on the community's
+  chain — the same record, the same wait (`wait` of the policy), the same cancelling by a holder that still
+  manages as for any account's recovery; then `recovered`.
+- **Only where joining is by admission.** Where anyone joins, anyone makes as many accounts as they like and
+  votes themselves in a month later; an open community's only safety is its second manager. Where members are
+  admitted, nobody new can be admitted while nobody governs, so those with a say are those the managers let in.
+- A member's age is the node's clock when it listed the member, never the time the member's own first record
+  says.
+- What it does not protect against: a community most of whose members collude against its managers can replace
+  them — after a week in the open, during which a manager with a key says no. That is the members' right; the
+  chain shows it.
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

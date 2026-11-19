@@ -85,6 +85,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("short", _) => w.notEnoughStamps
     case ("no card", _) => w.noSuchCard
     case ("same", _) => w.ownCode
+    case ("open", _) => w.electNotHere
+    case ("young", _) => w.electYoung
     case ("taken", _) => w.openAlready
     case ("token", _) => w.notTheToken
     case ("set", _) => w.setUpAlready
@@ -601,10 +603,44 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
             val remembered = (proof, head) match
               case (Some(p), Part.Notice(Level.Info, _)) => keep[R](kept, s"${p.number}:${p.root}")
               case _ => pure[Unit, R](())
-            remembered.andThen(show(Screen[Unit](w.checked)(chain, head, Part.text(w.didSums))(Button(w.back)(()))))
+            // where a community admits its members, they can elect a manager when its managers' keys are gone
+            remembered.andThen(show(Screen[Boolean](w.checked)(chain, head, Part.text(w.didSums))(
+              ((if about.open then Nil else List(Button(w.electManager)(true))) :+ Button(w.back)(false))*)))
+              .flatMap(elect => if elect then electing(about, id) else pure(()))
           }
         }
       })))
+
+  /** A MANAGER ELECTED BY THE MEMBERS (specs/protocol.md "A community outlives its founder's phone"): when the
+   * keys that governed the community are gone, a member names a device's key — its own, or one shown to it — and
+   * signs that; enough members saying the same key announce it on the community's chain; after the wait it governs */
+  private def electing(about: About, id: String): Unit ! R = Node.community[R].flatMap {
+    case None => inform(w.electManager, w.electNotHere)
+    case Some(c) => Device.ready[R].flatMap(key => Node.account[R](c).flatMap(com => Node.election[R].flatMap {
+        (need, votes) =>
+          val table = Table(votes.toList)(Column.text(w.key)(v => short(v._1) + (if v._1 == key then " " +
+            w.thisDevice else "")), Column.text(w.electSay)(v => s"${v._2} / $need")).keyedBy(_._1)
+            .whenEmpty(w.electNobody)
+          val announced = com.flatMap(_.recovering).toList.map((k, after) =>
+            Part.info(w.electAnnounced(short(k), day(after))))
+          val form = Form.one(said(Field.text(w.electKey).hinted(w.electKeyHint).initially(key)))
+          show(Screen[Option[Option[String]]](w.electManager)((Seq[Part](Part.text(w.electText(need))) ++
+            announced ++ Seq[Part](table, form))*)(((Button.submit(w.electSayIt, form, Style.Primary)((k: String) =>
+            Option(Option(k))) :: announced.map(_ => Button(w.backNow)(Some(None)))) :+ Button(w.back)(None))*))
+            .flatMap {
+            case None => pure(())
+            // announced and due: made so (refused until its time)
+            case Some(None) => Node.recovered[R](c).flatMap(done =>
+                inform(w.electManager, if done then w.electInForce else w.notYetBack))
+            case Some(Some(candidate)) => Device.sign[R](s"elect:$c:${candidate.trim}").flatMap(sig =>
+                Node.elect[R](id, key, sig, candidate.trim)).flatMap {
+                case Right((_, _, true)) => inform(w.electManager, w.electDone)
+                case Right((count, of, _)) => inform(w.electManager, w.electCount(count, of))
+                case Left(r) => inform(w.electManager, refusal(r, about.unit))
+              }
+          }
+      }))
+  }
 
   // ---- the community's office: for a device that may manage the community's own account
 
@@ -862,10 +898,14 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         Column.money(w.balance, about.unit)(x => units(x._2.balance)),
         Column.money(w.creditLine, about.unit)(x => units(x._2.credit)),
         Column.money(w.ceiling, about.unit)(x => units(x._2.ceiling))).keyedBy(_._1.id).whenEmpty(w.noMembers)
-      show(Screen[Option[Either[Int, (Member, State)]]](s"${w.community} · ${about.name}")(Part.details(
+      // the community's own account: while one key governs it, losing that device loses the community
+      val own = all.find(_._1.of == "community").map(_._2)
+      val alone = own.exists(_.grants.count(_.manage) < 2)
+      show(Screen[Option[Either[Int, (Member, State)]]](s"${w.community} · ${about.name}")(((if alone then
+        Seq[Part](Part.warning(w.oneManager)) else Seq.empty[Part]) ++ Seq[Part](Part.details(
         w.members -> Cell.Number(BigDecimal(all.size)),
-        w.sum -> Cell.Money(units(all.map(_._2.balance).sum), about.unit)), Part.text(w.sumText), table)(
-        Button.select(w.setLimits, table)(x => Some(Right(x))),
+        w.sum -> Cell.Money(units(all.map(_._2.balance).sum), about.unit)), Part.text(w.sumText), table))*)(
+        Button.select(w.setLimits, table)(x => Some(Right(x))), Button(w.managers)(Some(Left(6))),
         Button(w.requestsButton(asked.size))(Some(Left(1))), Button(w.trustLines)(Some(Left(2))),
         Button(w.rulesButton)(Some(Left(3))), Button(w.policy)(Some(Left(5))),
         Button(w.recoveriesButton(lostOnes.size))(Some(Left(4))),
@@ -874,6 +914,9 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         case Some(Left(1)) => asking(about, key).andThen(defer(office(about, key)))
         case Some(Left(4)) => losses(about, key).andThen(defer(office(about, key)))
         case Some(Left(2)) => lines(about, key).andThen(defer(office(about, key)))
+        // who governs: the community's own account's holders — a second manager is added as a device is
+        case Some(Left(6)) => own.fold(pure[Unit, R](()))(s => devices(about, s, key))
+            .andThen(defer(office(about, key)))
         // its policy changed, what the app knows of the community is asked again: back to the start
         case Some(Left(5)) => policy(about, key)
         // the community's rules: from then on the ones a newcomer accepts

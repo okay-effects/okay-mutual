@@ -94,6 +94,19 @@ keys may *manage* it are the community's board. In the app, with that account in
 A command to the node (admitting a member, setting a limit) is signed by such a key, is good for ten minutes and is
 taken once.
 
+### When the managers' keys are lost
+
+A community is governed by the keys that hold its own account. **Add a second manager on the first day** — another
+device of yours, or a person you trust (*Community → Managers*); the office warns while there is only one.
+
+If every such key is lost anyway, the members can elect a new manager — where the community admits its members
+itself. A member opens *Check the node → Elect a manager* and names a device's key; when more than half of those
+who have been members for a month name the same key, the node announces it on the community's own chain. After
+the community's waiting time that key governs — unless a manager who still holds a key says no in between.
+
+Where anyone may join, there is no such election: anyone could vote themselves in. There, two managers are the
+only safety.
+
 ## What is not there yet
 
 - Trust lines join two communities that each opened one to the other (**Community**, then **Trust lines**), in

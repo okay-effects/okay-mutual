@@ -346,3 +346,24 @@ object WordsPl extends Words:
   val notEnoughStamps = "Karta nie jest jeszcze pełna."
   val noSuchCard = "Ten sklep nie ma teraz karty."
   val ownCode = "To kod Twojego własnego sklepu."
+  val oneManager = "Tą społecznością zarządza jedno urządzenie. Jeśli zginie, nikt nie będzie mógł przyjmować " +
+    "uczestników ani ustawiać limitów, dopóki uczestnicy nie wybiorą nowego zarządzającego. Dodaj drugiego " +
+    "zarządzającego teraz — inne swoje urządzenie albo osobę, której ufasz."
+  val managers = "Zarządzający"
+  val electManager = "Wybierz zarządzającego"
+  def electText(need: Int) = "Na wypadek, gdy klucze, które zarządzały społecznością, zginęły. Uczestnik wskazuje " +
+    "klucz urządzenia, które ma zarządzać — tego albo pokazanego mu — i to podpisuje. Gdy " +
+    s"$need uczestników ze stażem co najmniej miesiąca wskaże ten sam klucz, zostaje on ogłoszony; po czasie " +
+    "oczekiwania przyjętym w społeczności zarządza, chyba że zarządzający, który ma jeszcze klucz, powie „nie”."
+  val electSay = "Ilu uczestników wskazało"; val electNobody = "nikt jeszcze nie wskazał klucza"
+  val electKey = "Klucz urządzenia nowego zarządzającego"
+  val electKeyHint = "klucz tego urządzenia, jeśli nie wpiszesz innego: widać go tam w „Dodaj to urządzenie”"
+  val electSayIt = "Wskaż ten klucz"
+  def electAnnounced(key: String, day: String) = s"Ogłoszono: klucz $key zarządza od $day."
+  val electInForce = "Nowy zarządzający już zarządza. Na tamtym urządzeniu: „Konta”, „Otwórz albo dodaj " +
+    "kolejne”, „Dodaj to urządzenie do mojego konta” — z identyfikatorem konta społeczności."
+  val electDone = "Wskazało wystarczająco wielu uczestników: klucz ogłoszono w łańcuchu społeczności."
+  def electCount(count: Int, need: Int) = s"Twoje słowo zapisano: $count z $need."
+  val electNotHere = "Ta społeczność jest otwarta dla każdego, więc jej uczestnicy nie wybierają zarządzającego: " +
+    "każdy mógłby zagłosować na siebie. Miej dwóch zarządzających."
+  val electYoung = "Głos mają tylko ci, którzy są uczestnikami co najmniej od miesiąca."

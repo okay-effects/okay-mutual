@@ -154,6 +154,12 @@ trait Words:
   def rewardTakenText(shop: String, reward: String): String
   def codeUsed: String; def codeOld: String; def codeBad: String; def notEnoughStamps: String
   def noSuchCard: String; def ownCode: String
+  // ---- who governs a community, and when their keys are gone
+  def oneManager: String; def managers: String; def electManager: String; def electText(need: Int): String
+  def electSay: String; def electNobody: String; def electKey: String; def electKeyHint: String
+  def electSayIt: String; def electAnnounced(key: String, day: String): String; def electInForce: String
+  def electDone: String; def electCount(count: Int, need: Int): String; def electNotHere: String
+  def electYoung: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -484,3 +490,24 @@ object Words:
     val notEnoughStamps = "The card is not full yet."
     val noSuchCard = "This shop has no card now."
     val ownCode = "This is your own shop's code."
+    val oneManager = "One device governs this community. If it is lost, nobody can admit members or set limits " +
+      "until the members elect a new manager. Add a second manager now — another device of yours, or a person " +
+      "you trust."
+    val managers = "Managers"
+    val electManager = "Elect a manager"
+    def electText(need: Int) = "For when the keys that governed this community are lost. A member names a " +
+      "device's key that should govern — this device's, or one shown to them — and signs it. When " +
+      s"$need members of a month or more say the same key, it is announced; after the community's waiting time " +
+      "it governs, unless a manager who still holds a key says no."
+    val electSay = "Members saying it"; val electNobody = "nobody has said a key yet"
+    val electKey = "The new manager's device key"
+    val electKeyHint = "this device's unless you put another's: shown there under Add this device to my account"
+    val electSayIt = "Say this key"
+    def electAnnounced(key: String, day: String) = s"Announced: the key $key governs from $day."
+    val electInForce = "The new manager governs now. On that device: Accounts, Open or add another, Add this " +
+      "device to my account — with the community's account id."
+    val electDone = "Enough members said it: the key is announced on the community's chain."
+    def electCount(count: Int, need: Int) = s"Your word is kept: $count of $need."
+    val electNotHere = "This community is open to anyone, so its members elect no manager: anyone could vote " +
+      "themselves in. Keep two managers."
+    val electYoung = "Only those who have been members for a month have a say."

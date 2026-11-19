@@ -133,6 +133,19 @@ object Node:
         j("title").string, j("reward").string, j("need").long, j("stamps").long)).toOption
         .toRight(Refusal(200, "answer", "")))
 
+  /** a manager being elected: how many must say the same key, and how many say each now */
+  def election[R[_]: Has[Net]]: (Int, Vector[(String, Int)]) ! R = call[R]("GET", "/api/election").map((_, j) =>
+    scala.util.Try((j("need").long.toInt, j("votes").list.map(v => v("key").string -> v("count").long.toInt)))
+      .getOrElse((0, Vector.empty)))
+  /** this member's word that `candidate` should manage the community: how many say so now, how many must, and
+   * whether that made it announced */
+  def elect[R[_]: Has[Net]](account: String, key: String, sig: String, candidate: String)
+    : Either[Refusal, (Int, Int, Boolean)] ! R =
+    call[R]("POST", "/api/election", Some(Json.obj("account" -> Json.str(account), "key" -> Json.str(key),
+      "sig" -> Json.str(sig), "candidate" -> Json.str(candidate)))).map((status, j) =>
+      if status != 200 then Left(refusal(status, j)) else scala.util.Try((j("count").long.toInt, j("need").long.toInt,
+        j.field("announced").isDefined)).toOption.toRight(Refusal(200, "answer", "")))
+
   /** an account asked back by this device: `sig` its signature of `recover:<account>:<key>` */
   def askBack[R[_]: Has[Net]](account: String, key: String, sig: String): Either[Refusal, Unit] ! R =
     call[R]("POST", s"/api/accounts/$account/recovery", Some(Json.obj("key" -> Json.str(key), "sig" -> Json.str(sig))))

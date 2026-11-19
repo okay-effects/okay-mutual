@@ -97,6 +97,21 @@ mogą nim *zarządzać*, to zarząd społeczności. W aplikacji, kiedy używasz 
 Polecenie dla węzła (przyjęcie uczestnika, ustawienie limitu) jest podpisane takim kluczem, jest ważne przez
 dziesięć minut i przyjmowane tylko raz.
 
+### Gdy klucze zarządzających zginą
+
+Społecznością zarządzają klucze, które mają jej własne konto. **Dodaj drugiego zarządzającego pierwszego dnia** —
+inne swoje urządzenie albo osobę, której ufasz (*Społeczność → Zarządzający*); biuro ostrzega, dopóki
+zarządzający jest jeden.
+
+Jeśli mimo to zginą wszystkie takie klucze, uczestnicy mogą wybrać nowego zarządzającego — tam, gdzie społeczność
+sama przyjmuje uczestników. Uczestnik otwiera *Sprawdź węzeł → Wybierz zarządzającego* i wskazuje klucz
+urządzenia; gdy ponad połowa tych, którzy są uczestnikami co najmniej od miesiąca, wskaże ten sam klucz, węzeł
+ogłasza go w łańcuchu samej społeczności. Po czasie oczekiwania przyjętym w społeczności ten klucz zarządza —
+chyba że w tym czasie zarządzający, który ma jeszcze klucz, powie „nie”.
+
+Tam, gdzie dołączyć może każdy, takich wyborów nie ma: każdy mógłby zagłosować na siebie. Tam jedynym
+zabezpieczeniem jest dwóch zarządzających.
+
 ## Czego jeszcze nie ma
 
 - Linie zaufania łączą dwie społeczności, z których każda otworzyła linię do drugiej (**Społeczność**, potem
