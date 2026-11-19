@@ -21,6 +21,7 @@ import okay.serverless.cloud.{Actor, InActor, Request, Response}
  *   dir/listing/<id>    an offer or a want of a member: what, for how much, what share of it in units
  *   dir/card/<id>       a shop's stamp card: its title, how many stamps make a reward, the reward
  *   dir/stamps/<shop>/<customer>  a customer's card at a shop: the stamps on it, the rewards taken
+ *   dir/elect/<key>/<member>  a member's word that <key> should manage the community (its managers' keys lost)
  *   dir/rules           the community's rules: the text its members accept to join, and its hash
  *   dir/holders/<id>    the accounts that hold the account <id> (a family's, a team's): their ids
  *   dir/community       the id of the community's own account — its holders that may manage govern the node
@@ -46,6 +47,7 @@ object Directory extends Actor:
   private val holders = s"$scope/holders/"
   private val cards = s"$scope/card/"
   private val stamps = s"$scope/stamps/"
+  private val elect = s"$scope/elect/"
 
   type Live[X] = (InActor + Signer)[X]
   private type Step[X] = (Live + Durable)[X]
@@ -179,6 +181,19 @@ object Directory extends Actor:
                 "used" -> Json.num(next._2))))
           }
       }).map(_.fold((why, status) => Http.refused(why, status), Http.json(_)))
+    // ---- a manager elected by the members (specs/protocol.md "A community outlives its founder's phone")
+    // a member's word for a key (one a member: its earlier word for another key is taken off); who says what now
+    case ("POST", "/_dir/elect") =>
+      val j = Http.body(r)
+      val (key, member) = (j("key").string, j("member").string)
+      step(Durable.keys[Step](elect).flatMap(ks => ks.filter(_.endsWith("/" + member)).foldLeft(unit[Step])(
+        (acc, k) => acc.andThen(Durable.delete[Step](k))).andThen(Durable.put[Json, Step](
+        elect + key + "/" + member, Json.bool(true))))).as(Http.json(Json.obj()))
+    case ("GET", "/_dir/election") => Http.all[Live](elect).map(all => Http.json(Json.obj("said" -> Json.Arr(
+        all.map((k, _) => k.stripPrefix(elect)).map(k => Json.obj("key" -> Json.str(k.takeWhile(_ != '/')),
+          "member" -> Json.str(k.dropWhile(_ != '/').drop(1))))))))
+    case ("POST", "/_dir/election/clear") => step(Durable.keys[Step](elect).flatMap(ks =>
+        ks.foldLeft(unit[Step])((acc, k) => acc.andThen(Durable.delete[Step](k))))).as(Http.json(Json.obj()))
     // ---- recovery asked (specs/protocol.md "Keys"): kept until the community confirms or drops it
     case ("POST", "/_dir/recovery") =>
       val j = Http.body(r)

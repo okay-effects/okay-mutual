@@ -53,6 +53,11 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *                                           the shop's device signed (`stamp` / `redeem {account, at, n}`, good ten
  *                                           minutes, taken once), claimed by a key that holds `account` (`sig`: its
  *                                           signature of `claim:<the command's hash>:<account>`)
+ *   GET  /api/election                      a manager being elected: how many must say a key, who says which
+ *   POST /api/election                      {account, key, sig, candidate}: a member's word that `candidate` (a
+ *                                           device's key) should manage the community — `sig` the signature of
+ *                                           `elect:<the community's account>:<candidate>` by a key that manages
+ *                                           the member's own account
  *   POST /api/setup                         {record, name}: the community's own account, once (`x-setup-token`)
  *   POST /api/command                       {command, key, sig}: a command of one who may manage the community
  *
@@ -77,6 +82,8 @@ object NodeApp extends App:
   type Live[X] = (Cloud + Signer)[X]
   val fresh: Long = 10 * 60 * 1000L
   private val day: Long = 24L * 60 * 60 * 1000
+  /** how long one has to have been a member to have a say in electing a manager */
+  val seasoned: Long = 30 * day
   /** how long a recovery is announced before it is in force where a community's policy says nothing else: time for
    * the account's own holder to say no */
   val waiting: Long = 7 * day
@@ -187,6 +194,10 @@ object NodeApp extends App:
           .getOrElse("")}")).map(answered)
       case ("POST", List("api", "cards")) => posted(env, Http.body(r))
       case ("POST", List("api", "cards", "claim")) => claimed(env, Http.body(r))
+      case ("GET", List("api", "election")) => election(env).map((need, said, _) => Http.json(Json.obj(
+          "open" -> Json.bool(env.open), "need" -> Json.num(need), "votes" -> Json.Arr(said.groupBy(_._1).toVector
+            .sortBy(-_._2.size).map((k, vs) => Json.obj("key" -> Json.str(k), "count" -> Json.num(vs.size)))))))
+      case ("POST", List("api", "election")) => elected(env, Http.body(r))
       case ("POST", List("api", "setup")) => setup(env, r)
       case ("POST", List("api", "command")) => command(env, Http.body(r))
       case _ => pure(Response.notFound())
@@ -202,10 +213,63 @@ object NodeApp extends App:
   private def joined(env: NodeEnv, j: Json, credit: Long, ceiling: Long): Response ! Live = asking(j) match
     case Some((signed, name, of, at)) => open(env, signed.hash, j("record"), credit, ceiling).flatMap { made =>
         if made.status != 200 then pure(answered(made))
-        else directory(env, Http.post("/_dir/member", Json.obj("id" -> Json.str(signed.hash),
-          "name" -> Json.str(name), "of" -> Json.str(of), "at" -> Json.num(at)))).as(answered(made))
+        // a member since the node's own clock says so: the time its first record says is the member's word
+        else Clock.now[Live].flatMap(now => directory(env, Http.post("/_dir/member", Json.obj(
+          "id" -> Json.str(signed.hash), "name" -> Json.str(name), "of" -> Json.str(of),
+          "at" -> Json.num(now.max(at)))))).as(answered(made))
       }
     case None => pure(Http.refused("record"))
+
+  /**
+   * A MANAGER ELECTED BY THE MEMBERS (specs/protocol.md "A community outlives its founder's phone"). The members
+   * with a say: people and businesses that have been members for `seasoned`. How many must say the same key: more
+   * than half of them, two at least. Answered: that number, who says which key now (those still with a say), and
+   * who has a say
+   */
+  private def election(env: NodeEnv): (Int, Vector[(String, String)], Set[String]) ! Live =
+    Clock.now[Live].flatMap(now => directory(env, Request.get("/_dir/members")).flatMap(ms =>
+      directory(env, Request.get("/_dir/election")).map { said =>
+        val voters = scala.util.Try(Http.answer(ms)("members").list).getOrElse(Vector.empty).filter(m =>
+          Set("personal", "business")(m("of").string) && m("at").long <= now - seasoned).map(_("id").string).toSet
+        val words = scala.util.Try(Http.answer(said)("said").list.map(s => s("key").string -> s("member").string))
+          .getOrElse(Vector.empty).filter(w => voters(w._2))
+        ((voters.size / 2 + 1).max(2), words, voters)
+      }))
+
+  /** a member's word for a key; when enough say the same, the key is announced on the community's own chain as
+   * a recovery — in force after the community's wait, cancelled by any manager that still holds a key. Only
+   * where joining is by admission: where anyone joins, anyone could vote themselves in */
+  private def elected(env: NodeEnv, j: Json): Response ! Live =
+    scala.util.Try((j("account").string, j("key").string, j("sig").string, j("candidate").string)).toOption match
+      case Some((member, key, sig, candidate)) if id(member) && candidate.matches("[A-Za-z0-9_-]{40,200}") =>
+        if env.open then pure(Http.refused("open", 409))
+        else directory(env, Request.get("/_dir/community")).flatMap { com =>
+          Http.answer(com).field("community").map(_.string) match
+            case None => pure(Http.refused("no community", 409))
+            case Some(community) => Signer.verify[Live](key, s"elect:$community:$candidate", sig).flatMap { signed =>
+                if !signed then pure(Http.refused("unsigned", 403))
+                else account(env, member, Request.get("/_acct/state")).flatMap { st =>
+                  if !StateJson.read(Http.answer(st)).flatMap(_.grant(key)).exists(_.manage) then
+                    pure(Http.refused("forbidden", 403))
+                  else election(env).flatMap { (_, _, voters) =>
+                    if !voters(member) then pure(Http.refused("young", 403))
+                    else directory(env, Http.post("/_dir/elect", Json.obj("key" -> Json.str(candidate),
+                      "member" -> Json.str(member)))).flatMap(_ => election(env)).flatMap { (need, said, _) =>
+                      val count = said.count(_._1 == candidate)
+                      if count < need then pure(Http.json(Json.obj("count" -> Json.num(count),
+                        "need" -> Json.num(need))))
+                      else Clock.now[Live].flatMap(now => account(env, community, Http.post("/_acct/recover",
+                        Json.obj("key" -> Json.str(candidate), "after" -> Json.num(now + env.days * day)))))
+                        .flatMap(done => if done.status != 200 then pure(answered(done))
+                          else directory(env, Http.post("/_dir/election/clear", Json.obj())).as(Http.json(
+                            Json.obj("count" -> Json.num(count), "need" -> Json.num(need),
+                              "announced" -> Json.str(candidate)))))
+                    }
+                  }
+                }
+              }
+        }
+      case _ => pure(Http.refused("body"))
 
   /** AN ACCOUNT A FAMILY OR A TEAM SHARES: opened by an account that is a member here already — so at once,
    * whatever the joining —, with no credit line of its own: what it may owe is lent to it (`vouch`) or given by the

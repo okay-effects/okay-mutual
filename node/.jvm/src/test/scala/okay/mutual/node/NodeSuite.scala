@@ -746,3 +746,67 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(word(jan, "/api/cards", "cmd" -> Json.str("uncard"), "account" -> Json.str(jan.id)).status, 200)
     assertEquals(error(net, claim(token("stamp")))._2, "no card")
   }
+
+  test("a community outlives its founder's phone: its members elect a manager's key, announced as a recovery") {
+    val net = Net(join = "admitted")
+    val founder = Wallet(net)
+    assertEquals(net.post("/api/setup", Json.obj("record" -> founder.signed(founder.opening("community")),
+      "name" -> Json.str("The Guild")), "x-setup-token" -> net.token).status, 200)
+    val community = net.json(net.get("/api/community"))("community").string
+    founder.id = community
+    def command(by: Pair, fields: (String, Json)*) =
+      net.now += 1
+      net.command(by, (fields.toVector :+ ("at" -> Json.num(net.now)))*)
+    /** one who asks and is admitted */
+    def member(name: String): Wallet =
+      val w = Wallet(net)
+      w.id = Sha256.hex(Record.text(w.opening("business")))
+      assertEquals(w.join(name, "business").status, 202)
+      assertEquals(command(founder.key, "cmd" -> Json.str("admit"), "id" -> Json.str(w.id),
+        "credit" -> Json.num(10000), "ceiling" -> Json.num(30000)).status, 200)
+      w
+    val (a, b, c) = (member("A"), member("B"), member("C"))
+    val next = SignerJdk.generate()
+    def says(w: Wallet, candidate: String = next.pub, by: Pair = null, account: String = null) =
+      val key = Option(by).getOrElse(w.key)
+      net.post("/api/election", Json.obj("account" -> Json.str(Option(account).getOrElse(w.id)),
+        "key" -> Json.str(key.pub), "candidate" -> Json.str(candidate),
+        "sig" -> Json.str(SignerJdk.sign(key.secret, s"elect:$community:$candidate"))))
+    // a member of a day has no say; after a month, more than half of the three must say the same key
+    assertEquals(error(net, says(a))._2, "young")
+    net.now += 31 * day
+    val late = member("Late")
+    assertEquals(error(net, says(late))._2, "young")
+    val first = says(a)
+    assertEquals((first.status, net.json(first)("count").long, net.json(first)("need").long), (200, 1L, 2L))
+    // not for another's account; not by a signature of another text; one word a member — said again, for another
+    assertEquals(says(a, by = b.key).status, 403)
+    assertEquals(net.post("/api/election", Json.obj("account" -> Json.str(b.id), "key" -> Json.str(b.key.pub),
+      "candidate" -> Json.str(next.pub), "sig" -> Json.str(SignerJdk.sign(b.key.secret, "something else")))).status,
+      403)
+    val other = SignerJdk.generate()
+    assertEquals(net.json(says(a, other.pub))("count").long, 1L)
+    assertEquals(net.json(net.get("/api/election"))("votes").list.map(v => v("key").string -> v("count").long),
+      Vector(other.pub -> 1L))
+    assertEquals(net.json(says(a))("count").long, 1L)
+    // the second word: announced on the community's own chain, not yet in force
+    val second = says(b)
+    assertEquals(net.json(second)("announced").string, next.pub, second.body)
+    assertEquals(founder.state("recovering")("key").string, next.pub)
+    assertEquals(net.json(net.get("/api/election"))("votes").list, Vector.empty)
+    assertEquals(net.post(s"/api/accounts/$community/recovered", Json.obj()).status, 409)
+    // a founder who still holds a key says no
+    assertEquals(founder.say(Body.Revoke(next.pub)).status, 200)
+    assertEquals(founder.state("recovering"), Json.Null)
+    // the founder's phone is gone: said again, the week passes, the new key governs
+    says(a); assertEquals(net.json(says(c))("announced").string, next.pub)
+    net.now += 7 * day + 1
+    assertEquals(net.post(s"/api/accounts/$community/recovered", Json.obj()).status, 200)
+    assertEquals(command(next, "cmd" -> Json.str("rules"), "text" -> Json.str("New rules.")).status, 200)
+    assertEquals(net.checked(community).map(_.grants.count(_.manage)), Right(2))
+    // where anyone joins, anyone could vote themselves in: no election there
+    val (open, x, _) = town()
+    open.now += 31 * day
+    assertEquals(open.post("/api/election", Json.obj("account" -> Json.str(x.id), "key" -> Json.str(x.key.pub),
+      "candidate" -> Json.str(next.pub), "sig" -> Json.str("s"))).status, 409)
+  }
