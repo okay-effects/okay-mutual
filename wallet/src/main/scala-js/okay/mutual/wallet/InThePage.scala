@@ -130,3 +130,22 @@ object ClockInPage:
         val done = Promise[Unit]()
         js.timers.setTimeout(millis.toDouble)(done.trySuccess(()))
         Async.fromFuture[Unit, Rest](done.future).flatMap(k)))
+
+/** `Files` IN A PAGE: a file saved as the browser saves a download — a link to its text, clicked */
+object FilesInPage:
+  def run[R[_], Rest[_], A](p: A ! R)(using Split[Files, R, Rest]): A ! Rest =
+    handle(p, Handler.Tail[Files, Rest, A, A](a => pure(a), [X] => (op: Files[X]) => op match
+      case Files.Save(name, text) => scala.util.Try {
+          val document = js.Dynamic.global.document
+          val blob = js.Dynamic.newInstance(js.Dynamic.global.Blob)(js.Array(text),
+            js.Dynamic.literal(`type` = "application/json"))
+          val url = js.Dynamic.global.URL.createObjectURL(blob)
+          val link = document.createElement("a")
+          link.href = url
+          link.download = name
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          js.timers.setTimeout(1000)(js.Dynamic.global.URL.revokeObjectURL(url))
+          true
+        }.getOrElse(false)))

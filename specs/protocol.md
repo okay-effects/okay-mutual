@@ -422,6 +422,25 @@ confirmed theirs.
   them — after a week in the open, during which a manager with a key says no. That is the members' right; the
   chain shows it.
 
+## A community's data out and in (sprint 11)
+
+- **The file**: `{v, kind: "okay-mutual-node", at, env, directory, accounts}` — the node (`NodeEnv`, its key
+  pair with it), what its directory keeps (but the commands taken), and every account's storage by its id (but the
+  node it was opened under). Made by `export {}`, a command of one who manages the community; for a hub's
+  operator, every community at once by `GET /api/backup` with the hub's token.
+- **Brought**: `POST /api/nodes {slug, import: <file>}` at any hub, under that hub's rules of making a node. The
+  policy must be one the hub allows. Every account's chain is folded again from its first record and checked by
+  its signatures (an act for a holder account against that account's chain in the file); it must end where the
+  file says, with the balance the file says. The state written is the fold — never the file's: a state kept by an
+  older node lacks what newer ones count (`earned`), and the chain is the truth. Refused where any of its
+  accounts is already on the hub (the community has not left it): two nodes of one key on one hub would be one
+  object each account.
+- **Closed**: `moved {address}` — from then on the node refuses every change (410, `moved`) and says where it went
+  (`/.well-known/okay-mutual.json` `moved`); reads still answered. Not closing it leaves two nodes signing the same
+  chains — a fork every member's app can prove. Closing is the managers' duty; nothing enforces it across hubs.
+- **What does not move by itself**: another node's trust line keeps the old address until that community opens
+  the line again to the new one; members' apps that never come back to the old address are not told.
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

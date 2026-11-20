@@ -160,6 +160,13 @@ trait Words:
   def electSayIt: String; def electAnnounced(key: String, day: String): String; def electInForce: String
   def electDone: String; def electCount(count: Int, need: Int): String; def electNotHere: String
   def electYoung: String
+  // ---- a community's copy, its move
+  def moveOrBackUp: String; def moveText: String; def copyIsKey: String; def saveCopy: String; def copySaved: String
+  def copySavedText: String; def notSaved: String; def closeHere: String; def closeText: String
+  def newAddress: String; def newAddressHint: String; def closeQuestion: String; def closedHere: String
+  def closedHereText: String; def movedTitle: String; def movedText(name: String, address: String): String
+  def goThere: String; def bringCommunity: String; def bringText: String; def theFile: String; def brought: String
+  def broughtText: String; def bringHere: String; def bringChain: String; def bringFile: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -511,3 +518,33 @@ object Words:
     val electNotHere = "This community is open to anyone, so its members elect no manager: anyone could vote " +
       "themselves in. Keep two managers."
     val electYoung = "Only those who have been members for a month have a say."
+    val moveOrBackUp = "Move or back up"
+    val moveText = "Save a copy of the whole community — every account's records, the members, the rules, the " +
+      "community's key — as one file. Keep copies; with one the community can be brought to another hub, or to " +
+      "your own node, from where communities are made there. Once it is there, close it here."
+    val copyIsKey = "The file holds the community's key: whoever has it can act as this community's node. Keep it as " +
+      "you keep a key."
+    val saveCopy = "Save a copy"; val copySaved = "Saved"
+    val copySavedText = "The copy is in your device's downloads."
+    val notSaved = "The copy was not saved."
+    val closeHere = "It moved: close it here"
+    val closeText = "When the community is brought to its new place, close it here: from then on this hub changes " +
+      "nothing, and every member's app that comes here is sent to the new address."
+    val newAddress = "Its new address"; val newAddressHint = "https://… — as the new hub shows it"
+    val closeQuestion = "Close the community here? Nothing can be paid here from then on."
+    val closedHere = "Closed here"
+    val closedHereText = "Members' apps that come here go to the new address."
+    val movedTitle = "The community moved"
+    def movedText(name: String, address: String) = s"${if name.isEmpty then "This community" else name} moved to " +
+      s"$address. Nothing changes here any more."
+    val goThere = "Go there"
+    val bringCommunity = "Bring a community from a file"
+    val bringText = "A community's copy, saved in its office: it is brought to this hub as it was — its accounts, " +
+      "its members, its key. Every record is checked before it is taken."
+    val theFile = "The community's file"
+    val brought = "The community is here"
+    val broughtText = "Close it at its old place now (its office: Move or back up). Your devices hold its accounts " +
+      "as before."
+    val bringHere = "This community is on this hub already, or one of its accounts is."
+    val bringChain = "The file's records do not hold: it was changed or damaged."
+    val bringFile = "This is not a community's file."

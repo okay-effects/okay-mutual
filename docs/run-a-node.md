@@ -107,6 +107,30 @@ the community's waiting time that key governs — unless a manager who still hol
 Where anyone may join, there is no such election: anyone could vote themselves in. There, two managers are the
 only safety.
 
+## A copy, and moving a community
+
+*Community → Move or back up → Save a copy* saves the whole community as one file: every account's records, the
+members, the rules, the policy — and the community's key pair. **Whoever has the file can act as this community's
+node: keep it as you keep a key.** Keep a few copies.
+
+To move a community — from a hub to your own node, or to another hub: on the new one choose *Bring a community
+from a file* where communities are made. Every record is checked there before it is taken; each account's state is
+counted again from its chain. Then, at the old place, *It moved: close it here* with the new address: from then on
+the old place changes nothing, and every member's app that comes there is sent on. Trust lines with other
+communities are opened again from the new address (*Community → Trust lines*, the same peer, the new address).
+
+### Backups, for a hub's operator
+
+A hub that hosts others' communities owes them backups. Set the hub's token (`npx wrangler secret put HUB_TOKEN`
+in `worker/`; on your own machine, `HUB_TOKEN` in its environment), keep it in `.env`, and run
+
+```sh
+scala-cli run scripts/backup.scala -- https://your-hub.example
+```
+
+It writes every community of the hub into `backups/<host>-<time>.json` (not committed; it holds every community's
+key) and reads it back. Each community in it is a file another hub takes as above.
+
 ## What is not there yet
 
 - Trust lines join two communities that each opened one to the other (**Community**, then **Trust lines**), in

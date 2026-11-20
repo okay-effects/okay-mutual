@@ -367,3 +367,32 @@ object WordsPl extends Words:
   val electNotHere = "Ta społeczność jest otwarta dla każdego, więc jej uczestnicy nie wybierają zarządzającego: " +
     "każdy mógłby zagłosować na siebie. Miej dwóch zarządzających."
   val electYoung = "Głos mają tylko ci, którzy są uczestnikami co najmniej od miesiąca."
+  val moveOrBackUp = "Przenieś albo zachowaj kopię"
+  val moveText = "Zachowaj kopię całej społeczności — zapisy każdego konta, uczestników, zasady, klucz " +
+    "społeczności — jako jeden plik. Przechowuj kopie; z nią społeczność można przenieść na inny hub albo na własny " +
+    "węzeł — tam, gdzie tworzy się społeczności. Gdy już tam jest, zamknij ją tutaj."
+  val copyIsKey = "Plik zawiera klucz społeczności: kto go ma, może działać jako jej węzeł. Przechowuj go jak klucz."
+  val saveCopy = "Zachowaj kopię"; val copySaved = "Zapisano"
+  val copySavedText = "Kopia jest w pobranych plikach Twojego urządzenia."
+  val notSaved = "Kopia nie została zapisana."
+  val closeHere = "Przeniosła się: zamknij tutaj"
+  val closeText = "Gdy społeczność jest już w nowym miejscu, zamknij ją tutaj: od tej chwili ten hub niczego nie " +
+    "zmienia, a aplikacja każdego uczestnika, która tu trafi, jest kierowana na nowy adres."
+  val newAddress = "Jej nowy adres"; val newAddressHint = "https://… — tak, jak pokazuje go nowy hub"
+  val closeQuestion = "Zamknąć społeczność tutaj? Od tej chwili nie da się tu niczego zapłacić."
+  val closedHere = "Zamknięto tutaj"
+  val closedHereText = "Aplikacje uczestników, które tu trafią, przechodzą na nowy adres."
+  val movedTitle = "Społeczność się przeniosła"
+  def movedText(name: String, address: String) = s"${if name.isEmpty then "Ta społeczność" else name} przeniosła " +
+    s"się: $address. Tutaj nic się już nie zmienia."
+  val goThere = "Przejdź tam"
+  val bringCommunity = "Przenieś społeczność z pliku"
+  val bringText = "Kopia społeczności zachowana w jej biurze: zostaje przeniesiona na ten hub taka, jaka była — jej " +
+    "konta, uczestnicy, klucz. Każdy zapis jest sprawdzany, zanim zostanie przyjęty."
+  val theFile = "Plik społeczności"
+  val brought = "Społeczność jest tutaj"
+  val broughtText = "Teraz zamknij ją w starym miejscu (jej biuro: „Przenieś albo zachowaj kopię”). Twoje " +
+    "urządzenia mają jej konta tak jak wcześniej."
+  val bringHere = "Ta społeczność jest już na tym hubie — albo jedno z jej kont."
+  val bringChain = "Zapisy pliku się nie zgadzają: został zmieniony albo uszkodzony."
+  val bringFile = "To nie jest plik społeczności."

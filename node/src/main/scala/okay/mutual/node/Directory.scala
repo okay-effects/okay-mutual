@@ -325,20 +325,22 @@ object Hub extends Actor:
     }
 
   /** the chains of a community's file, each folded again from its first record and checked by its signatures —
-   * an act for a holder account against that account's own chain in the file: the first account that does not
-   * make the state the file says, or none */
-  private def unsound(env: NodeEnv, accounts: Vector[(String, Map[String, Json])]): Option[String] ! Live =
+   * an act for a holder account against that account's own chain in the file: each account's state as its chain
+   * makes it (the chain is the truth: a state kept by an older node lacks what newer ones count), or the first
+   * account whose chain does not hold or ends elsewhere than its file says */
+  private def folded(env: NodeEnv, accounts: Vector[(String, Map[String, Json])])
+    : Either[String, Map[String, State]] ! Live =
     val byId = accounts.toMap
     def records(m: Map[String, Json]): Vector[Signed] =
       m.toVector.filter(_._1.startsWith("acct/rec/")).sortBy(_._1).flatMap(x => Signed.parse(x._2))
     def held(a: Acting): Boolean ! Live = byId.get(a.account).fold(pure(false))(m => Check.holds[Live](records(m), a))
-    accounts.foldLeft(pure[Option[String], Live](None))((acc, am) => acc.flatMap {
-      case found @ Some(_) => pure(found)
-      case None => Check.chain[Live](records(am._2), held).map {
-          // the state the file says, whole, is the one the chain makes — not its head alone
-          case Right(s) if s.id == am._1 && s.node == env.pub &&
-            am._2.get("acct/state").flatMap(StateJson.read).contains(s) => None
-          case _ => Some(am._1)
+    accounts.foldLeft(pure[Either[String, Map[String, State]], Live](Right(Map.empty)))((acc, am) => acc.flatMap {
+      case left @ Left(_) => pure(left)
+      case Right(all) => Check.chain[Live](records(am._2), held).map {
+          // where the file says it ends, with what balance: a file changed or cut short is refused
+          case Right(s) if s.id == am._1 && s.node == env.pub && am._2.get("acct/state").flatMap(StateJson.read)
+            .exists(f => f.head == s.head && f.seq == s.seq && f.balance == s.balance) => Right(all + (am._1 -> s))
+          case _ => Left(am._1)
         }
     })
 
@@ -358,9 +360,9 @@ object Hub extends Actor:
         accounts.forall(_._1.matches("[0-9a-f]{64}")) =>
         env.allowed(hub) match
           case Some(why) => pure(Http.refused("policy", 409, "detail" -> Json.str(why)))
-          case None => unsound(env, accounts).flatMap {
-              case Some(id) => pure(Http.refused("chain", 409, "detail" -> Json.str(id)))
-              case None => accounts.foldLeft(pure[Boolean, Live](false))((acc, am) => acc.flatMap(t =>
+          case None => folded(env, accounts).flatMap {
+              case Left(id) => pure(Http.refused("chain", 409, "detail" -> Json.str(id)))
+              case Right(states) => accounts.foldLeft(pure[Boolean, Live](false))((acc, am) => acc.flatMap(t =>
                   if t then pure(true) else okay.serverless.cloud.Objects.call[Live](AccountObject.namespace, am._1,
                     Request.get("/_acct/taken")).map(r => scala.util.Try(Http.answer(r)("taken").boolean)
                     .getOrElse(true)))).flatMap { taken =>
@@ -369,8 +371,9 @@ object Hub extends Actor:
                     case Some(why) => pure(Http.refused(why, if why == "taken" then 409 else 429))
                     case None => accounts.foldLeft(unit[Live])((acc, am) => acc.flatMap(_ =>
                         okay.serverless.cloud.Objects.call[Live](AccountObject.namespace, am._1, Http.post(
-                          "/_acct/import", Json.obj("env" -> NodeEnv.write(env), "entries" -> Json.Obj(am._2
-                            .toVector))))).as(())).flatMap(_ => okay.serverless.cloud.Objects.call[Live](
+                          "/_acct/import", Json.obj("env" -> NodeEnv.write(env), "entries" -> Json.Obj((am._2 +
+                            ("acct/state" -> StateJson.write(states(am._1)))).toVector))))).as(()))
+                      .flatMap(_ => okay.serverless.cloud.Objects.call[Live](
                         Directory.namespace, place, Http.post("/_dir/import", Json.obj("env" -> NodeEnv.write(env),
                           "entries" -> directory)))).map(made =>
                         if made.status != 200 then Http.refused("taken", 409)

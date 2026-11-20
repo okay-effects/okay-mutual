@@ -112,6 +112,32 @@ chyba że w tym czasie zarządzający, który ma jeszcze klucz, powie „nie”.
 Tam, gdzie dołączyć może każdy, takich wyborów nie ma: każdy mógłby zagłosować na siebie. Tam jedynym
 zabezpieczeniem jest dwóch zarządzających.
 
+## Kopia i przeniesienie społeczności
+
+*Społeczność → Przenieś albo zachowaj kopię → Zachowaj kopię* zapisuje całą społeczność jako jeden plik: zapisy
+każdego konta, uczestników, zasady, politykę — i parę kluczy społeczności. **Kto ma plik, może działać jako węzeł
+tej społeczności: przechowuj go jak klucz.** Trzymaj kilka kopii.
+
+Żeby przenieść społeczność — z huba na własny węzeł albo na inny hub: w nowym miejscu wybierz *Przenieś
+społeczność z pliku* tam, gdzie tworzy się społeczności. Każdy zapis jest sprawdzany przed przyjęciem; stan
+każdego konta jest liczony od nowa z jego łańcucha. Potem w starym miejscu — *Przeniosła się: zamknij tutaj* z
+nowym adresem: od tej chwili stare miejsce niczego nie zmienia, a aplikacja każdego uczestnika, która tam trafi,
+jest kierowana dalej. Linie zaufania z innymi społecznościami otwiera się ponownie z nowego adresu
+(*Społeczność → Linie zaufania*, ten sam partner, nowy adres).
+
+### Kopie zapasowe — dla operatora huba
+
+Hub, na którym działają cudze społeczności, ma obowiązek robić im kopie zapasowe. Ustaw token huba (`npx wrangler
+secret put HUB_TOKEN` w `worker/`; na własnej maszynie — `HUB_TOKEN` w środowisku), trzymaj go w `.env` i uruchamiaj
+
+```sh
+scala-cli run scripts/backup.scala -- https://your-hub.example
+```
+
+Skrypt zapisuje wszystkie społeczności huba do `backups/<host>-<czas>.json` (nie trafia do gita: są tam klucze
+wszystkich społeczności) i odczytuje plik z powrotem. Każda społeczność w nim to plik, który inny hub przyjmuje,
+jak opisano wyżej.
+
 ## Czego jeszcze nie ma
 
 - Linie zaufania łączą dwie społeczności, z których każda otworzyła linię do drugiej (**Społeczność**, potem

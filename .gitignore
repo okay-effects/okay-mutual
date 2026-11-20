@@ -10,3 +10,4 @@ worker/assets/
 worker/.wrangler/
 .env
 node-data/
+backups/

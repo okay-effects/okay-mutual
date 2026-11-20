@@ -20,7 +20,7 @@ import okay.scala3.std.Clock
  * limits from here, by signed commands. There is no other administrator
  */
 final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[Device, R], In[Settings, R],
-  In[Signer, R], In[Clock, R], In[Clipboard, R]):
+  In[Signer, R], In[Clock, R], In[Clipboard, R], In[Files, R]):
   private val week = 7L * 86400000L
 
   // ---- the screens every program has, in this wallet's words (okay-ui's own are English)
@@ -85,6 +85,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("short", _) => w.notEnoughStamps
     case ("no card", _) => w.noSuchCard
     case ("same", _) => w.ownCode
+    case ("moved", d) => w.movedText("", d)
     case ("open", _) => w.electNotHere
     case ("young", _) => w.electYoung
     case ("taken", _) => w.openAlready
@@ -110,6 +111,10 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   /** the node this wallet talks to: the one it is served by, or the one the person names */
   private def connected: About ! R = Node.about[R].flatMap {
+    // a community that moved says where: the app goes there (what it holds here is kept under the old address)
+    case Some(about) if about.moved.nonEmpty =>
+      show(Screen[Unit](w.movedTitle)(Part.text(w.movedText(about.name, about.moved)))(Button(w.goThere,
+        Style.Primary)(()))).andThen(keep[R]("node", about.moved)).andThen(defer(connected))
     case Some(about) => pure(about)
     case None => find.andThen(defer(connected))
   }
@@ -125,11 +130,37 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     show(Screen[Option[String]](w.findCommunity)(Part.text(w.findText), Part.section(w.communitiesHere)(), table,
       form)(Button.select(w.use, table)(n => Some(s"/n/${n.slug}")),
       Button.submit(w.useAddress, form, Style.Plain)(a => Some(a.trim.stripSuffix("/"))),
-      Button(w.createCommunity)(None))).flatMap {
+      Button(w.createCommunity)(None), Button(w.bringCommunity)(Some(bringing)))).flatMap {
+      case Some(`bringing`) => bring
       case Some(address) => keep[R]("node", address)
       case None => create
     }
   }
+
+  private val bringing = "\u0000bring"
+
+  /** A COMMUNITY BROUGHT FROM ITS FILE (a copy saved in its office, or one sent by its managers): to this hub, at a
+   * place of its own — every chain is checked there; then the app is at it */
+  private def bring: Unit ! R =
+    edit[(String, String)](w.bringCommunity, Form(said(Field.file(w.theFile, ".json")),
+      said(Field.text(w.place).hinted(w.placeHint))), Part.text(w.bringText)).flatMap {
+      case None => pure(())
+      case Some((text, place)) => Descent.parse(text.trim).toOption match
+          case None => inform(w.bringCommunity, w.bringFile)
+          case Some(file) => Node.bring[R](place.trim.toLowerCase, file).flatMap {
+              case Right(address) => keep[R]("node", address).andThen(inform(w.brought, w.broughtText))
+              case Left(r) => inform(w.bringCommunity, r.why match
+                  case "here" => w.bringHere
+                  case "chain" => w.bringChain
+                  case "file" => w.bringFile
+                  case "policy" => w.hubForbids
+                  case "taken" => w.placeTaken
+                  case "body" => w.placeBad
+                  case "limit" | "full" => w.hubLimit
+                  case "token" => w.hubClosed
+                  case _ => refusal(r, ""))
+            }
+    }
 
   /** A COMMUNITY MADE: its node at the hub, then its own account opened by this device's key — its founder's */
   private def create: Unit ! R = Node.bounds[R].flatMap(creating)
@@ -907,7 +938,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         w.sum -> Cell.Money(units(all.map(_._2.balance).sum), about.unit)), Part.text(w.sumText), table))*)(
         Button.select(w.setLimits, table)(x => Some(Right(x))), Button(w.managers)(Some(Left(6))),
         Button(w.requestsButton(asked.size))(Some(Left(1))), Button(w.trustLines)(Some(Left(2))),
-        Button(w.rulesButton)(Some(Left(3))), Button(w.policy)(Some(Left(5))),
+        Button(w.rulesButton)(Some(Left(3))), Button(w.policy)(Some(Left(5))), Button(w.moveOrBackUp)(Some(Left(7))),
         Button(w.recoveriesButton(lostOnes.size))(Some(Left(4))),
         Button(w.back)(None))).flatMap {
         case None => pure(())
@@ -917,6 +948,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         // who governs: the community's own account's holders — a second manager is added as a device is
         case Some(Left(6)) => own.fold(pure[Unit, R](()))(s => devices(about, s, key))
             .andThen(defer(office(about, key)))
+        case Some(Left(7)) => moving(about, key).andThen(defer(office(about, key)))
         // its policy changed, what the app knows of the community is asked again: back to the start
         case Some(Left(5)) => policy(about, key)
         // the community's rules: from then on the ones a newcomer accepts
@@ -991,6 +1023,35 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           case Some((only, line, owing, after)) => command(key, "policy", "only" -> Json.str(only),
               "personalCredit" -> Json.num(cents(line)), "personalMax" -> Json.num(owing.fold(0L)(cents)),
               "after" -> Json.num(cents(after))).flatMap(saved)
+        }
+      case _ => pure(())
+    }
+
+  /** THE COMMUNITY'S COPY, AND ITS MOVE (specs/protocol.md "A community's data out and in"): the whole community as
+   * one file — its key pair in it: whoever has it can be this node, so it is kept as a key is —; brought to another
+   * hub from where communities are made there; then this node closed: it says where it went and changes nothing */
+  private def moving(about: About, key: String): Unit ! R =
+    show(Screen[Int](w.moveOrBackUp)(Part.text(w.moveText), Part.warning(w.copyIsKey))(Button(w.saveCopy,
+      Style.Primary)(1), Button(w.closeHere, Style.Danger)(2), Button(w.back)(0))).flatMap {
+      case 1 => Clock.now[R].flatMap { now =>
+          val text = Json.print(Json.obj("cmd" -> Json.str("export"), "at" -> Json.num(now)))
+          Device.sign[R](text).flatMap(sig => Node.commandJson[R](text, key, sig)).flatMap {
+            case Left(r) => inform(w.saveCopy, refusal(r, about.unit))
+            case Right(file) =>
+              val name = about.name.toLowerCase.replaceAll("[^a-z0-9]+", "-").stripPrefix("-").stripSuffix("-")
+              Files.save[R](s"${if name.isEmpty then "community" else name}-${day(now)}.okay-mutual.json",
+                Json.print(file)).flatMap(saved => if saved then inform(w.copySaved, w.copySavedText)
+                else inform(w.saveCopy, w.notSaved))
+          }
+        }
+      case 2 => edit[String](w.closeHere, Form.one(said(Field.text(w.newAddress).hinted(w.newAddressHint))),
+          Part.text(w.closeText)).flatMap {
+          case None => pure(())
+          case Some(address) => confirm(w.closeQuestion, w.closeHere).flatMap(yes => if !yes then pure(()) else
+              command(key, "moved", "address" -> Json.str(address.trim.stripSuffix("/"))).flatMap {
+                case Right(_) => inform(w.closedHere, w.closedHereText)
+                case Left(r) => inform(w.closeHere, refusal(r, about.unit))
+              })
         }
       case _ => pure(())
     }

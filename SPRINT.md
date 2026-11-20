@@ -250,9 +250,15 @@ are checked by the suites only — the live hub has no community whose office ke
   `moved {address}`: the old node answers what it was asked to, refuses every change and says where it went;
   `GET /api/backup` (`x-hub-token`): every community of the hub, for its operator. Done when: NodeSuite — a
   community moved between two hubs, payments going on there, the old one refusing.
-- [ ] **the app** — the office's "Move or back up": save a copy (a file), close here once moved; "Bring a
+- [x] **the app** — the office's "Move or back up": save a copy (a file), close here once moved; "Bring a
   community from a file" where communities are made; an app at a moved community goes where it went. Four
   languages. Done when: WalletSuite.
-- [ ] **the operator's backups** — `scripts/backup.scala` (scala-cli): the hub's backup into a dated file; the
+- [x] **the operator's backups** — `scripts/backup.scala` (scala-cli): the hub's backup into a dated file; the
   live hub's `HUB_TOKEN` set (kept in `.env`). Done when: a backup of the live hub taken and read back.
-- [ ] **publish** — Worker, Pages, docs ×4.
+- [x] **publish** — Worker, Pages, docs ×4.
+
+Sprint 11 closed 2026-11-20: the live hub's token set (in `.env`, never printed); a backup of the live hub taken
+by `scripts/backup.scala` (3 communities, 20 accounts) and every community of it brought into a hub on this
+machine (the JVM host) — balances as on the live hub. That check found that a state kept by an older node lacks
+what newer ones count, so a hub bringing a file now writes each state as its chain makes it, checking only where
+the chain ends and its balance against the file.

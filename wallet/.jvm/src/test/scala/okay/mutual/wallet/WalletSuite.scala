@@ -17,7 +17,9 @@ final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
   if node.nonEmpty then kept("node") = node
   /** what the wallet copied: its statements */
   val copied = scala.collection.mutable.Buffer.empty[String]
-  type World[X] = (Ui + Settings + Clipboard + Clock + Net + Device + Signer)[X]
+  /** the files it saved: name, text */
+  val saved = scala.collection.mutable.Buffer.empty[(String, String)]
+  type World[X] = (Ui + Settings + Clipboard + Clock + Net + Device + Signer + Files)[X]
 
   private def asked(method: String, path: String, body: Option[Json], headers: (String, String)*): (Int, Json) =
     val r = hub.ask(Request(method, path).copy(body = body.fold("")(Json.print(_)), headers =
@@ -47,8 +49,14 @@ final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
 
   /** the wallet from its start, the acts done in order: what was seen, and the screen it stopped at */
   def play(acts: Act*): Played[(Long, Unit)] =
-    Play(steps(keptIn(kept)(copiedTo(copied)(Clock.virtual(hub.now)(SignerJdk.run(device(net(
-      Wallet[World](words).main))))))), acts*)
+    Play(steps(keptIn(kept)(copiedTo(copied)(Clock.virtual(hub.now)(SignerJdk.run(device(net(files(
+      Wallet[World](words).main)))))))), acts*)
+
+  private def files[R[_], Rest[_], A](p: A ! R)(using Split[Files, R, Rest]): A ! Rest =
+    handle(p, Handler.Tail[Files, Rest, A, A](a => pure(a), [X] => (op: Files[X]) => op match
+      case Files.Save(name, text) =>
+        saved += name -> text
+        true))
 
   def key: String = pair.get.pub
   /** the account in use at the node in use */
@@ -782,4 +790,44 @@ class WalletSuite extends munit.FunSuite:
       Act.press("OK"))
     assertEquals(taken.at.map(_.title), Some("Our Town"), Seen.of(taken))
     assert(taken.at.get.buttons.exists(_.label == "Community"))
+  }
+
+  test("a community's copy and its move: saved from the office, brought to another hub, closed at its old place") {
+    val hub = Hubs()
+    val founder = new Phone(hub)
+    founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "Our Town",
+      "Its place in the address" -> "our-town", "How one joins" -> "open to anyone"), Act.press("OK"))
+    val anna = new Phone(hub, node = "/n/our-town")
+    anna.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> "Anna",
+      "Account" -> "Business"), Act.press("OK"))
+    // the copy: the whole community as one file, its key in it — the office says so
+    val screen = founder.play(Act.press("Community"), Act.press("Move or back up"))
+    assert(Seen.of(screen).contains("Warning: The file holds the community's key"), Seen.of(screen))
+    val saved = founder.play(Act.press("Community"), Act.press("Move or back up"), Act.press("Save a copy"))
+    assertEquals(saved.at.map(_.title), Some("Saved"), Seen.of(saved))
+    val (name, file) = founder.saved.last
+    assert(name.startsWith("our-town-") && name.endsWith(".okay-mutual.json"), name)
+    // another hub: brought from the file where communities are made; every account there as it was
+    val south = Hubs()
+    val newcomer = new Phone(south)
+    val bad = newcomer.play(Act.press("Bring a community from a file"), Act.press("Save",
+      "The community's file" -> "{\"not\":\"a file\"}", "Its place in the address" -> "town"))
+    assert(Seen.of(bad).contains("not a community's file"), Seen.of(bad))
+    val brought = newcomer.play(Act.press("Bring a community from a file"), Act.press("Save",
+      "The community's file" -> file, "Its place in the address" -> "town"))
+    assertEquals(brought.at.map(_.title), Some("The community is here"), Seen.of(brought))
+    assertEquals(south.json(south.get(s"/n/town/api/accounts/${anna.account}"))("id").string, anna.account)
+    assertEquals(south.json(south.get("/n/town/.well-known/okay-mutual.json"))("name").string, "Our Town")
+    // closed at its old place: an app that comes there is sent where it went (here: another community of this hub)
+    founder.play(Act.press("Accounts"), Act.press("Another community"), Act.press("Create a community"),
+      Act.press("Save", "The community's name" -> "Next Town", "Its place in the address" -> "next-town"),
+      Act.press("OK"))
+    founder.play(Act.press("Accounts"), Act.press("Another community"), Act.choose("Use", "Our Town"))
+    val closed = founder.play(Act.press("Community"), Act.press("Move or back up"), Act.press("It moved: close it here"),
+      Act.press("Save", "Its new address" -> "/n/next-town"), Act.press("Yes"))
+    assertEquals(closed.at.map(_.title), Some("Closed here"), Seen.of(closed))
+    val told = anna.play()
+    assertEquals(told.at.map(_.title), Some("The community moved"), Seen.of(told))
+    assertEquals(anna.play(Act.press("Go there")).at.map(_.title), Some("Okay Mutual"))
+    assertEquals(anna.kept("node"), "/n/next-town")
   }

@@ -32,7 +32,8 @@ is started — its plan written there before the work. Written 2026-11-18 after 
    — a second device or another member's key — before it admits anyone; the office warns while there is one
    manager; perhaps recovery of a community's account by a quorum of its members. Done when: a suite shows a
    community that survives its founder's phone.
-2. **A community's data out and in.** No export: an operator's mistake or a platform's fault loses every account.
+2. DONE (sprint 11, 2026-11-20): export, bring, close as moved, the operator's backup. Was: **A community's data
+   out and in.** No export: an operator's mistake or a platform's fault loses every account.
    How: a node's whole state (chains, names, memos, the directory, the policy — never its secret unless asked by
    the setup token) as one file; the same file taken by another hub or one's own node, the node's key with it.
    This is also "leaving a hub" (protocol: "Anyone has a node"). Done when: a community moved between two hubs in

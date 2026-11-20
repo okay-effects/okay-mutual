@@ -22,7 +22,7 @@ final case class Bounds(personal: Set[String] = Set("business", "earned", "vouch
 /** what a node says it is (`/.well-known/okay-mutual.json`): its key, its unit, its name — and its policy */
 final case class About(key: String, unit: String, name: String, open: Boolean, credit: Long, ceiling: Long,
                        only: String = "", personalCredit: Long = 0L, personalMax: Long = 0L, after: Long = 0L,
-                       shared: Boolean = true, days: Int = 7, hub: Bounds = Bounds())
+                       shared: Boolean = true, days: Int = 7, hub: Bounds = Bounds(), moved: String = "")
 /** a community as its hub lists it */
 final case class Listed(slug: String, name: String, unit: String, open: Boolean)
 /** a node this one keeps an account for (a trust line): its key, its address, its name, the account's id here */
@@ -70,7 +70,8 @@ object Node:
       j.field("only").collect { case Json.Str(s) => s }.getOrElse(""),
       j.field("personalCredit").fold(j("credit").long)(_.long), j.field("personalMax").fold(0L)(_.long),
       j.field("after").fold(0L)(_.long), j.field("shared").forall(_.boolean), j.field("wait").fold(7)(_.long.toInt),
-      j.field("hub").fold(Bounds())(bounded))).toOption)
+      j.field("hub").fold(Bounds())(bounded), j.field("moved").collect { case Json.Str(m) => m }.getOrElse("")))
+      .toOption)
 
   private def bounded(j: Json): Bounds = scala.util.Try(Bounds(j("personal").list.map(_.string).toSet,
     j("maxCredit").long, j("maxPersonal").long)).getOrElse(Bounds())
@@ -196,6 +197,17 @@ object Node:
     call[R]("POST", s"/api/accounts/$id/records", Some(Json.obj("record" -> Signed.json(record),
       "memo" -> Json.str(memo)))).map(stated)
 
+  /** a command whose answer is what was asked for (`export`: the community's file) */
+  def commandJson[R[_]: Has[Net]](text: String, key: String, sig: String): Either[Refusal, Json] ! R =
+    call[R]("POST", "/api/command", Some(Json.obj("command" -> Json.str(text), "key" -> Json.str(key),
+      "sig" -> Json.str(sig)))).map((status, j) => if status == 200 then Right(j) else Left(refusal(status, j)))
+
+  /** a community brought from its file to the hub this app is at, at `slug`: its address there */
+  def bring[R[_]: Has[Net]](slug: String, file: Json): Either[Refusal, String] ! R =
+    perform[Net](Net.AtHub("POST", "/api/nodes", Some(Json.obj("slug" -> Json.str(slug), "import" -> file))))
+      .map((status, j) => if status == 200 then scala.util.Try(j("address").string).toOption
+        .toRight(Refusal(200, "answer", "")) else Left(refusal(status, j)))
+
   def command[R[_]: Has[Net]](text: String, key: String, sig: String): Either[Refusal, Unit] ! R =
     call[R]("POST", "/api/command", Some(Json.obj("command" -> Json.str(text), "key" -> Json.str(key),
       "sig" -> Json.str(sig)))).map((status, j) => if status == 200 then Right(()) else Left(refusal(status, j)))
@@ -207,6 +219,14 @@ object Node:
       Proved(head, said("number").long, said("root").string, j("accountHead").string,
         j("proof").list.map(s => s("hash").string -> s("left").boolean))
     }.toOption)
+
+/** A FILE KEPT BY THE PERSON: a community's copy, saved where the device keeps what it downloads. In a page a
+ * download; in a test, kept */
+enum Files[X]:
+  case Save(name: String, text: String) extends Files[Boolean]
+
+object Files:
+  def save[R[_]: Has[Files]](name: String, text: String): Boolean ! R = perform[Files](Save(name, text))
 
 /** THIS DEVICE'S KEY (specs/protocol.md "Keys, devices and who may act"): made here, never leaving — a program can
  * ask for its public half and for a signature, and for nothing else. In a page: Web Crypto's unextractable key in
