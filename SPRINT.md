@@ -241,3 +241,18 @@ confirms theirs. Two communities of ours are already governed by nobody.
 Sprint 10 closed 2026-11-20: hub redeployed, Pages republished (gh-pages 2f5c8c4). On the live hub the election
 answers (`demo` is open to anyone: no election there, as designed). The office's warning and the members' election
 are checked by the suites only — the live hub has no community whose office key we hold (BACKLOG item 7).
+
+## Sprint 11 — a community's data out and in (BACKLOG item 2; the hub is hosting: the operator owes backups)
+
+- [x] **the node** — `export`, a command of a manager: the whole community as one file (its key pair, its
+  directory, every account's storage); `POST /api/nodes {slug, import}`: a hub takes such a file — every chain
+  folded again and checked by its signatures, the hub's bounds held, refused where any account is already there;
+  `moved {address}`: the old node answers what it was asked to, refuses every change and says where it went;
+  `GET /api/backup` (`x-hub-token`): every community of the hub, for its operator. Done when: NodeSuite — a
+  community moved between two hubs, payments going on there, the old one refusing.
+- [ ] **the app** — the office's "Move or back up": save a copy (a file), close here once moved; "Bring a
+  community from a file" where communities are made; an app at a moved community goes where it went. Four
+  languages. Done when: WalletSuite.
+- [ ] **the operator's backups** — `scripts/backup.scala` (scala-cli): the hub's backup into a dated file; the
+  live hub's `HUB_TOKEN` set (kept in `.env`). Done when: a backup of the live hub taken and read back.
+- [ ] **publish** — Worker, Pages, docs ×4.

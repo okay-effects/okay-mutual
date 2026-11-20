@@ -64,6 +64,10 @@ object AccountObject extends Actor:
     if r.method == "POST" && r.path == "/_acct/open" then NodeEnv.read(Http.body(r)("env")) match
       case Some(env) => open(env, name, Http.body(r))
       case None => pure(Http.refused("env"))
+    // a community brought from a file (its hub checked the chains): whether this account is here already; it, written
+    else if r.method == "GET" && r.path == "/_acct/taken" then state.map(s => Http.json(Json.obj(
+      "taken" -> Json.bool(s.isDefined))))
+    else if r.method == "POST" && r.path == "/_acct/import" then imported(Http.body(r))
     else node.flatMap {
       case Some(env) if r.header("x-node").forall(_ == env.pub) => called(env, r)
       case _ => pure(Http.refused("unknown", 404))
@@ -73,6 +77,9 @@ object AccountObject extends Actor:
     (r.method, r.path) match
       case ("GET", "/_acct/state") =>
         state.map(_.fold(Http.refused("unknown", 404))(s => Http.json(StateJson.write(s))))
+      // everything this account's object keeps, but the node it was opened under (its key pair): a community's file
+      case ("GET", "/_acct/export") => Http.all[Live](s"$scope/").map(all => Http.json(Json.Obj(
+          all.filter(_._1 != envKey))))
       case ("GET", "/_acct/chain") =>
         val from = r.param("from").flatMap(_.toLongOption).getOrElse(1L)
         Http.all[Live](s"$scope/rec/").flatMap(rs => Http.all[Live](s"$scope/memo/").map { ms =>
@@ -121,6 +128,21 @@ object AccountObject extends Actor:
           case Some(p) => (kept :+ a.copy(seq = p.seq), all + a.account)
           case None => (kept, all)))).map((kept, all) => (signed.copy(acts = kept), all))
     }
+
+  /** AN ACCOUNT BROUGHT FROM A COMMUNITY'S FILE: its keys written as they were, under the node as it is now — in
+   * one step, and only where nothing is here; its flights tried again by the alarm */
+  private def imported(j: Json): Response ! Live = (NodeEnv.read(j("env")), j.field("entries")) match
+    case (Some(env), Some(entries: Json.Obj)) =>
+      val kept = entries.record.filter((k, _) => k.startsWith(s"$scope/") && k != envKey)
+      Clock.now[Live].flatMap(now => Durable.step[Step, Live, Boolean](scope)(Durable.get[Json, Step](stateKey)
+        .flatMap {
+          case Some(_) => pure(false)
+          case None => kept.foldLeft(unit[Step])((acc, kv) => acc.andThen(Durable.put[Json, Step](kv._1, kv._2)))
+              .andThen(Durable.put[Json, Step](envKey, NodeEnv.write(env)))
+              .andThen(if kept.exists(_._1.startsWith(s"$scope/flight/")) then Durable.wakeAt[Step](now + retry)
+                else unit[Step]).as(true)
+        })).map(made => if made then Http.json(Json.obj()) else Http.refused("taken", 409))
+    case _ => pure(Http.refused("body"))
 
   private def done(result: Either[Fault, (Signed, State)]): Response = result match
     case Right((signed, s)) => Http.json(Json.obj("record" -> Signed.json(signed), "state" -> StateJson.write(s)))

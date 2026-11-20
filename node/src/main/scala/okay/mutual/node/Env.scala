@@ -27,7 +27,9 @@ import okay.serverless.cloud.{Request, Response}
  */
 final case class NodeEnv(slug: String, pub: String, secret: String, unit: String, name: String, open: Boolean,
                          credit: Long, ceiling: Long, setup: String, only: String = "", personalCredit: Long = 0L,
-                         personalMax: Long = 0L, after: Long = 0L, shared: Boolean = true, days: Int = 7):
+                         personalMax: Long = 0L, after: Long = 0L, shared: Boolean = true, days: Int = 7,
+                         // where the community went (an address), once it moved: from then on nothing changes here
+                         moved: String = ""):
   private def people(of: String): Boolean = of == "personal" || of == "family"
   /** the line an account of this kind opens with */
   def opening(of: String): Long =
@@ -61,19 +63,21 @@ object NodeEnv:
     "open" -> Json.bool(e.open), "credit" -> Json.num(e.credit), "ceiling" -> Json.num(e.ceiling),
     "setup" -> Json.str(e.setup), "only" -> Json.str(e.only), "personalCredit" -> Json.num(e.personalCredit),
     "personalMax" -> Json.num(e.personalMax), "after" -> Json.num(e.after), "shared" -> Json.bool(e.shared),
-    "wait" -> Json.num(e.days))
+    "wait" -> Json.num(e.days), "moved" -> Json.str(e.moved))
   /** a node kept before its policy had these: a person's line as anyone's, no bound, shared accounts, a week */
   def read(j: Json): Option[NodeEnv] = scala.util.Try(NodeEnv(j("slug").string, j("pub").string, j("secret").string,
     j("unit").string, j("name").string, j("open").boolean, j("credit").long, j("ceiling").long, j("setup").string,
     j.field("only").collect { case Json.Str(s) => s }.getOrElse(""),
     j.field("personalCredit").fold(j("credit").long)(_.long), j.field("personalMax").fold(0L)(_.long),
-    j.field("after").fold(0L)(_.long), j.field("shared").forall(_.boolean), j.field("wait").fold(7)(_.long.toInt)))
+    j.field("after").fold(0L)(_.long), j.field("shared").forall(_.boolean), j.field("wait").fold(7)(_.long.toInt),
+    j.field("moved").collect { case Json.Str(m) => m }.getOrElse("")))
     .toOption
   /** THE POLICY OF A NODE, as anyone may read it (never its secret, never its setup token) */
   def policy(e: NodeEnv): Vector[(String, Json)] = Vector("join" -> Json.str(if e.open then "open" else "admitted"),
     "credit" -> Json.num(e.credit), "ceiling" -> Json.num(e.ceiling), "only" -> Json.str(e.only),
     "personalCredit" -> Json.num(e.personalCredit), "personalMax" -> Json.num(e.personalMax),
-    "after" -> Json.num(e.after), "shared" -> Json.bool(e.shared), "wait" -> Json.num(e.days))
+    "after" -> Json.num(e.after), "shared" -> Json.bool(e.shared), "wait" -> Json.num(e.days),
+    "moved" -> Json.str(e.moved))
   /** a policy said (`join`, `only`, …: what is not said stays) over the one in force */
   def changed(e: NodeEnv, j: Json): Option[NodeEnv] = scala.util.Try {
     def num(name: String, was: Long): Long = j.field(name).fold(was)(_.long)

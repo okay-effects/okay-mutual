@@ -12,6 +12,9 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *
  *   GET  /.well-known/okay-mutual-hub.json  what it is: whether anyone may make a node here
  *   GET  /api/nodes                         the communities here: slug, name, unit, how one joins
+ *   GET  /api/backup                        every community of the hub as its file (`x-hub-token`): the operator's
+ *   POST /api/nodes                         {slug, import: <a community's file>}: a community brought here, as it
+ *                                           was — its key, its chains (each checked), its policy (within the hub's)
  *   POST /api/nodes                         {slug, name, unit, join, credit, ceiling}: a node made — its address
  *                                           (`/n/<slug>`), its key and its setup token, said once (`x-hub-token`
  *                                           where making is not open)
@@ -73,6 +76,8 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  * personalCredit, personalMax, after, shared, wait}` — the community's policy (what is not said stays), inside what
  * its hub allows: in force for every account from then on, the lines given before left as they are;
  * `recover {account}` — the community
+ * `export {}` — the community as one file, its key pair in it (to bring it to another hub, or keep a copy);
+ * `moved {address}` — it went there: from then on this node refuses every change and says where; one that
  * knows who asks that account back: the recovery announced on its chain, in force after the waiting period
  * (`NodeApp.waiting`) unless a device that still holds the account cancels it; `forget {account}` — the asking dropped
  */
@@ -96,10 +101,23 @@ object NodeApp extends App:
           "v" -> Json.num(Record.version), "making" -> Json.str(if hub.open then "open" else "token")) ++
           HubEnv.bounds(hub))))
       case ("GET", List("api", "nodes")) => hub(Request.get("/_hub/nodes")).map(answered)
+      // the operator's backup: every community as its file
+      case ("GET", List("api", "backup")) => HubEnv.read[Live].flatMap { h =>
+          if h.token.isEmpty || !r.header("x-hub-token").contains(h.token) then pure(Http.refused("token", 403))
+          else hub(Request.get("/_hub/nodes")).flatMap(ns => scala.util.Try(Http.answer(ns)("nodes").list
+            .map(_("slug").string)).getOrElse(Vector.empty).foldLeft(pure[Vector[Json], Live](Vector.empty))(
+            (acc, place) => acc.flatMap(all => Objects.call[Live](Directory.namespace, place, Request.get(
+              "/_dir/env")).flatMap(e => NodeEnv.read(Http.answer(e)).filter(_ => e.status == 200)
+              .fold(pure[Vector[Json], Live](all))(env => exportOf(env).map(all :+ _))))))
+            .flatMap(all => Clock.now[Live].map(now => Http.json(Json.obj("at" -> Json.num(now),
+              "nodes" -> Json.Arr(all)))))
+        }
       case ("POST", List("api", "nodes")) => HubEnv.read[Live].flatMap { h =>
           if !h.open && (h.token.isEmpty || !r.header("x-hub-token").contains(h.token)) then
             pure(Http.refused("token", 403))
-          else hub(Http.post("/_hub/create", Json.Obj(Http.body(r).record.filterNot(_._1 == "who") :+
+          else hub(Http.post(if Http.body(r).field("import").isDefined then "/_hub/import" else "/_hub/create",
+            Json.Obj(Http.body(r).record.filterNot(_._1 == "who").map((k, v) => if k == "import" then "file" -> v
+              else k -> v) :+
             ("who" -> Json.str(Sha256.hex(r.header("cf-connecting-ip").getOrElse("")).take(16)))))).map { made =>
             if made.status != 200 then answered(made)
             else Http.json(Json.Obj(Http.answer(made).record :+
@@ -127,7 +145,9 @@ object NodeApp extends App:
   private def answered(r: Response): Response = Http.open(r)
 
   private def route(env: NodeEnv, r: Request, method: String, path: List[String]): Response ! Live =
-    (method, path) match
+    // a community that moved changes nothing here: it says where it went
+    if env.moved.nonEmpty && method == "POST" then pure(Http.refused("moved", 410, "detail" -> Json.str(env.moved)))
+    else (method, path) match
       // what it is, its policy, and what the hub it is at allows a community: the room its policy has
       case ("GET", List(".well-known", "okay-mutual.json")) => HubEnv.read[Live].map(hub => Http.json(Json.Obj(Vector(
           "v" -> Json.num(Record.version), "key" -> Json.str(env.pub), "unit" -> Json.str(env.unit),
@@ -201,6 +221,22 @@ object NodeApp extends App:
       case ("POST", List("api", "setup")) => setup(env, r)
       case ("POST", List("api", "command")) => command(env, Http.body(r))
       case _ => pure(Response.notFound())
+
+  /** A COMMUNITY AS ONE FILE (specs/protocol.md "A community's data out and in"): its node — its key pair with it:
+   * whoever has the file can be this node —, what its directory keeps, and every account's storage */
+  private def exportOf(env: NodeEnv): Json ! Live =
+    directory(env, Request.get("/_dir/export")).flatMap { d =>
+      val entries = Http.answer(d)
+      val ids = scala.util.Try(entries.record.map(_._1)).getOrElse(Vector.empty).collect {
+        case k if k.startsWith("dir/head/") => k.stripPrefix("dir/head/")
+        case k if k.startsWith("dir/member/") => k.stripPrefix("dir/member/")
+      }.distinct.filter(id)
+      ids.foldLeft(pure[Vector[(String, Json)], Live](Vector.empty))((acc, a) => acc.flatMap(all =>
+        account(env, a, Request.get("/_acct/export")).map(x => if x.status == 200 then all :+ (a -> Http.answer(x))
+          else all))).flatMap(accounts => Clock.now[Live].map(now => Json.obj("v" -> Json.num(Record.version),
+        "kind" -> Json.str("okay-mutual-node"), "at" -> Json.num(now), "env" -> NodeEnv.write(env),
+        "directory" -> entries, "accounts" -> Json.Obj(accounts))))
+    }
 
   /** a first record and its name, read: the record as it travels, its hash, what it opens, when */
   private def asking(j: Json): Option[(Signed, String, String, Long)] =
@@ -374,6 +410,11 @@ object NodeApp extends App:
           case Some(next) => next.allowed(hub) match
               case Some(why) => pure(Http.refused("policy", 409, "detail" -> Json.str(why)))
               case None => directory(env, Http.post("/_dir/policy", c)).map(answered))
+      case "export" => exportOf(env).map(Http.json(_))
+      case "moved" => scala.util.Try(c("address").string.trim.stripSuffix("/")).toOption match
+          case Some(to) if Peers.valid(to) || to.matches("/n/[a-z0-9-]+") =>
+            directory(env, Http.post("/_dir/moved", Json.obj("address" -> Json.str(to)))).map(answered)
+          case _ => pure(Http.refused("command"))
       case "rules" => scala.util.Try(c("text").string).toOption match
           case Some(text) => directory(env, Http.post("/_dir/rules", Json.obj("text" -> Json.str(text)))).map(answered)
           case None => pure(Http.refused("command"))

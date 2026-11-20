@@ -55,6 +55,7 @@ object Directory extends Actor:
 
   def fetch(n: String, r: Request): Response ! InActor = SignerHere.run(
     if r.method == "POST" && r.path == "/_dir/env" then created(r)
+    else if r.method == "POST" && r.path == "/_dir/import" then imported(r)
     else Http.read[Live](envKey).map(_.flatMap(NodeEnv.read)).flatMap {
       case None => pure(Http.refused("unknown", 404))
       case Some(env) => answer(env, r)
@@ -67,6 +68,19 @@ object Directory extends Actor:
         case Some(_) => pure(false)
         case None => Durable.put[Json, Step](envKey, NodeEnv.write(env)).as(true)
       }).map(made => if made then Http.json(Json.obj()) else Http.refused("taken", 409))
+
+  /** A COMMUNITY BROUGHT FROM A FILE: what its directory kept, and the node as it is here — once, where nothing is */
+  private def imported(r: Request): Response ! Live = (NodeEnv.read(Http.body(r)("env")),
+    Http.body(r).field("entries")) match
+    case (Some(env), Some(entries: Json.Obj)) =>
+      val kept = entries.record.filter((k, _) => k.startsWith(s"$scope/") && k != envKey &&
+        !k.startsWith(s"$scope/command/"))
+      step(Durable.get[Json, Step](envKey).flatMap {
+        case Some(_) => pure(false)
+        case None => kept.foldLeft(unit[Step])((acc, kv) => acc.andThen(Durable.put[Json, Step](kv._1, kv._2)))
+            .andThen(Durable.put[Json, Step](envKey, NodeEnv.write(env))).as(true)
+      }).map(made => if made then Http.json(Json.obj()) else Http.refused("taken", 409))
+    case _ => pure(Http.refused("body"))
 
   private def allHeads: Map[String, String] ! Live =
     Http.all[Live](heads).map(_.map((k, v) => k.stripPrefix(heads) -> v.string).toMap)
@@ -82,6 +96,13 @@ object Directory extends Actor:
 
   private def answer(env: NodeEnv, r: Request): Response ! Live = (r.method, r.path) match
     case ("GET", "/_dir/env") => pure(Http.json(NodeEnv.write(env)))
+    // everything the directory keeps for a community's file: not the node itself, not the commands taken
+    case ("GET", "/_dir/export") => Http.all[Live](s"$scope/").map(all => Http.json(Json.Obj(all.filter((k, _) =>
+        k != envKey && !k.startsWith(s"$scope/command/")))))
+    // the community moved: from now on this node changes nothing and says where it went
+    case ("POST", "/_dir/moved") =>
+      val to = scala.util.Try(Http.body(r)("address").string).getOrElse("")
+      step(Durable.put[Json, Step](envKey, NodeEnv.write(env.copy(moved = to)))).as(Http.json(Json.obj()))
     // the community's policy changed: what it allows from now on — never its key, its place, its unit
     case ("POST", "/_dir/policy") => NodeEnv.changed(env, Http.body(r)) match
         case None => pure(Http.refused("policy"))
@@ -276,6 +297,7 @@ object Hub extends Actor:
     case ("GET", "/_hub/nodes") => Http.all[Live](nodes).map(ns => Http.json(Json.obj("nodes" ->
         Json.Arr(ns.map(_._2).sortBy(_("name").string.toLowerCase)))))
     case ("POST", "/_hub/create") => HubEnv.read[Live].flatMap(create(_, Http.body(r)))
+    case ("POST", "/_hub/import") => HubEnv.read[Live].flatMap(imported(_, Http.body(r)))
     case _ => pure(Response.notFound()))
 
   /** the policy a node is asked to be made with: what is not said is the default — a person's line as a
@@ -285,6 +307,80 @@ object Hub extends Actor:
       personalCredit = credit), Json.Obj(j.record.filter(f => Set("only", "personalCredit", "personalMax", "after",
       "shared", "wait")(f._1))))
 
+  /** a place taken for a node: free, within what an address may make a day and the hub in all; none, or why not */
+  private def reserve(hub: HubEnv, place: String, name: String, unit: String, open: Boolean, who: String)
+    : Option[String] ! Live = Clock.now[Live].flatMap { now =>
+      val made = s"$scope/made/$who/${now / 86400000L}"
+      step(Durable.get[Json, Step](nodes + place).flatMap {
+        case Some(_) => pure(Some("taken"))
+        case None => Durable.keys[Step](nodes).flatMap(all => Durable.get[Json, Step](made).flatMap { n =>
+            if all.size >= hub.max then pure(Some("full"))
+            else if n.fold(0L)(_.long) >= hub.perDay then pure(Some("limit"))
+            else Durable.put[Json, Step](nodes + place, Json.obj("slug" -> Json.str(place), "name" -> Json.str(name),
+              "unit" -> Json.str(unit.toUpperCase), "join" -> Json.str(if open then "open" else "admitted"),
+              "at" -> Json.num(now))).andThen(Durable.put[Json, Step](made, Json.num(n.fold(0L)(_.long) + 1)))
+              .as(None)
+          })
+      })
+    }
+
+  /** the chains of a community's file, each folded again from its first record and checked by its signatures —
+   * an act for a holder account against that account's own chain in the file: the first account that does not
+   * make the state the file says, or none */
+  private def unsound(env: NodeEnv, accounts: Vector[(String, Map[String, Json])]): Option[String] ! Live =
+    val byId = accounts.toMap
+    def records(m: Map[String, Json]): Vector[Signed] =
+      m.toVector.filter(_._1.startsWith("acct/rec/")).sortBy(_._1).flatMap(x => Signed.parse(x._2))
+    def held(a: Acting): Boolean ! Live = byId.get(a.account).fold(pure(false))(m => Check.holds[Live](records(m), a))
+    accounts.foldLeft(pure[Option[String], Live](None))((acc, am) => acc.flatMap {
+      case found @ Some(_) => pure(found)
+      case None => Check.chain[Live](records(am._2), held).map {
+          // the state the file says, whole, is the one the chain makes — not its head alone
+          case Right(s) if s.id == am._1 && s.node == env.pub &&
+            am._2.get("acct/state").flatMap(StateJson.read).contains(s) => None
+          case _ => Some(am._1)
+        }
+    })
+
+  /**
+   * A COMMUNITY BROUGHT FROM ITS FILE (specs/protocol.md "A community's data out and in"): its node as it was —
+   * its key pair, its policy (within what this hub allows) —, at a place of this hub; every chain checked first;
+   * refused where any of its accounts is here already (the community has not left the hub it is at); then its
+   * accounts, then its directory
+   */
+  private def imported(hub: HubEnv, j: Json): Response ! Live =
+    val file = j.field("file").getOrElse(Json.Null)
+    val place = scala.util.Try(j("slug").string.trim.toLowerCase).getOrElse("")
+    val accounts = scala.util.Try(file("accounts").record.map((id, m) => id -> m.record.toMap)).getOrElse(Vector.empty)
+    (scala.util.Try(file("kind").string == "okay-mutual-node" && file("v").long == Record.version).getOrElse(false),
+      NodeEnv.read(file("env")).map(_.copy(slug = place, moved = "")), file.field("directory")) match
+      case (true, Some(env), Some(directory: Json.Obj)) if slug(place) && accounts.nonEmpty &&
+        accounts.forall(_._1.matches("[0-9a-f]{64}")) =>
+        env.allowed(hub) match
+          case Some(why) => pure(Http.refused("policy", 409, "detail" -> Json.str(why)))
+          case None => unsound(env, accounts).flatMap {
+              case Some(id) => pure(Http.refused("chain", 409, "detail" -> Json.str(id)))
+              case None => accounts.foldLeft(pure[Boolean, Live](false))((acc, am) => acc.flatMap(t =>
+                  if t then pure(true) else okay.serverless.cloud.Objects.call[Live](AccountObject.namespace, am._1,
+                    Request.get("/_acct/taken")).map(r => scala.util.Try(Http.answer(r)("taken").boolean)
+                    .getOrElse(true)))).flatMap { taken =>
+                  if taken then pure(Http.refused("here", 409))
+                  else reserve(hub, place, env.name, env.unit, env.open, j("who").string).flatMap {
+                    case Some(why) => pure(Http.refused(why, if why == "taken" then 409 else 429))
+                    case None => accounts.foldLeft(unit[Live])((acc, am) => acc.flatMap(_ =>
+                        okay.serverless.cloud.Objects.call[Live](AccountObject.namespace, am._1, Http.post(
+                          "/_acct/import", Json.obj("env" -> NodeEnv.write(env), "entries" -> Json.Obj(am._2
+                            .toVector))))).as(())).flatMap(_ => okay.serverless.cloud.Objects.call[Live](
+                        Directory.namespace, place, Http.post("/_dir/import", Json.obj("env" -> NodeEnv.write(env),
+                          "entries" -> directory)))).map(made =>
+                        if made.status != 200 then Http.refused("taken", 409)
+                        else Http.json(Json.obj("slug" -> Json.str(place), "key" -> Json.str(env.pub),
+                          "token" -> Json.str(env.setup))))
+                  }
+                }
+            }
+      case _ => pure(Http.refused("file"))
+
   private def create(hub: HubEnv, j: Json): Response ! Live =
     scala.util.Try((j("slug").string.trim.toLowerCase, j("name").string.replaceAll("\\s+", " ").trim.take(80),
       j("unit").string.trim.take(8), j("join").string == "open", j("credit").long, j("ceiling").long,
@@ -292,20 +388,8 @@ object Hub extends Actor:
       case Some((place, name, unit, open, credit, ceiling, who)) if slug(place) && name.nonEmpty &&
         unit.matches("[A-Za-z]{2,8}") && policy(place, name, unit, open, credit, ceiling, j).exists(
           _.allowed(hub).isEmpty) =>
-        Clock.now[Live].flatMap { now =>
-          val made = s"$scope/made/$who/${now / 86400000L}"
-          // its place and the limits taken in one step; then the node made
-          step(Durable.get[Json, Step](nodes + place).flatMap {
-            case Some(_) => pure(Some("taken"))
-            case None => Durable.keys[Step](nodes).flatMap(all => Durable.get[Json, Step](made).flatMap { n =>
-                if all.size >= hub.max then pure(Some("full"))
-                else if n.fold(0L)(_.long) >= hub.perDay then pure(Some("limit"))
-                else Durable.put[Json, Step](nodes + place, Json.obj("slug" -> Json.str(place),
-                  "name" -> Json.str(name), "unit" -> Json.str(unit.toUpperCase),
-                  "join" -> Json.str(if open then "open" else "admitted"), "at" -> Json.num(now)))
-                  .andThen(Durable.put[Json, Step](made, Json.num(n.fold(0L)(_.long) + 1))).as(None)
-              })
-          }).flatMap {
+        // its place and the limits taken in one step; then the node made
+        reserve(hub, place, name, unit, open, who).flatMap {
             case Some(why) => pure(Http.refused(why, if why == "taken" then 409 else 429))
             case None => Signer.generate[Live].flatMap { pair =>
                 val token = Sha256.hex(pair.secret + ":setup").take(32)
@@ -322,5 +406,4 @@ object Hub extends Actor:
                     "key" -> Json.str(pair.pub), "token" -> Json.str(token)))))
               }
           }
-        }
       case _ => pure(Http.refused("body"))

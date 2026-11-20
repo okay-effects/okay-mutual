@@ -810,3 +810,92 @@ class NodeSuite extends munit.FunSuite:
     assertEquals(open.post("/api/election", Json.obj("account" -> Json.str(x.id), "key" -> Json.str(x.key.pub),
       "candidate" -> Json.str(next.pub), "sig" -> Json.str("s"))).status, 409)
   }
+
+  test("a community's data out and in: its file by a manager's command; another hub takes it, every chain checked") {
+    val north = Hubs()
+    val net = Net(hub = north, slug = "town")
+    val c = Community(net, "Anna")
+    val (jan, shop) = (Wallet(net), Wallet(net))
+    assertEquals((jan.join("Jan", "business").status, shop.join("Shop", "business").status), (200, 200))
+    assertEquals(c.one.pay(jan, 2500, "a").status, 200)
+    assertEquals(net.post(s"/api/accounts/${jan.id}/records", Json.obj("record" -> jan.signed(jan.next(
+      Body.Send(shop.id, 1000, Sha256.hex("bread"), "b"))), "memo" -> Json.str("bread"))).status, 200)
+    // a shared account rides along: its acts checked against its holder's chain in the file
+    val home = Wallet(net)
+    val text = Record.text(Record("", 1, "", net.now, Body.Open(net.node.pub, "family", c.one.id, "PLN")))
+    val made = net.post("/api/accounts", Json.obj("record" -> Signed.json(Signed(text, Vector(c.one.key.pub ->
+      SignerJdk.sign(c.one.key.secret, text)), Vector(Acting(c.one.key.pub, c.one.id, 0)))), "name" -> Json.str("Home")))
+    home.id = net.json(made)("state")("id").string
+    assertEquals(jan.pay(home, 300, "c").status, 200)
+    def command(by: Pair, fields: (String, Json)*) =
+      net.now += 1
+      net.command(by, (fields.toVector :+ ("at" -> Json.num(net.now)))*)
+    // only a manager has the file: it holds the node's key pair
+    assertEquals(command(jan.key, "cmd" -> Json.str("export")).status, 403)
+    val file = net.json(command(c.founder.key, "cmd" -> Json.str("export")))
+    assertEquals((file("kind").string, file("env")("pub").string), ("okay-mutual-node", net.node.pub))
+    assertEquals(file("accounts").record.size, 5)
+    // another hub takes it — at a place of its own; the same node, the same accounts, the same head
+    val south = Hubs()
+    def bring(f: Json, place: String = "town", at: Hubs = south) =
+      at.post("/api/nodes", Json.obj("slug" -> Json.str(place), "import" -> f), "cf-connecting-ip" -> "5.6.7.8")
+    val brought = bring(file, "new-town")
+    assertEquals(brought.status, 200, brought.body)
+    assertEquals(south.json(brought)("address").string, "/n/new-town")
+    val moved = Net(hub = south, slug = "elsewhere") // a node to use the helpers on south; the one brought is new-town
+    def there(path: String) = south.json(south.get("/n/new-town" + path))
+    assertEquals(there("/.well-known/okay-mutual.json")("key").string, net.node.pub)
+    for w <- Seq(c.one, jan, shop, home) do
+      assertEquals(there(s"/api/accounts/${w.id}")("balance").long, w.balance)
+    val head = net.json(net.get("/api/head"))
+    val southHead = there("/api/head")
+    assertEquals(okay.effects.json.Descent.parse(southHead("record").string).toOption.get("root"),
+      okay.effects.json.Descent.parse(head("record").string).toOption.get("root"))
+    assertEquals(there(s"/api/accounts/${jan.id}/chain")("records").list.size,
+      net.json(net.get(s"/api/accounts/${jan.id}/chain"))("records").list.size)
+    // payments go on there; the memo kept beside the chain came along
+    val record = Record(jan.id, there(s"/api/accounts/${jan.id}")("seq").long + 1,
+      there(s"/api/accounts/${jan.id}")("head").string, south.now, Body.Send(shop.id, 500, "", "d"))
+    assertEquals(south.post(s"/n/new-town/api/accounts/${jan.id}/records", Json.obj("record" -> jan.signed(record)))
+      .status, 200)
+    assertEquals(there(s"/api/accounts/${shop.id}")("balance").long, 1500L)
+    assert(there(s"/api/accounts/${shop.id}/chain")("records").list.exists(_.field("memo").contains(Json.str("bread"))))
+    // the old node, told it moved: answers, refuses every change, says where
+    assertEquals(command(c.founder.key, "cmd" -> Json.str("moved"), "address" -> Json.str("https://south.example/n/new-town")).status, 200)
+    assertEquals(net.json(net.get("/.well-known/okay-mutual.json"))("moved").string, "https://south.example/n/new-town")
+    assertEquals(error(net, jan.pay(shop, 100, "e")), (410, "moved", Json.str("https://south.example/n/new-town")))
+    assertEquals(net.get(s"/api/accounts/${jan.id}").status, 200)
+    // refused: a second time anywhere its accounts are; a file whose chain does not make its state; not a file
+    assertEquals(south.json(bring(file, "again"))("error").string, "here")
+    // the file with one account's balance changed: its chain no longer makes its state
+    def at(j: Json, key: String)(f: Json => Json): Json = Json.Obj(j.record.map((k, v) => k -> (if k == key then f(v)
+      else v)))
+    val forged = at(file, "accounts")(at(_, jan.id)(at(_, "acct/state")(at(_, "balance")(_ => Json.num(999999)))))
+    val other = Hubs()
+    val refused = bring(forged, "town", other)
+    assertEquals((other.json(refused)("error").string, other.json(refused)("detail").string), ("chain", jan.id))
+    assertEquals(other.json(bring(Json.obj("kind" -> Json.str("something")), "town", other))("error").string, "file")
+    // a hub that allows less than the community's policy does not take it
+    val strict = Hubs("HUB_PERSONAL" -> "business")
+    assertEquals(strict.json(bring(file, "town", strict))("error").string, "policy")
+    assert(moved.prefix.nonEmpty)
+  }
+
+  test("the operator's backup: every community of the hub as its file, by the hub's token alone") {
+    val hub = Hubs("HUB_TOKEN" -> "hub-secret-token")
+    hub.cloud.secrets("HUB_TOKEN") = "hub-secret-token"
+    val (a, b) = (Net(hub = hub, slug = "first"), Net(hub = hub, slug = "second"))
+    assertEquals(Wallet(a).join("Anna").status, 200)
+    assertEquals(hub.get("/api/backup").status, 403)
+    assertEquals(hub.ask(okay.serverless.cloud.Request.get("/api/backup").copy(headers = Map(
+      "x-hub-token" -> List("wrong")))).status, 403)
+    val all = hub.json(hub.ask(okay.serverless.cloud.Request.get("/api/backup").copy(headers = Map(
+      "x-hub-token" -> List("hub-secret-token")))))
+    assertEquals(all("nodes").list.map(_("env")("slug").string).toSet, Set("first", "second"))
+    assertEquals(all("nodes").list.find(_("env")("slug").string == "first").get("accounts").record.size, 1)
+    // a backup is a file each: another hub takes it
+    val other = Hubs()
+    assertEquals(other.post("/api/nodes", Json.obj("slug" -> Json.str("first"), "import" ->
+      all("nodes").list.find(_("env")("slug").string == "first").get), "cf-connecting-ip" -> "9.9.9.9").status, 200)
+    assert(b.prefix.nonEmpty)
+  }
