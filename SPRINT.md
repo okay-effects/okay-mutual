@@ -262,3 +262,16 @@ by `scripts/backup.scala` (3 communities, 20 accounts) and every community of it
 machine (the JVM host) — balances as on the live hub. That check found that a state kept by an older node lacks
 what newer ones count, so a hub bringing a file now writes each state as its chain makes it, checking only where
 the chain ends and its balance against the file.
+
+## Sprint 12 — leaving and erasing (BACKLOG item 3; the hub is hosting: data-protection duties are the operator's)
+
+- [x] **the chain** — `close`: an account's last record, by a holder that may manage or by the node alone (the
+  community's decision); only at a zero balance, nothing lent to it or by it; after it no record is the chain's
+  next — a payment to it comes back. Done when: ChainSuite.
+- [x] **the node** — closed by its member, or by the community's command `close {account}` for one who left;
+  then what is beside the chain erased: its name off the members, its memos, its board entries, its cards and
+  stamps, its asking back, its word in an election; the chain stays (amounts and fingerprints). Refused while a
+  payment of it is in flight. A closed account acts for no shared account. Done when: NodeSuite.
+- [ ] **the app** — "Close the account" (Devices / Holders), told what is left to settle; the office closes the
+  account of one who left. Four languages. Done when: WalletSuite.
+- [ ] **publish** — Worker, Pages, docs ×4 (what is erased and what stays).

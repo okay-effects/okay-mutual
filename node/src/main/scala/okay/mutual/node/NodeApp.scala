@@ -76,7 +76,8 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  * personalCredit, personalMax, after, shared, wait}` — the community's policy (what is not said stays), inside what
  * its hub allows: in force for every account from then on, the lines given before left as they are;
  * `recover {account}` — the community
- * `export {}` — the community as one file, its key pair in it (to bring it to another hub, or keep a copy);
+ * `close {account}` — the account of one who left closed by the community (at a zero balance, nothing lent),
+ * what is beside its chain erased; `export {}` — the community as one file, its key pair in it (to bring it to another hub, or keep a copy);
  * `moved {address}` — it went there: from then on this node refuses every change and says where; one that
  * knows who asks that account back: the recovery announced on its chain, in force after the waiting period
  * (`NodeApp.waiting`) unless a device that still holds the account cancels it; `forget {account}` — the asking dropped
@@ -411,6 +412,17 @@ object NodeApp extends App:
               case Some(why) => pure(Http.refused("policy", 409, "detail" -> Json.str(why)))
               case None => directory(env, Http.post("/_dir/policy", c)).map(answered))
       case "export" => exportOf(env).map(Http.json(_))
+      case "close" => scala.util.Try(c("account").string).toOption.filter(id) match
+          case None => pure(Http.refused("command"))
+          case Some(a) => directory(env, Request.get("/_dir/community")).flatMap(com =>
+              account(env, a, Request.get("/_acct/state")).flatMap { st =>
+                val of = StateJson.read(Http.answer(st)).map(_.of)
+                // the community's own account and a line to another community are not a member's to close
+                if Http.answer(com).field("community").contains(Json.str(a)) || of.contains("line") then
+                  pure(Http.refused("command"))
+                else if of.isEmpty then pure(Http.refused("unknown", 404))
+                else account(env, a, Http.post("/_acct/close", Json.obj())).map(answered)
+              })
       case "moved" => scala.util.Try(c("address").string.trim.stripSuffix("/")).toOption match
           case Some(to) if Peers.valid(to) || to.matches("/n/[a-z0-9-]+") =>
             directory(env, Http.post("/_dir/moved", Json.obj("address" -> Json.str(to)))).map(answered)

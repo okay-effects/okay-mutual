@@ -899,3 +899,58 @@ class NodeSuite extends munit.FunSuite:
       all("nodes").list.find(_("env")("slug").string == "first").get), "cf-connecting-ip" -> "9.9.9.9").status, 200)
     assert(b.prefix.nonEmpty)
   }
+
+  test("leaving: an account closed by its member or by the community; what is beside its chain erased, not the chain") {
+    val (net, anna, jan) = town()
+    val c = Community(net, "Olaf")
+    // Anna is paid with what it was for, offers on the board, holds a card's stamp
+    assertEquals(net.post(s"/api/accounts/${jan.id}/records", Json.obj("record" -> jan.signed(jan.next(
+      Body.Send(anna.id, 1500, Sha256.hex("a red dress"), "p1"))), "memo" -> Json.str("a red dress"))).status, 200)
+    def word(by: Wallet, path: String, fields: (String, Json)*) =
+      net.now += 1
+      val text = Json.print(Json.Obj(fields.toVector :+ ("at" -> Json.num(net.now))))
+      net.post(path, Json.obj("command" -> Json.str(text), "key" -> Json.str(by.key.pub),
+        "sig" -> Json.str(SignerJdk.sign(by.key.secret, text))))
+    assertEquals(word(anna, "/api/board", "cmd" -> Json.str("list"), "account" -> Json.str(anna.id),
+      "kind" -> Json.str("offer"), "title" -> Json.str("Hemming"), "text" -> Json.str(""), "price" -> Json.num(0),
+      "share" -> Json.num(100)).status, 200)
+    // not at a balance; not by a key that may only spend
+    assertEquals(error(net, anna.say(Body.Close())), (409, "forbidden", Json.str("balance")))
+    assertEquals(anna.say(Body.Send(jan.id, 1500, "", "p2")).status, 200)
+    val laptop = SignerJdk.generate()
+    assertEquals(anna.say(Body.Granted(Grant(laptop.pub, spend = true, manage = false))).status, 200)
+    assertEquals(error(net, anna.say(Body.Close(), laptop)), (409, "forbidden", Json.str("manage")))
+    // closed: its last record; its name, memos and entries gone; the chain still checks
+    val closed = anna.say(Body.Close())
+    assertEquals(closed.status, 200, closed.body)
+    assertEquals(anna.state("closed"), Json.Bool(true))
+    assert(!net.json(net.get("/api/members"))("members").list.exists(_("id").string == anna.id))
+    assertEquals(net.json(net.get("/api/board"))("listings").list, Vector.empty)
+    assert(!net.json(net.get(s"/api/accounts/${anna.id}/chain"))("records").list.exists(_.field("memo").isDefined))
+    assertEquals(net.checked(anna.id).map(s => (s.closed, s.balance)), Right((true, 0L)))
+    // the payer's copy of what it was for is the payer's own record, and stays
+    assert(net.json(net.get(s"/api/accounts/${jan.id}/chain"))("records").list.exists(
+      _.field("memo").contains(Json.str("a red dress"))))
+    // a payment to it comes back to its sender
+    val before = jan.balance
+    assertEquals(jan.pay(anna, 300, "p3").status, 200)
+    assertEquals(jan.balance, before)
+    assertEquals(error(net, anna.say(Body.Send(jan.id, 1, "", "p4"))), (409, "place", Json.str("closed")))
+    // the community closes the account of one who left — at zero only, never its own nor a line
+    val gone = Wallet(net)
+    assertEquals(gone.join("Gone").status, 200)
+    def close(a: String) =
+      net.now += 1
+      net.command(c.founder.key, "cmd" -> Json.str("close"), "account" -> Json.str(a), "at" -> Json.num(net.now))
+    assertEquals(close(gone.id).status, 200)
+    assertEquals(gone.state("closed"), Json.Bool(true))
+    assert(!net.json(net.get("/api/members"))("members").list.exists(_("id").string == gone.id))
+    assertEquals(close(c.founder.id).status, 400)
+    // one who owes is not closed by anyone: the debt is the community's to settle first
+    val eve = Wallet(net)
+    assertEquals(eve.join("Eve").status, 200)
+    assertEquals(eve.pay(jan, 100, "q1").status, 200)
+    assertEquals(error(net, close(eve.id))._3, Json.str("balance"))
+    assertEquals(jan.pay(eve, 100, "q2").status, 200)
+    assertEquals(eve.say(Body.Close()).status, 200)
+  }

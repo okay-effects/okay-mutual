@@ -202,6 +202,19 @@ object Directory extends Actor:
                 "used" -> Json.num(next._2))))
           }
       }).map(_.fold((why, status) => Http.refused(why, status), Http.json(_)))
+    // ---- an account closed (specs/protocol.md "Leaving and erasing"): everything kept of it here, but its head
+    case ("POST", "/_dir/forget") =>
+      val a = Http.body(r)("account").string
+      step(Durable.keys[Step](s"$scope/").flatMap { ks =>
+        val gone = ks.filter(k => k == members + a || k == requests + a || k == recoveries + a || k == cards + a ||
+          k == holders + a || k.startsWith(stamps + a + "/") || (k.startsWith(stamps) && k.endsWith("/" + a)) ||
+          (k.startsWith(elect) && k.endsWith("/" + a)))
+        // its board entries: by what they say, not by their key
+        Durable.keys[Step](listings).flatMap(ls => ls.foldLeft(pure[Vector[String], Step](Vector.empty))((acc, k) =>
+          acc.flatMap(all => Durable.get[Json, Step](k).map(l => if l.exists(_("account") == Json.str(a)) then
+            all :+ k else all)))).flatMap(entries => (gone ++ entries).distinct.foldLeft(unit[Step])((acc, k) =>
+          acc.andThen(Durable.delete[Step](k))))
+      }).as(Http.json(Json.obj()))
     // ---- a manager elected by the members (specs/protocol.md "A community outlives its founder's phone")
     // a member's word for a key (one a member: its earlier word for another key is taken off); who says what now
     case ("POST", "/_dir/elect") =>

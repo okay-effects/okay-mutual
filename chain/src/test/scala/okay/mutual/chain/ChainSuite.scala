@@ -30,7 +30,7 @@ class ChainSuite extends munit.FunSuite:
       Body.Receive("from", "ref", 1), Body.Bounce("ref", 2), Body.Limits(1, 2),
       Body.Granted(Grant("K2", spend = true, manage = false, 100, 500, 7 * day)), Body.Revoke("K2"),
       Body.Vouch("to", 3), Body.Vouched("from", "ref", 3), Body.Release(3), Body.Released("ref", 3),
-      Body.Recover("K3", 99), Body.Recovered("K3"), Body.Two(5000), Body.Propose("to", 9000, "memo", "k2"))
+      Body.Recover("K3", 99), Body.Recovered("K3"), Body.Two(5000), Body.Propose("to", 9000, "memo", "k2"), Body.Close())
     for b <- bodies do
       val r = Record("acc", 7, "prev", 123L, b)
       assertEquals(Record.parse(Record.text(r)), Some(r), b.kind)
@@ -80,6 +80,28 @@ class ChainSuite extends munit.FunSuite:
     assert(anna.by(laptop)(Body.Revoke(phone.pub)).isRight)
     assertEquals(say(phone, anna, 2007)(Body.Send("shop", 1000, "", "d")), Left(Fault.Unsigned("holder")))
     assertEquals(state.map(_.balance), Right(-5000L))
+  }
+
+  test("an account closed: by a holder that may manage or by the node alone, at zero; nothing after it") {
+    val w = account()
+    assert(w.by(phone)(Body.Granted(Grant(laptop.pub, spend = true, manage = false))).isRight)
+    assert(w.node(Body.Receive("from", "r1", 500)).isRight)
+    assertEquals(w.by(phone)(Body.Close()), Left(Fault.Forbidden("balance")))
+    assert(w.by(phone)(Body.Send("to", 500, "", "a")).isRight)
+    assert(w.node(Body.Vouched("v", "r2", 1000)).isRight)
+    assertEquals(w.by(phone)(Body.Close()), Left(Fault.Forbidden("line")))
+    assert(w.node(Body.Release(1000)).isRight)
+    // a holder that may only spend does not close it; one that may manage does
+    assertEquals(w.by(laptop)(Body.Close()), Left(Fault.Forbidden("manage")))
+    assertEquals(w.by(phone)(Body.Close()).map(_.closed), Right(true))
+    // nothing is its next record any more: not a payment to it, not its holder's
+    assertEquals(w.node(Body.Receive("from", "r3", 100)), Left(Fault.Place("closed")))
+    assertEquals(w.by(phone)(Body.Send("to", 1, "", "b")), Left(Fault.Place("closed")))
+    assertEquals(StateJson.read(StateJson.write(w.state.get)), w.state)
+    // the node alone closes one whose member left: the community's decision
+    val gone = account()
+    assertEquals(gone.node(Body.Close()).map(_.closed), Right(true))
+    assertEquals(Fake(Check.chain[Fake.W](gone.records)).map(_.closed), Right(true))
   }
 
   test("two holders: above the threshold a payment is proposed by one and sent by another, within a week") {

@@ -13,7 +13,8 @@ final case class Proposal(hash: String, by: String, to: String, amount: Long, me
  * hash of their `vouch`; `spent`: the holders' spending still inside a limit's window; `recovering`: a recovery
  * announced and not yet in force — the key and the time from which it holds the account; `two`: above this amount a
  * payment needs two holders (0: one); `proposed`: the payments that wait for their second; `earned`: all it was
- * ever paid (bounced payments apart) — what a community may ask of a person before it gives a line
+ * ever paid (bounced payments apart) — what a community may ask of a person before it gives a line; `closed`: its
+ * last record was written
  */
 final case class State(id: String, node: String, of: String, unit: String, seq: Long, head: String, at: Long,
                        credit: Long = 0L, ceiling: Long = 0L, balance: Long = 0L, vouched: Long = 0L,
@@ -21,7 +22,7 @@ final case class State(id: String, node: String, of: String, unit: String, seq: 
                        sent: Map[String, Long] = Map.empty, names: Set[String] = Set.empty,
                        lends: Map[String, Long] = Map.empty, spent: Vector[Spent] = Vector.empty,
                        recovering: Option[(String, Long)] = None, two: Long = 0L,
-                       proposed: Vector[Proposal] = Vector.empty, earned: Long = 0L):
+                       proposed: Vector[Proposal] = Vector.empty, earned: Long = 0L, closed: Boolean = false):
   /** the lowest balance it may reach: its own line, what was lent to it, less what it lent */
   def floor: Long = -(credit + vouched - lent)
   def grant(key: String): Option[Grant] = grants.find(_.key == key)
@@ -80,6 +81,8 @@ object Chain:
 
   private def placed(s: State, r: Record, signers: Set[String]): Either[Fault, Unit] =
     if r.account != s.id then Left(Fault.Place("account"))
+    // a closed account has no next record: a payment to it comes back to its sender
+    else if s.closed then Left(Fault.Place("closed"))
     else if r.seq != s.seq + 1 then Left(Fault.Place("seq"))
     else if r.prev != s.head then Left(Fault.Place("prev"))
     else if r.at < s.at then Left(Fault.Place("time"))
@@ -128,6 +131,17 @@ object Chain:
         else if to == s.id then Left(Fault.Forbidden("same"))
         else if waiting(s, r.at).size >= most then Left(Fault.Forbidden("full"))
         else Right(s.copy(proposed = waiting(s, r.at) :+ Proposal(hash, g.key, to, amount, memo, name, r.at)))
+      }
+
+    // the account closed: by a holder that may manage, or the node alone (its community's decision for one who
+    // left) — at a zero balance, nothing lent to it or by it, so nobody is owed anything by its closing
+    case Body.Close() => (holder(s, signers) match
+        case Right(g) if !g.manage => Left(Fault.Forbidden("manage"))
+        case _ => Right(())
+      ).flatMap { _ =>
+        if s.balance != 0 then Left(Fault.Forbidden("balance"))
+        else if s.vouched != 0 || s.lent != 0 then Left(Fault.Forbidden("line"))
+        else Right(s.copy(closed = true, proposed = Vector.empty, recovering = None))
       }
 
     // the threshold of two holders: by one that may manage — as every rule of an account is its managers' to set

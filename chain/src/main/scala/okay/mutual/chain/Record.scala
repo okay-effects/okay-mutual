@@ -43,6 +43,9 @@ enum Body(val kind: String):
   case Two(above: Long) extends Body("two")
   /** the first holder's half of such a payment: no amount moves; another holder's `send` of the same takes it */
   case Propose(to: String, amount: Long, memo: String, name: String) extends Body("propose")
+  /** THE ACCOUNT CLOSED: its last record — by a holder that may manage, or by the node alone (its community's
+   * decision for one who left); at a zero balance, nothing lent to it or by it */
+  case Close() extends Body("close")
 
 /** A RECORD of an account's chain: its place (`seq`, the hash of the one before), the time its signer says, what
  * it says. An opening record has no account yet: `account` and `prev` are empty */
@@ -85,6 +88,7 @@ object Record:
         "amount" -> Json.num(amount))
     case Body.Release(amount) => Json.obj("amount" -> Json.num(amount))
     case Body.Released(ref, amount) => Json.obj("ref" -> Json.str(ref), "amount" -> Json.num(amount))
+    case Body.Close() => Json.obj()
     case Body.Recover(key, after) => Json.obj("key" -> Json.str(key), "after" -> Json.num(after))
     case Body.Recovered(key) => Json.obj("key" -> Json.str(key))
     case Body.Two(above) => Json.obj("above" -> Json.num(above))
@@ -112,6 +116,7 @@ object Record:
       case "recovered" => Body.Recovered(b("key").string)
       case "two" => Body.Two(b("above").long)
       case "propose" => Body.Propose(b("to").string, b("amount").long, b("memo").string, b("name").string)
+      case "close" => Body.Close()
     Record(j("account").string, j("seq").long, j("prev").string, j("at").long, read)
   }.toOption)
 

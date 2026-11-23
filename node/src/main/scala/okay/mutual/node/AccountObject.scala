@@ -102,6 +102,12 @@ object AccountObject extends Actor:
           case Some(s) if s.recovering.isDefined => byNode(env, Body.Recovered(s.recovering.get._1)).map(done)
           case _ => pure(Http.refused("unknown", 404))
         }
+      // closed by its community's decision (one who left): the node's own record, then what is beside it erased
+      case ("POST", "/_acct/close") => inFlight.flatMap(busy => if busy then pure(faulted(Fault.Forbidden("flight")))
+          else byNode(env, Body.Close()).flatMap {
+            case Right(done) => erased(env, done._2.id).as(this.done(Right(done)))
+            case left => pure(this.done(left))
+          })
       case ("POST", "/_acct/limits") => scala.util.Try((Http.body(r)("credit").long, Http.body(r)("ceiling").long))
           .toOption match
           case None => pure(Http.refused("body"))
@@ -125,8 +131,9 @@ object AccountObject extends Actor:
         Objects.call[Live](namespace, a.account, Request.get("/_acct/state").copy(headers = Map(
           "x-node" -> List(env.pub)))).map(r => StateJson.read(Http.answer(r)).filter(p => r.status == 200 &&
           p.grant(a.key).exists(_.manage)) match
-          case Some(p) => (kept :+ a.copy(seq = p.seq), all + a.account)
-          case None => (kept, all)))).map((kept, all) => (signed.copy(acts = kept), all))
+          // a closed account acts for nobody
+          case Some(p) if !p.closed => (kept :+ a.copy(seq = p.seq), all + a.account)
+          case _ => (kept, all)))).map((kept, all) => (signed.copy(acts = kept), all))
     }
 
   /** AN ACCOUNT BROUGHT FROM A COMMUNITY'S FILE: its keys written as they were, under the node as it is now — in
@@ -234,9 +241,13 @@ object AccountObject extends Actor:
             case None => Clock.now[Live].flatMap { now =>
                 val members = r.body match
                   case _: Body.Send | _: Body.Vouch | _: Body.Granted | _: Body.Revoke | _: Body.Two |
-                    _: Body.Propose => true
+                    _: Body.Propose | _: Body.Close => true
                   case _ => false
                 if !members then pure(faulted(Fault.Forbidden("node")))
+                // not closed while a payment of it may still come back
+                else if r.body == Body.Close() && s.balance == 0 && math.abs(r.at - now) <= skew then
+                  inFlight.flatMap(busy =>
+                  if busy then pure(faulted(Fault.Forbidden("flight"))) else closeBy(env, s, signed, now))
                 else if math.abs(r.at - now) > skew then pure(faulted(Fault.Place("time")))
                 else acting(env, s.id, signed).flatMap { (signed, signers) =>
                   Chain.step(Some(s), signed.text, signers + env.pub) match
@@ -270,6 +281,29 @@ object AccountObject extends Actor:
               }
           }
   }
+
+  /** whether a payment or a line of this account is still on its way */
+  private def inFlight: Boolean ! Live = Http.all[Live](s"$scope/flight/").map(_.nonEmpty)
+
+  /** AN ACCOUNT CLOSED, WHAT IS BESIDE ITS CHAIN ERASED (specs/protocol.md "Leaving and erasing"): its memos here,
+   * and in the directory its name, its entries, its cards and stamps, its asking back, its word in an election. The
+   * chain stays: amounts and fingerprints, which others' chains and the node's head rest on */
+  private def erased(env: NodeEnv, id: String): Unit ! Live =
+    Durable.step[Step, Live, Unit](scope)(Durable.keys[Step](s"$scope/memo/").flatMap(ks =>
+      ks.foldLeft(unit[Step])((acc, k) => acc.andThen(Durable.delete[Step](k))))).flatMap(_ =>
+      Objects.call[Live](Directory.namespace, env.slug, Http.post("/_dir/forget", Json.obj(
+        "account" -> Json.str(id)))).as(()))
+
+  /** the member's own `close`: the chain's next, then what is beside it erased */
+  private def closeBy(env: NodeEnv, s: State, signed: Signed, now: Long): Response ! Live =
+    acting(env, s.id, signed).flatMap { (signed, signers) =>
+      Chain.step(Some(s), signed.text, signers + env.pub) match
+        case Left(fault) => pure(faulted(fault))
+        case Right(next) => commit(env, Some(s), signed, next, now).flatMap {
+            case Right(done) => erased(env, s.id).as(this.done(Right(done)))
+            case left => pure(this.done(left))
+          }
+    }
 
   /** A RECORD OF THE NODE ALONE, the chain's next whatever it is by then: tried again when another record came
    * between (a few times; requests of one account are few) */
