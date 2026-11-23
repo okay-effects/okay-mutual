@@ -902,3 +902,17 @@ class WalletSuite extends munit.FunSuite:
       Seen.of(home).contains("Info: Received 3.00 PLN from Anna."), Seen.of(home))
     assert(!Seen.of(shop.play()).contains("Received"), Seen.of(shop.play()))
   }
+
+  test("a name changed by its own account; the documents linked where a community is made") {
+    val town = Town()
+    val anna = joined(town, "Anna", "Business")
+    val renamed = anna.play(Act.press("Devices"), Act.press("Change the name"), Act.press("Save",
+      "Your name" -> "Anna Nowak"))
+    assertEquals(renamed.at.map(_.title), Some("The name is changed"), Seen.of(renamed))
+    assertEquals(town.json(town.get("/api/members"))("members").list.map(_("name").string), Vector("Anna Nowak"))
+    assertEquals(anna.play().at.map(_.title), Some("Anna Nowak"))
+    val form = new Phone(Hubs()).play(Act.press("Create a community"))
+    assert(Seen.of(form).contains("you accept its terms and the processing agreement"), Seen.of(form))
+    val links = form.at.get.parts.collect { case l: Part.Link => l.url }
+    assertEquals(links.map(_.split("/").last).toSet, Set("terms.md", "processing.md", "privacy.md"))
+  }

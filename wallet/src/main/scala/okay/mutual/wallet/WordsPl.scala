@@ -420,3 +420,8 @@ object WordsPl extends Words:
   val anotherCommunityShort = "inna społeczność"
   def receivedFrom(amount: String, who: String, memo: String) = s"Otrzymano $amount od: $who" +
     (if memo.isEmpty then "." else s" — za: $memo.")
+  val createAccepts = "Tworząc społeczność na tym hubie, akceptujesz w jej imieniu jego regulamin i umowę powierzenia " +
+    "przetwarzania danych: za dane uczestników odpowiada społeczność, operator huba ją hostuje."
+  val termsLink = "Regulamin huba"; val processingLink = "Umowa powierzenia przetwarzania danych"
+  val privacyLink = "Informacja o prywatności"
+  val rename = "Zmień nazwę"; val renamed = "Nazwa zmieniona"

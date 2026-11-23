@@ -74,6 +74,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("forbidden", "last") => w.lastManager
     case ("forbidden", "held") | ("held", _) => w.heldAlready
     case ("forbidden", "credit") => w.noCreditHere
+    case ("place", "closed") => w.accountIsClosed
     case ("place", _) => w.changedMeanwhile
     case ("named", _) => w.namedAlready
     case ("admitted", _) => w.admitsItself
@@ -88,7 +89,6 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("forbidden", "balance") => w.closeBalanceShort
     case ("forbidden", "line") => w.closeLine
     case ("forbidden", "flight") => w.closeFlight
-    case ("place", "closed") => w.accountIsClosed
     case ("moved", d) => w.movedText("", d)
     case ("open", _) => w.electNotHere
     case ("young", _) => w.electYoung
@@ -142,6 +142,9 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
   }
 
   private val bringing = "\u0000bring"
+  /** a document of the project, in the app's language */
+  private def docs(name: String): String =
+    "https://github.com/okay-effects/okay-mutual/blob/main/docs/" + (if w.code == "en" then "" else w.code + "/") + name
 
   /** A COMMUNITY BROUGHT FROM ITS FILE (a copy saved in its office, or one sent by its managers): to this hub, at a
    * place of its own — every chain is checked there; then the app is at it */
@@ -186,7 +189,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       said(Field.decimal(w.newcomersLine).initially(most).check(w.notBelowZero)(_ >= 0)),
       said(Field.decimal(w.newcomersCeiling).initially(BigDecimal(300)).check(w.notBelowZero)(_ >= 0)),
       said(Field.longText(w.rulesLabel).hinted(w.rulesHint).initially(w.standardRules))),
-      Part.text(w.createText)).flatMap {
+      Part.text(w.createText), Part.text(w.createAccepts), Part.link(w.termsLink, docs("terms.md")),
+      Part.link(w.processingLink, docs("processing.md")), Part.link(w.privacyLink, docs("privacy.md"))).flatMap {
       case None => pure(())
       case Some((name, place, unit, open, only, line, ceiling, rules)) =>
         // where the hub bounds what a person may owe, a community starts at that bound; its office sets its own
@@ -582,7 +586,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     val buttons: List[Button[Asked]] = List[Button[Asked]](
       Button(if shared then w.addHolder else w.addDevice, Style.Primary)(Some(Left(1))),
       Button.select(w.takeOff, table, Style.Danger)(g => Some(Right(g))), Button(w.twoHolders)(Some(Left(2)))) ++
-      (if s.of == "community" then Nil else List[Button[Asked]](Button(w.closeAccount, Style.Danger)(Some(Left(3))))) :+
+      (if s.of == "community" then Nil else List[Button[Asked]](Button(w.rename)(Some(Left(4))),
+        Button(w.closeAccount, Style.Danger)(Some(Left(3))))) :+
       Button[Asked](w.back)(None)
     show(Screen[Asked](if shared then w.holders else w.devices)(
       Part.text(if shared then w.holdersText else w.devicesText), Part.details(w.accountsId -> s.id), two, table)(
@@ -608,6 +613,17 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
             }
         }
       case Some(Left(3)) => closing(about, s)
+      // the name the others see: the account's own word
+      case Some(Left(4)) => Node.members[R].flatMap(ms => edit[String](w.rename, Form.one(said(Field.text(w.yourName)
+          .initially(ms.find(_.id == s.id).fold("")(_.name)))))).flatMap {
+          case None => pure(())
+          case Some(name) => Device.ready[R].flatMap(key => post(key, "name", s.id, "name" -> Json.str(name.trim)))
+              .flatMap {
+              case Right(_) => keepHere("accounts", "").andThen(remember(s.id, name.trim))
+                  .andThen(inform(w.renamed, name.trim))
+              case Left(r) => inform(w.rename, refusal(r, about.unit))
+            }
+        }
       case Some(Left(_)) =>
         val above = Field.money(w.twoAbove, about.unit).hinted(w.twoHint)
         edit[Option[BigDecimal]](w.twoHolders, Form.one(said((if s.two > 0 then above.initially(units(s.two))

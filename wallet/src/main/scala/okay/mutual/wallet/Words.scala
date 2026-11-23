@@ -176,6 +176,9 @@ trait Words:
   // ---- paid, seen
   def checkPaid: String; def receivedTitle: String; def receiveAgain: String; def anotherCommunityShort: String
   def receivedFrom(amount: String, who: String, memo: String): String
+  // ---- the hub's documents; the name
+  def createAccepts: String; def termsLink: String; def processingLink: String; def privacyLink: String
+  def rename: String; def renamed: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -580,3 +583,8 @@ object Words:
     val anotherCommunityShort = "another community"
     def receivedFrom(amount: String, who: String, memo: String) = s"Received $amount from $who" +
       (if memo.isEmpty then "." else s" — for: $memo.")
+    val createAccepts = "Creating a community on this hub, you accept its terms and the processing agreement on " +
+      "the community's behalf: the community is responsible for its members' data, the hub's operator hosts it."
+    val termsLink = "The hub's terms"; val processingLink = "The processing agreement"
+    val privacyLink = "The privacy notice"
+    val rename = "Change the name"; val renamed = "The name is changed"

@@ -48,6 +48,7 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  *   GET  /api/board                         the members' offers and wants
  *   POST /api/board                         {command, key, sig}: a member's own word, signed by a key that holds
  *                                           its account — `list {account, kind, title, text, price, share}`,
+ *                                           `name {account, name}` (the name the others see),
  *                                           `unlist {account, id}`
  *   GET  /api/cards[?of=<account>]          the shops' stamp cards; with `of`, that customer's stamps at each
  *   POST /api/cards                         {command, key, sig}: a shop's own word — `card {account, title, need,
@@ -545,6 +546,15 @@ object NodeApp extends App:
                           "title" -> Json.str(title), "need" -> Json.num(need), "reward" -> Json.str(reward),
                           "at" -> Json.num(now)))).map(answered)
                       case _ => pure(Http.refused("card"))
+                  // the name the others see, changed by the account's own holder (docs/privacy.md: rectification)
+                  case "name" => scala.util.Try(c("name").string.replaceAll("\\s+", " ").trim.take(80)).toOption match
+                      case Some(name) if name.nonEmpty => directory(env, Request.get("/_dir/members")).flatMap { ms =>
+                          scala.util.Try(Http.answer(ms)("members").list.find(_("id").string == a)).toOption.flatten
+                            .fold(pure(Http.refused("unknown", 404)))(m => directory(env, Http.post("/_dir/member",
+                              Json.Obj(m.record.map((k, v) => if k == "name" then k -> Json.str(name) else k -> v))))
+                              .map(answered))
+                        }
+                      case _ => pure(Http.refused("name"))
                   case "uncard" => directory(env, Http.post("/_dir/card/remove", Json.obj("account" -> Json.str(a))))
                       .map(answered)
                   case "unlist" => scala.util.Try(c("id").string).toOption match

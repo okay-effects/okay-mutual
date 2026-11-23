@@ -422,3 +422,8 @@ object WordsUk extends Words:
   val anotherCommunityShort = "інша громада"
   def receivedFrom(amount: String, who: String, memo: String) = s"Отримано $amount від: $who" +
     (if memo.isEmpty then "." else s" — за: $memo.")
+  val createAccepts = "Створюючи громаду на цьому хабі, ви від її імені приймаєте його умови й договір про обробку " +
+    "даних: за дані учасників відповідає громада, оператор хабу її розміщує."
+  val termsLink = "Умови хабу"; val processingLink = "Договір про обробку даних"
+  val privacyLink = "Повідомлення про конфіденційність"
+  val rename = "Змінити ім'я"; val renamed = "Ім'я змінено"

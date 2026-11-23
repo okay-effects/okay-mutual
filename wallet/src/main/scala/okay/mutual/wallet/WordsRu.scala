@@ -418,3 +418,8 @@ object WordsRu extends Words:
   val anotherCommunityShort = "другая община"
   def receivedFrom(amount: String, who: String, memo: String) = s"Получено $amount от: $who" +
     (if memo.isEmpty then "." else s" — за: $memo.")
+  val createAccepts = "Создавая общину на этом хабе, вы от её имени принимаете его условия и договор об обработке " +
+    "данных: за данные участников отвечает община, оператор хаба её размещает."
+  val termsLink = "Условия хаба"; val processingLink = "Договор об обработке данных"
+  val privacyLink = "Уведомление о конфиденциальности"
+  val rename = "Изменить имя"; val renamed = "Имя изменено"
