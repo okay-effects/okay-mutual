@@ -285,10 +285,13 @@ Sprint 12 closed 2026-11-23 (deployed below). Not covered by a test: refusing a 
   (the page asks the node every few seconds while the screen is open; a "Check" button does the same by hand);
   "Receive" turns into "Received 20.00 from Anna — for: order 17"; the home says once what came since it was last
   seen. Four languages. Done when: WalletSuite. Web push: later.
-- [ ] **the documents** — docs/privacy.md (the app and the public hub: who is controller — each community — and
+- [x] **the documents** — docs/privacy.md (the app and the public hub: who is controller — each community — and
   who processor — the hub's operator —, what is kept, where, how long, rights, how erased), docs/terms.md (using the
   public hub: hosting with no warranty, a community's duties, what is not allowed, ending, the way out),
   docs/processing.md (a model agreement under art. 28 GDPR between a community and the hub's operator); four
   languages; drafts for the lawyer; the operator's identity left to fill. Linked from the site, the app and where a
   community is made.
-- [ ] **publish**
+- [x] **publish**
+
+Sprint 13 closed 2026-11-23 (deployed below). The operator's name, address and e-mail are left as placeholders in
+the three documents: published on his own site, but his to put into this project's documents.

@@ -61,9 +61,40 @@ format, and object to its use; and you may complain to the President of the Pers
 
 Much of this the app does itself: it shows your records and checks them (*Check the node*), gives your statement
 as a table (*History → Copy the statement*), and closes your account and erases what is erased (*Devices → Close
-the account*). A name is changed by your community. For anything else, ask your community; if it does not answer,
+the account*). You change your name yourself (*Devices → Change the name*). For anything else, ask your community; if it does not answer,
 ask the operator.
 
 ## Changes
 
 A change of this notice is published here [30 days] before it applies.
+
+## Where these drafts are weak
+
+Found on a first reading of the three drafts (this notice, [the terms](terms.md), [the processing
+agreement](processing.md)) against Polish practice — by us, not by a lawyer; each to be confirmed or dismissed:
+
+1. **Who the controller is.** A community without a legal person, "acting through those who hold its keys", is a
+   weak controller, and the other party to the processing agreement is unclear; the person who creates a community
+   declaring they may accept for it does not settle whether they can represent the group.
+2. **"The software as published" as the instructions.** The operator chooses the version the hub runs, so it
+   decides the means of processing — which could make it a controller; an update changes the instructions by one
+   side.
+3. **Roles mixed.** Backups are named a processor's duty *and* a legitimate interest; "if your community does not
+   answer, ask the operator" gives a processor a duty it does not have.
+4. **What stays after closing** is pseudonymous, not anonymous: still personal data. Keeping it needs an exception
+   of art. 17(3) named.
+5. **What a notice must say and this one lacks**: the community's own identity and contact, how long logs are kept,
+   whether giving the data is a contractual requirement, how to get a copy of the transfer safeguards, where data
+   about the other side of a deal comes from (art. 14).
+6. **The terms and consumers.** "As is", no warranty and a vague cap on liability may be unfair terms toward a
+   community that is a consumer; the software's licence does not cover the hosting service. Changing the terms
+   without listed reasons and courts of the operator's seat are risky toward consumers.
+7. **The terms and e-services law**: no complaints procedure, no technical requirements; the Digital Services
+   Act's rules for hosts (notice and action, a statement of reasons for a suspension) are missing.
+8. **The processing agreement and art. 28(3–4)**: nothing on keeping data where the law requires it, nothing on
+   transfers outside the EEA, the processor's full liability for its sub-processors not said, audits limited to
+   "reasonable" ones, objecting to a sub-processor leaves only leaving.
+9. **Transfers**: no mechanism named for Cloudflare's global network and GitHub — the Data Privacy Framework or
+   standard clauses are still "to be checked".
+10. **Special categories**: forbidden in the terms but not preventable by the software, and the agreement says
+    nothing of what happens if they appear.

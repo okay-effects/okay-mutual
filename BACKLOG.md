@@ -47,10 +47,12 @@ is started — its plan written there before the work. Written 2026-11-18 after 
    on the home screen — then the device's key is gone and the member needs recovery. Not verified. How: the
    operator's test (open in Safari, open an account, leave it a week); if so: the app asks to be installed, says
    why, and asks for a second device early. Done when: the test's result is written down and the app acts on it.
-5. **Knowing one was paid.** A member learns of a payment only by opening the app. How first: the "Receive"
+5. DONE (sprint 13, 2026-11-23): the screens follow the account; what came is said once. Web push not
+   built. Was: **Knowing one was paid.** A member learns of a payment only by opening the app. How first: the "Receive"
    screen and the home refresh by themselves; later web push. Done when: a seller at a counter sees a payment
    arrive without touching the phone.
-6. **A privacy notice and terms** for the app and the hub, four languages; a model processing agreement between
+6. DRAFTED (sprint 13, 2026-11-23): docs/privacy.md, terms.md, processing.md ×4 with where they are weak;
+   the operator's identity to fill, the lawyer to check (D4). Was: **A privacy notice and terms** for the app and the hub, four languages; a model processing agreement between
    a community and a host. None exists. Depends on D1.
 
 ## To have something to show
