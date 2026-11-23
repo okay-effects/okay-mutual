@@ -831,3 +831,49 @@ class WalletSuite extends munit.FunSuite:
     assertEquals(anna.play(Act.press("Go there")).at.map(_.title), Some("Okay Mutual"))
     assertEquals(anna.kept("node"), "/n/next-town")
   }
+
+  test("leaving: an account closed from the app at zero, its name and memos erased; the office closes one who left") {
+    val town = Town()
+    val (anna, jan) = (joined(town, "Anna", "Business"), joined(town, "Jan", "Business"))
+    anna.play(Act.press("Pay"), Act.press("Save", "To" -> "Jan", "Amount" -> "20", "For what" -> "a red dress"),
+      Act.press("Yes"))
+    // not while it owes: told how much and why
+    val owes = anna.play(Act.press("Devices"), Act.press("Close the account"))
+    assert(Seen.of(owes).contains("The balance is -20.00 PLN. An account is closed at zero"), Seen.of(owes))
+    jan.play(Act.press("Pay"), Act.press("Save", "To" -> "Anna", "Amount" -> "20"), Act.press("Yes"))
+    val asked = anna.play(Act.press("Devices"), Act.press("Close the account"))
+    assert(Seen.of(asked).contains("Your name, what your payments were for"), Seen.of(asked))
+    val closed = anna.play(Act.press("Devices"), Act.press("Close the account"), Act.press("Yes"))
+    assertEquals(closed.at.map(_.title), Some("Closed"), Seen.of(closed))
+    // this device holds it no more: the app starts again; the members list has no Anna
+    assertEquals(anna.play().at.map(_.title), Some("Okay Mutual"))
+    assertEquals(town.json(town.get("/api/members"))("members").list.map(_("name").string), Vector("Jan"))
+    // Jan's history keeps his own record of the deal, with no name of hers
+    val history = Seen.of(jan.play(Act.press("History")))
+    assert(history.contains("a red dress") && !history.contains("Anna"), history)
+  }
+
+  test("the office closes the account of one who left: those at zero; the member's app is told") {
+    val hub = Hubs()
+    val founder = new Phone(hub)
+    founder.play(Act.press("Create a community"), Act.press("Save", "The community's name" -> "Our Town",
+      "Its place in the address" -> "our-town", "How one joins" -> "open to anyone"), Act.press("OK"))
+    def joins(name: String): Phone =
+      val phone = new Phone(hub, node = "/n/our-town")
+      phone.play(Act.press("Open an account"), Act.press("I accept"), Act.press("Save", "Your name" -> name,
+        "Account" -> "Business"), Act.press("OK"))
+      phone
+    val (gone, owes) = (joins("Gone"), joins("Owes"))
+    owes.play(Act.press("Pay"), Act.press("Save", "To" -> "Gone", "Amount" -> "5"), Act.press("Yes"))
+    gone.play(Act.press("Pay"), Act.press("Save", "To" -> "Owes", "Amount" -> "5"), Act.press("Yes"))
+    owes.play(Act.press("Pay"), Act.press("Save", "To" -> "Gone", "Amount" -> "5"), Act.press("Yes"))
+    val list = founder.play(Act.press("Community"), Act.press("Close accounts of those who left"))
+    assert(!Seen.of(list).contains("Owes |"), Seen.of(list))
+    gone.play(Act.press("Pay"), Act.press("Save", "To" -> "Owes", "Amount" -> "5"), Act.press("Yes"))
+    val done = founder.play(Act.press("Community"), Act.press("Close accounts of those who left"),
+      Act.choose("Close the account", "Gone"), Act.press("Yes"))
+    assertEquals(done.at.map(_.title), Some("Closed"), Seen.of(done))
+    val told = gone.play()
+    assert(Seen.of(told).contains("Gone was closed by the community"), Seen.of(told))
+    assertEquals(gone.play(Act.press("OK")).at.map(_.title), Some("Okay Mutual"))
+  }

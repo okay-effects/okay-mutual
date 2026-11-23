@@ -77,7 +77,8 @@ import okay.serverless.cloud.{Actor, App, Cloud, Objects, Request, Response}
  * its hub allows: in force for every account from then on, the lines given before left as they are;
  * `recover {account}` — the community
  * `close {account}` — the account of one who left closed by the community (at a zero balance, nothing lent),
- * what is beside its chain erased; `export {}` — the community as one file, its key pair in it (to bring it to another hub, or keep a copy);
+ * what is beside its chain erased; `export {}` — the community as one file, its key pair in it (to bring it to
+ * another hub, or keep a copy);
  * `moved {address}` — it went there: from then on this node refuses every change and says where; one that
  * knows who asks that account back: the recovery announced on its chain, in force after the waiting period
  * (`NodeApp.waiting`) unless a device that still holds the account cancels it; `forget {account}` — the asking dropped

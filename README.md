@@ -52,6 +52,7 @@ run a community's node, and communities connect by trust lines they choose thems
 | Stamp cards: a shop's card, a stamp and a reward by a code the customer scans — not units, kept beside the chains | runs, tested |
 | A community that outlives its founder's phone: a second manager from the office; where every manager's key is lost, the members elect one | runs, tested |
 | A community's copy as one file; moving it to another hub or one's own node (every chain checked); the old place closed as moved; the operator's backup of a whole hub (`scripts/backup.scala`) | runs, tested |
+| Leaving: an account closed at zero by its member or by the community, the name, memos and entries erased, the chain kept | runs, tested |
 | A shared account held by another shared account; taking a lent line back | designed |
 | A hub of nodes: anyone creates a community by a call or from the app; each node's key made with it; accounts of different nodes apart | runs, tested; LIVE on Cloudflare Workers: https://okay-mutual.okay-effects.workers.dev (checked in a browser: two devices, a payment, the node verified) |
 | Joining by request where it is not open: asked from the app, admitted or rejected in the community's office | runs, tested |

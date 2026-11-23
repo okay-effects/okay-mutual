@@ -441,6 +441,21 @@ confirmed theirs.
 - **What does not move by itself**: another node's trust line keeps the old address until that community opens
   the line again to the new one; members' apps that never come back to the old address are not told.
 
+## Leaving and erasing (sprint 12)
+
+- **`close {}`**: an account's last record — by a holder that may manage, or by the node alone on the community's
+  command `close {account}` (for one who left; never the community's own account or a line). Only at a zero
+  balance with nothing lent to it or by it, and not while a payment of it is in flight (a bounce could not land).
+  After it no record is the chain's next (`Fault.Place("closed")`): a payment to it bounces. A closed account
+  acts for no shared account.
+- **Erased beside the chain**, at once: the account's memos in its own object; in the directory its member entry
+  (its name), a request, its asking back, its word in an election, its board entries, its card as a shop and its
+  stamps as a customer, the holders listed for it. **Kept**: its records — amounts, hashes, keys —, which other
+  chains and the node's head rest on, and its head in the head's tree. A counterparty's copy of a memo is that
+  party's record of its own deal and stays.
+- Not settled here: one who leaves owing. The chain allows no close below zero; what a community does about such
+  a debt is its rules' (docs/legal.md, "Contracts").
+
 ## Who governs: nobody above, everyone their own
 
 There is no administrator of the network, and none of a node either. The same four relations, at every size:

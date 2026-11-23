@@ -39,6 +39,19 @@ urządzenie, jeśli się znajdzie albo było tylko zapodziane, pokazuje ostrzeż
 bo uczestnicy to znani ludzie: społeczność, która zaufała ci na tyle, żeby dać kredyt, może też przywrócić ci
 dostęp. Ale nie po cichu i nie od razu.
 
+## Odejście
+
+Uczestnik odchodzi, zamykając konto (*Urządzenia → Zamknij konto*). Konto zamyka się przy zerze: najpierw zarabia
+się to, co się jest winnym, wydaje to, co się ma, oddaje pożyczoną linię — więc zamknięcie nikogo nie zostawia
+bez należności. Potem zapisuje się ostatni zapis konta i usuwa wszystko, co było przechowywane obok jego łańcucha:
+imię uczestnika, tytuły jego płatności, jego ogłoszenia na tablicy, jego karty z pieczątkami. Zapisy kwot zostają —
+bez imienia: opierają się na nich łańcuchy wszystkich pozostałych uczestników i podpisana głowa społeczności.
+Płatność na zamknięte konto wraca do nadawcy.
+
+Druga strona transakcji zachowuje swój zapis o niej razem z tytułem: to jej księgowość, a nie dane osoby, która
+odeszła. Społeczność może też zamknąć konto kogoś, kto odszedł, nie zamykając go sam — przy zerze (*Społeczność →
+Zamknij konta tych, którzy odeszli*). Kogoś, kto odszedł z długiem, społeczność rozlicza według swoich zasad.
+
 ## Płatność
 
 Idziesz do fryzjera i płacisz 60.

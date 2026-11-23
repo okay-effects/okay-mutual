@@ -167,6 +167,12 @@ trait Words:
   def closedHereText: String; def movedTitle: String; def movedText(name: String, address: String): String
   def goThere: String; def bringCommunity: String; def bringText: String; def theFile: String; def brought: String
   def broughtText: String; def bringHere: String; def bringChain: String; def bringFile: String
+  // ---- leaving
+  def closeAccount: String; def closeBalance(amount: String): String; def closeBalanceShort: String
+  def closeLine: String; def closeFlight: String; def closeAccountQuestion: String; def accountClosed: String
+  def accountClosedText: String; def closedByCommunity(name: String): String; def closeMembers: String
+  def closeMembersText: String; def noneToClose: String; def closeMemberQuestion(name: String): String
+  def memberClosed(name: String): String; def accountIsClosed: String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -548,3 +554,22 @@ object Words:
     val bringHere = "This community is on this hub already, or one of its accounts is."
     val bringChain = "The file's records do not hold: it was changed or damaged."
     val bringFile = "This is not a community's file."
+    val closeAccount = "Close the account"
+    def closeBalance(amount: String) = s"The balance is $amount. An account is closed at zero: spend what you " +
+      "have, or earn what you owe — or ask your community how it settles it."
+    val closeBalanceShort = "Only an account at zero is closed."
+    val closeLine = "A line is lent to this account or by it: it is given back first."
+    val closeFlight = "A payment of this account is still on its way: try again in a minute."
+    val closeAccountQuestion = "Close the account? It cannot be used again. Your name, what your payments were " +
+      "for and your board entries are erased; the records of the amounts stay, as every member's records rest on " +
+      "them."
+    val accountClosed = "Closed"
+    val accountClosedText = "The account is closed and what was kept beside it erased. This device holds it no more."
+    def closedByCommunity(name: String) = s"$name was closed by the community. This device holds it no more."
+    val closeMembers = "Close accounts of those who left"
+    val closeMembersText = "Only accounts at zero with nothing lent. Closing one erases the member's name, what " +
+      "their payments were for and their entries; the records of the amounts stay."
+    val noneToClose = "no account at zero"
+    def closeMemberQuestion(name: String) = s"Close $name's account? It cannot be used again."
+    def memberClosed(name: String) = s"$name's account is closed."
+    val accountIsClosed = "This account is closed."

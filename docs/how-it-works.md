@@ -34,6 +34,19 @@ the account, but only after a week that is announced openly: during it any of yo
 was only mislaid, shows a warning and can cancel. This is possible because members are known people: the community
 that trusted you with credit can also restore your access. It cannot do so quietly, and not at once.
 
+## Leaving
+
+A member leaves by closing the account (*Devices → Close the account*). It is closed at zero: what one owes is
+earned first, what one has is spent first, a lent line is given back — so nobody is owed anything by the closing.
+Then the account's last record is written and what was kept beside its chain is erased: the member's name, what
+their payments were for, their board entries, their stamp cards. The records of the amounts stay, without a name:
+every other member's chain and the community's signed head rest on them. A payment to a closed account comes back
+to its sender.
+
+The other side of a deal keeps its own record of it, with what it was for: that is their bookkeeping, not the
+leaving member's data. The community can also close the account of one who left without closing it, at zero
+(*Community → Close accounts of those who left*). One who leaves owing is the community's to settle, by its rules.
+
 ## A payment
 
 You buy a haircut for 60.

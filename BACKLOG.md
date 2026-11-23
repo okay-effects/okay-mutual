@@ -38,7 +38,8 @@ is started — its plan written there before the work. Written 2026-11-18 after 
    the setup token) as one file; the same file taken by another hub or one's own node, the node's key with it.
    This is also "leaving a hub" (protocol: "Anyone has a node"). Done when: a community moved between two hubs in
    a test with every chain still checking.
-3. **Leaving and erasing.** An account cannot be closed and a member's name and memos cannot be erased, though
+3. DONE (sprint 12, 2026-11-23): close at zero by the member or the community; name, memos, entries erased.
+   Was: **Leaving and erasing.** An account cannot be closed and a member's name and memos cannot be erased, though
    the documents say they can and data-protection law asks it. How: `close` (a chain's last record, balance zero
    or settled by the community's decision), the name and memos beside the chain erased, the listing removed.
    Done when: both suites; docs say what is erased and what stays (amounts and fingerprints).

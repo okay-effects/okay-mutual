@@ -396,3 +396,23 @@ object WordsPl extends Words:
   val bringHere = "Ta społeczność jest już na tym hubie — albo jedno z jej kont."
   val bringChain = "Zapisy pliku się nie zgadzają: został zmieniony albo uszkodzony."
   val bringFile = "To nie jest plik społeczności."
+  val closeAccount = "Zamknij konto"
+  def closeBalance(amount: String) = s"Saldo wynosi $amount. Konto zamyka się przy zerze: wydaj to, co masz, albo " +
+    "zarób to, co jesteś winien — albo zapytaj społeczność, jak to rozlicza."
+  val closeBalanceShort = "Zamknąć można tylko konto z zerowym saldem."
+  val closeLine = "Temu kontu pożyczono linię albo ono ją pożyczyło: najpierw trzeba ją zwrócić."
+  val closeFlight = "Płatność tego konta jest jeszcze w drodze: spróbuj za minutę."
+  val closeAccountQuestion = "Zamknąć konto? Nie będzie można z niego więcej korzystać. Twoje imię, tytuły Twoich " +
+    "płatności i ogłoszenia na tablicy zostaną usunięte; zapisy kwot zostaną — opierają się na nich zapisy " +
+    "wszystkich uczestników."
+  val accountClosed = "Zamknięto"
+  val accountClosedText = "Konto jest zamknięte, a wszystko, co było przechowywane obok niego, usunięte. To " +
+    "urządzenie już go nie ma."
+  def closedByCommunity(name: String) = s"$name zostało zamknięte przez społeczność. To urządzenie już go nie ma."
+  val closeMembers = "Zamknij konta tych, którzy odeszli"
+  val closeMembersText = "Tylko konta z zerowym saldem i bez pożyczonych linii. Zamknięcie usuwa imię uczestnika, " +
+    "tytuły jego płatności i jego ogłoszenia; zapisy kwot zostają."
+  val noneToClose = "brak kont z zerowym saldem"
+  def closeMemberQuestion(name: String) = s"Zamknąć konto „$name”? Nie będzie można z niego więcej korzystać."
+  def memberClosed(name: String) = s"Konto „$name” zostało zamknięte."
+  val accountIsClosed = "To konto jest zamknięte."

@@ -12,20 +12,20 @@ resumes from here: read `specs/protocol.md` first.
   its setup token, once; `GET /api/nodes` lists the communities. Creation open or behind `HUB_TOKEN`, limited per
   address a day and in all. Done when: `NodeSuite` and `WalletSuite` run through `/n/<slug>/`, two nodes in one
   cloud do not see each other's accounts, a third is refused past the limit.
-- [ ] **admission** — joining where it is not open. Why: an open node gives credit to strangers; a real community
+- [x] **admission** — joining where it is not open. Why: an open node gives credit to strangers; a real community
   admits. How: `POST …/api/accounts` on such a node keeps the signed first record as a request; the office lists
   requests; `admit {id, credit, ceiling}` / `reject {id}` commands; the wallet shows "waiting" and takes the account
   up once it is there. Done when: played in `WalletSuite` end to end.
-- [ ] **create in the wallet** — "Create a community" on the wallet's first screens: name, unit, how one joins, a
+- [x] **create in the wallet** — "Create a community" on the wallet's first screens: name, unit, how one joins, a
   newcomer's limits → the hub creates the node → the founder's device sets it up → the address to give to others
   (a link `…/wallet/?node=…`). In four languages. Done when: played in `WalletSuite`; in a browser against the host.
-- [ ] **worker** — the hub on Cloudflare Workers: module `worker` (okay-serverless-cloudflare's `Worker`),
+- [x] **worker** — the hub on Cloudflare Workers: module `worker` (okay-serverless-cloudflare's `Worker`),
   `worker/entry.mjs`, `worker/wrangler.toml` (objects `ACCOUNTS`, `NODE`, `HUB`; the site as assets),
   `worker/deploy.sh`. Done when: `wrangler dev` passes a scripted check; deployed at workers.dev; the published
   wallet creates a community there.
-- [ ] **host** — the same hub on one machine (the fallback beside Cloudflare): `Serve` starts the hub; a first
+- [x] **host** — the same hub on one machine (the fallback beside Cloudflare): `Serve` starts the hub; a first
   community from the environment as before. Done when: the browser check passes against the jar.
-- [ ] **guides** — docs/run-a-node.md in four languages: three ways to have a node — create one on a hub from the
+- [x] **guides** — docs/run-a-node.md in four languages: three ways to have a node — create one on a hub from the
   wallet; deploy your own hub to Cloudflare; run it on your machine.
 - [x] **publish** (DONE: Pages site names the public hub (`sbt -Dhub=… site`); checked in Chromium in Russian from Pages against the hub — found and fixed the doubled CORS header; README's table; the section on okay-effects.github.io with a screenshot) — the site on Pages pointing at the public hub; README's table; the site's page for okay-effects
   (its section on okay-effects.github.io).
@@ -272,6 +272,9 @@ the chain ends and its balance against the file.
   then what is beside the chain erased: its name off the members, its memos, its board entries, its cards and
   stamps, its asking back, its word in an election; the chain stays (amounts and fingerprints). Refused while a
   payment of it is in flight. A closed account acts for no shared account. Done when: NodeSuite.
-- [ ] **the app** — "Close the account" (Devices / Holders), told what is left to settle; the office closes the
+- [x] **the app** — "Close the account" (Devices / Holders), told what is left to settle; the office closes the
   account of one who left. Four languages. Done when: WalletSuite.
-- [ ] **publish** — Worker, Pages, docs ×4 (what is erased and what stays).
+- [x] **publish** — Worker, Pages, docs ×4 (what is erased and what stays).
+
+Sprint 12 closed 2026-11-23 (deployed below). Not covered by a test: refusing a close while a payment is in flight
+— in memory a payment lands before the answer, so no flight is left to find; the rule is in AccountObject.

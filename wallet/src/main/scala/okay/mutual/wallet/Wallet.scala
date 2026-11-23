@@ -85,6 +85,10 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
     case ("short", _) => w.notEnoughStamps
     case ("no card", _) => w.noSuchCard
     case ("same", _) => w.ownCode
+    case ("forbidden", "balance") => w.closeBalanceShort
+    case ("forbidden", "line") => w.closeLine
+    case ("forbidden", "flight") => w.closeFlight
+    case ("place", "closed") => w.accountIsClosed
     case ("moved", d) => w.movedText("", d)
     case ("open", _) => w.electNotHere
     case ("young", _) => w.electYoung
@@ -328,6 +332,8 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
 
   private def account(about: About, id: String, name: String): Unit ! R = Node.account[R](id).flatMap {
     case None => confirm(w.notAtNode, name).flatMap(yes => if yes then forget(id) else pure(()))
+    // closed — by its community, for one who left: this device holds it no more
+    case Some(s) if s.closed => inform(w.accountClosed, w.closedByCommunity(name)).andThen(forget(id))
     case Some(s) => Device.ready[R].flatMap(key => Node.community[R].flatMap { community =>
         community.fold(pure[Boolean, R](false))(c => Node.account[R](c).map(_.exists(_.grant(key).exists(_.manage))))
           .flatMap(g => Clock.now[R].map(g -> _)).flatMap { (governs, now) =>
@@ -533,11 +539,16 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
       (if g.key == mine then " " + (if shared then s"(${w.you})" else w.thisDevice) else "")),
       Column.text(w.may)(may), Column.text(w.atMost)(limit)).keyedBy(_.key)
     val two = Part.details(w.twoHolders -> (if s.two > 0 then w.twoKind(money(s.two, about.unit)) else w.twoKind("")))
-    show(Screen[Option[Either[Int, Grant]]](if shared then w.holders else w.devices)(
-      Part.text(if shared then w.holdersText else w.devicesText), Part.details(w.accountsId -> s.id), two, table)(
+    type Asked = Option[Either[Int, Grant]]
+    // a community's own account is not closed from here: it is the community
+    val buttons: List[Button[Asked]] = List[Button[Asked]](
       Button(if shared then w.addHolder else w.addDevice, Style.Primary)(Some(Left(1))),
-      Button.select(w.takeOff, table, Style.Danger)(g => Some(Right(g))), Button(w.twoHolders)(Some(Left(2))),
-      Button(w.back)(None))).flatMap {
+      Button.select(w.takeOff, table, Style.Danger)(g => Some(Right(g))), Button(w.twoHolders)(Some(Left(2)))) ++
+      (if s.of == "community" then Nil else List[Button[Asked]](Button(w.closeAccount, Style.Danger)(Some(Left(3))))) :+
+      Button[Asked](w.back)(None)
+    show(Screen[Asked](if shared then w.holders else w.devices)(
+      Part.text(if shared then w.holdersText else w.devicesText), Part.details(w.accountsId -> s.id), two, table)(
+      buttons*)).flatMap {
       case None => pure(())
       case Some(Left(1)) =>
         // a shared account's new holder is chosen among the members; a person's new device is named by its key
@@ -558,6 +569,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               case Left(r) => inform(w.notAdded, refusal(r, about.unit))
             }
         }
+      case Some(Left(3)) => closing(about, s)
       case Some(Left(_)) =>
         val above = Field.money(w.twoAbove, about.unit).hinted(w.twoHint)
         edit[Option[BigDecimal]](w.twoHolders, Form.one(said((if s.two > 0 then above.initially(units(s.two))
@@ -939,6 +951,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         Button.select(w.setLimits, table)(x => Some(Right(x))), Button(w.managers)(Some(Left(6))),
         Button(w.requestsButton(asked.size))(Some(Left(1))), Button(w.trustLines)(Some(Left(2))),
         Button(w.rulesButton)(Some(Left(3))), Button(w.policy)(Some(Left(5))), Button(w.moveOrBackUp)(Some(Left(7))),
+        Button(w.closeMembers)(Some(Left(8))),
         Button(w.recoveriesButton(lostOnes.size))(Some(Left(4))),
         Button(w.back)(None))).flatMap {
         case None => pure(())
@@ -949,6 +962,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         case Some(Left(6)) => own.fold(pure[Unit, R](()))(s => devices(about, s, key))
             .andThen(defer(office(about, key)))
         case Some(Left(7)) => moving(about, key).andThen(defer(office(about, key)))
+        case Some(Left(8)) => closingOthers(about, key).andThen(defer(office(about, key)))
         // its policy changed, what the app knows of the community is asked again: back to the start
         case Some(Left(5)) => policy(about, key)
         // the community's rules: from then on the ones a newcomer accepts
@@ -1055,6 +1069,39 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
         }
       case _ => pure(())
     }
+
+  // ---- leaving (specs/protocol.md "Leaving and erasing")
+
+  /** THIS ACCOUNT CLOSED by its own holder: only at zero, nothing lent; then its name, memos and entries erased at
+   * the node, and this device holds it no more */
+  private def closing(about: About, s: State): Unit ! R =
+    if s.balance != 0 then inform(w.closeAccount, w.closeBalance(money(s.balance, about.unit)))
+    else if s.vouched != 0 || s.lent != 0 then inform(w.closeAccount, w.closeLine)
+    else confirm(w.closeAccountQuestion, w.closeAccount).flatMap(yes => if !yes then pure(()) else
+      say(s, _ => Body.Close()).flatMap {
+        case Right(_) => forget(s.id).andThen(inform(w.accountClosed, w.accountClosedText))
+        case Left(r) => inform(w.closeAccount, refusal(r, about.unit))
+      })
+
+  /** THE ACCOUNT OF ONE WHO LEFT, closed by the community: those at zero with nothing lent, people's and businesses' */
+  private def closingOthers(about: About, key: String): Unit ! R = Node.members[R].flatMap { ms =>
+    ms.filter(m => m.of == "personal" || m.of == "business" || Wallet.shared(m.of)).foldLeft(
+      pure[Vector[(Member, State)], R](Vector.empty))((acc, m) => acc.flatMap(all => Node.account[R](m.id).map(
+        _.filter(s => s.balance == 0 && s.vouched == 0 && s.lent == 0).fold(all)(s => all :+ (m -> s)))))
+      .flatMap { closable =>
+        val table = Table(closable.toList)(Column.text(w.member)(_._1.name),
+          Column.text(w.accountKind)(x => w.kind(x._1.of))).keyedBy(_._1.id).whenEmpty(w.noneToClose)
+        show(Screen[Option[Member]](w.closeMembers)(Part.text(w.closeMembersText), table)(
+          Button.select(w.closeAccount, table, Style.Danger)(x => Some(x._1)), Button(w.back)(None))).flatMap {
+          case None => pure(())
+          case Some(m) => confirm(w.closeMemberQuestion(m.name), w.closeMembers).flatMap(yes => if !yes then pure(())
+              else command(key, "close", "account" -> Json.str(m.id)).flatMap {
+                case Right(_) => inform(w.accountClosed, w.memberClosed(m.name))
+                case Left(r) => inform(w.closeMembers, refusal(r, about.unit))
+              })
+        }
+      }
+  }
 
   // ---- the accounts this device holds
 
