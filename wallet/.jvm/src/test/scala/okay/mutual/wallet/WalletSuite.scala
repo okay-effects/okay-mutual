@@ -37,7 +37,9 @@ final class Phone(val hub: Hubs, words: Words = Words.En, node: String = ""):
       // another node of this hub by its place; one elsewhere is not reached from a test
       case Net.Elsewhere(address, path) => if address.startsWith("/") then asked("GET", address + path, None) else
           (0, Json.Null)
-      case Net.Invite() => s"https://wallet.example/?node=${kept.getOrElse("node", "")}"))
+      case Net.Invite() => s"https://wallet.example/?node=${kept.getOrElse("node", "")}"
+      // nothing fires by itself in a test: a screen's "Check" asks the same
+      case Net.Changes(_, _) => Events.none[Unit]))
 
   private def device[R[_], Rest[_], A](p: A ! R)(using Split[Device, R, Rest]): A ! Rest =
     handle(p, Handler.Tail[Device, Rest, A, A](a => pure(a), [X] => (asked: Device[X]) => asked match
@@ -876,4 +878,27 @@ class WalletSuite extends munit.FunSuite:
     val told = gone.play()
     assert(Seen.of(told).contains("Gone was closed by the community"), Seen.of(told))
     assertEquals(gone.play(Act.press("OK")).at.map(_.title), Some("Okay Mutual"))
+  }
+
+  test("knowing one was paid: Receive turns into what came; the home says once what came since it was last seen") {
+    val town = Town()
+    val (shop, anna) = (joined(town, "Cafe", "Business"), joined(town, "Anna", "Business"))
+    // nothing came yet: "Check" leaves Receive as it was
+    assertEquals(shop.play(Act.press("Receive"), Act.press("Check")).at.map(_.title), Some("Receive"))
+    // the seller shows Receive; the customer pays; the seller's screen says it (the page by itself, here "Check")
+    def pays(amount: String, what: String) = anna.play(Act.press("Pay"), Act.press("Save", "To" -> "Cafe",
+      "Amount" -> amount, "For what" -> what), Act.press("Yes"))
+    // the customer pays while the seller's Receive is open: just before the seller's app asks the node again
+    var asked = 0
+    def arm(): Unit = shop.meanwhile = () => { asked += 1; if asked < 2 then arm() else pays("12.50", "two coffees") }
+    arm()
+    val got = shop.play(Act.press("Receive"), Act.press("Check"))
+    assertEquals(got.at.map(_.title), Some("Received"), Seen.of(got))
+    assert(Seen.of(got).contains("Info: Received 12.50 PLN from Anna — for: two coffees."), Seen.of(got))
+    // the home, next time: what came since it was last seen — once
+    pays("3", "")
+    val home = shop.play()
+    assert(Seen.of(home).contains("Info: Received 12.50 PLN from Anna — for: two coffees.") &&
+      Seen.of(home).contains("Info: Received 3.00 PLN from Anna."), Seen.of(home))
+    assert(!Seen.of(shop.play()).contains("Received"), Seen.of(shop.play()))
   }

@@ -351,10 +351,15 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               // a recovery announced for another device: this one, which still holds the account, can say no
               s.recovering.toList.map(_ => Button[Int](w.cancelRecovery, Style.Danger)(9))
             val warning = s.recovering.toList.map((k, after) => Part.warning(w.recoveryWarning(short(k), day(after))))
-            show(Screen[Int](name)((warning :+ Part.details(w.balance -> Cell.Money(units(s.balance), about.unit),
-              w.canSpend -> Cell.Money(units(s.balance - s.floor), about.unit),
+            // what came since this device last saw the account: said once; and the screen follows the account
+            news(s).flatMap(news => Node.changes[R](s.id, s.head).flatMap(moved =>
+            show(Screen[Int](name)((news ++ warning :+ Part.details(w.balance -> Cell.Money(units(s.balance),
+              about.unit), w.canSpend -> Cell.Money(units(s.balance - s.floor), about.unit),
               w.canReceive -> Cell.Money(units(s.ceiling - s.balance), about.unit),
-              w.community -> Cell.Text(about.name)))*)(buttons*)).flatMap {
+              w.community -> Cell.Text(about.name)))*)(buttons*).until(moved.map(_ => Wallet.moved)))))
+              .flatMap {
+              // the account moved on: drawn again from what it is now
+              case Wallet.moved => pure(())
               case 10 => board(about, s, key)
               case 9 => s.recovering.fold(pure[Unit, R](()))((k, _) => say(s, _ => Body.Revoke(k)).flatMap {
                   case Right(_) => inform(w.cancelRecovery, w.recoveryCancelled)
@@ -367,8 +372,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
               case 11 => me(s).flatMap(confirming(about, s, _))
               case 13 => cards(about, s, key)
               // to be paid: the app's address at this community with this account in it — a link, a code to scan
-              case 12 => Node.invite[R].map(_ + "&pay=" + s.id).flatMap(link => show(Screen[Unit](w.receive)(
-                  Part.text(w.receiveText), Part.qr(link, w.receive), Part.code(link))(Button(w.back)(()))))
+              case 12 => Node.invite[R].map(_ + "&pay=" + s.id).flatMap(receiving(about, s, _))
               case 5 => check(about, s.id)
               case 6 => office(about, key)
               case 8 => Node.invite[R].flatMap(link => show(Screen[Unit](w.invite)(Part.text(w.inviteText),
@@ -378,6 +382,40 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
           }
       })
   }
+
+  /** WHAT WAS RECEIVED after the record `after`: amount, from whom, what for */
+  private def received(s: State, after: Long): Vector[(Long, String, String)] ! R =
+    if s.seq <= after then pure(Vector.empty)
+    else Node.chain[R](s.id, after + 1).flatMap(lines => Node.members[R].map { ms =>
+      lines.collect { case Line(_, Record(_, _, _, _, Body.Receive(from, _, amount)), memo) =>
+        (amount, ms.find(_.id == from).fold(w.anotherCommunityShort)(_.name), memo)
+      }
+    })
+
+  /** the home's word on what came since this device last saw the account — once; the first time, nothing */
+  private def news(s: State): List[Part] ! R =
+    val kept = s"seen:${s.id}"
+    setting[R](kept).flatMap(seen => keep[R](kept, s.seq.toString).andThen(seen.flatMap(_.toLongOption) match
+      case None => pure(Nil)
+      case Some(after) => received(s, after).map(got => got.takeRight(5).map((amount, who, memo) =>
+          Part.info(w.receivedFrom(Cell.Money(units(amount), s.unit).text, who, memo))).toList)))
+
+  /** "RECEIVE": the account's link and code — and, when a payment arrives while it is shown, what came. Followed
+   * by the page; "Check" asks the same by hand */
+  private def receiving(about: About, s: State, link: String): Unit ! R =
+    Node.changes[R](s.id, s.head).flatMap(moved => show(Screen[Int](w.receive)(Part.text(w.receiveText),
+      Part.qr(link, w.receive), Part.code(link))(Button(w.checkPaid)(1), Button(w.back)(0))
+      .until(moved.map(_ => 1)))).flatMap {
+      case 1 => Node.account[R](s.id).flatMap {
+          case Some(now) if now.seq > s.seq => received(now, s.seq).flatMap(got =>
+              if got.isEmpty then receiving(about, now, link)
+              else show(Screen[Int](w.receivedTitle)(got.map((amount, who, memo) => Part.info(w.receivedFrom(
+                money(amount, about.unit), who, memo)))*)(Button(w.receiveAgain, Style.Primary)(1),
+                Button(w.back)(0))).flatMap(again => if again == 1 then receiving(about, now, link) else pure(())))
+          case _ => receiving(about, s, link)
+        }
+      case _ => pure(())
+    }
 
   /** a holder's record: the chain's next AS THE ACCOUNT IS NOW — asked of the node at this moment, not as it was
    * when the screen was drawn: a payment received while the app was open has moved the chain on —, signed here,
@@ -1160,5 +1198,7 @@ final class Wallet[R[_]](w: Words = Words.En)(using In[Ui, R], In[Net, R], In[De
   })
 
 object Wallet:
+  /** the home's answer when the account moved on while it was shown */
+  val moved: Int = -1
   /** an account held by its members' accounts: a family's, a team's */
   def shared(of: String): Boolean = of == "family" || of == "team"

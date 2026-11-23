@@ -416,3 +416,7 @@ object WordsPl extends Words:
   def closeMemberQuestion(name: String) = s"Zamknąć konto „$name”? Nie będzie można z niego więcej korzystać."
   def memberClosed(name: String) = s"Konto „$name” zostało zamknięte."
   val accountIsClosed = "To konto jest zamknięte."
+  val checkPaid = "Sprawdź"; val receivedTitle = "Otrzymano"; val receiveAgain = "Odbierz kolejne"
+  val anotherCommunityShort = "inna społeczność"
+  def receivedFrom(amount: String, who: String, memo: String) = s"Otrzymano $amount od: $who" +
+    (if memo.isEmpty then "." else s" — za: $memo.")

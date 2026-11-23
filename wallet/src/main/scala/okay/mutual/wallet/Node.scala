@@ -14,6 +14,9 @@ enum Net[X]:
   case Elsewhere(address: String, path: String) extends Net[(Int, Json)]
   /** the wallet's address with the node in use in it: what a member sends to one it invites */
   case Invite() extends Net[String]
+  /** AN ACCOUNT FOLLOWED while a screen shows it: fired when its head is no longer `head` (a page asks the node every
+   * few seconds and stops when the screen is gone) */
+  case Changes(account: String, head: String) extends Net[Events[Unit]]
 
 /** what a hub allows its communities: the ways with private people, the most a business's default line, the most a
  * person may owe (0: any) */
@@ -89,7 +92,8 @@ object Node:
   def account[R[_]: Has[Net]](id: String): Option[State] ! R = call[R]("GET", s"/api/accounts/$id").map((status, j) =>
     if status == 200 then StateJson.read(j) else None)
 
-  def chain[R[_]: Has[Net]](id: String): Vector[Line] ! R = call[R]("GET", s"/api/accounts/$id/chain").map((_, j) =>
+  def chain[R[_]: Has[Net]](id: String, from: Long = 1L): Vector[Line] ! R =
+    call[R]("GET", s"/api/accounts/$id/chain?from=$from").map((_, j) =>
     scala.util.Try(j("records").list).getOrElse(Vector.empty).flatMap(x => Signed.parse(x).flatMap(s =>
       Record.parse(s.text).map(r => Line(s, r, x.field("memo").collect { case Json.Str(m) => m }.getOrElse(""))))))
 
@@ -108,6 +112,9 @@ object Node:
       .getOrElse(Vector.empty))
 
   def invite[R[_]: Has[Net]]: String ! R = perform[Net](Net.Invite())
+  /** events of an account's chain moving on from `head` */
+  def changes[R[_]: Has[Net]](account: String, head: String): Events[Unit] ! R =
+    perform[Net](Net.Changes(account, head))
 
   /** the community's board, newest first */
   def board[R[_]: Has[Net]]: Vector[Listing] ! R = call[R]("GET", "/api/board").map((_, j) =>

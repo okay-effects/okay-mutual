@@ -278,3 +278,17 @@ the chain ends and its balance against the file.
 
 Sprint 12 closed 2026-11-23 (deployed below). Not covered by a test: refusing a close while a payment is in flight
 — in memory a payment lands before the answer, so no flight is left to find; the rule is in AccountObject.
+
+## Sprint 13 — knowing one was paid; the hub's privacy notice, terms and processing agreement (BACKLOG 5, 6)
+
+- [x] **paid, seen** — the home and "Receive" follow the account: a payment that arrives redraws them by itself
+  (the page asks the node every few seconds while the screen is open; a "Check" button does the same by hand);
+  "Receive" turns into "Received 20.00 from Anna — for: order 17"; the home says once what came since it was last
+  seen. Four languages. Done when: WalletSuite. Web push: later.
+- [ ] **the documents** — docs/privacy.md (the app and the public hub: who is controller — each community — and
+  who processor — the hub's operator —, what is kept, where, how long, rights, how erased), docs/terms.md (using the
+  public hub: hosting with no warranty, a community's duties, what is not allowed, ending, the way out),
+  docs/processing.md (a model agreement under art. 28 GDPR between a community and the hub's operator); four
+  languages; drafts for the lawyer; the operator's identity left to fill. Linked from the site, the app and where a
+  community is made.
+- [ ] **publish**

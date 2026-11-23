@@ -414,3 +414,7 @@ object WordsRu extends Words:
   def closeMemberQuestion(name: String) = s"Закрыть счёт «$name»? Им больше нельзя будет пользоваться."
   def memberClosed(name: String) = s"Счёт «$name» закрыт."
   val accountIsClosed = "Этот счёт закрыт."
+  val checkPaid = "Проверить"; val receivedTitle = "Получено"; val receiveAgain = "Получить ещё"
+  val anotherCommunityShort = "другая община"
+  def receivedFrom(amount: String, who: String, memo: String) = s"Получено $amount от: $who" +
+    (if memo.isEmpty then "." else s" — за: $memo.")

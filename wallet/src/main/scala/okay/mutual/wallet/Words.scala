@@ -173,6 +173,9 @@ trait Words:
   def accountClosedText: String; def closedByCommunity(name: String): String; def closeMembers: String
   def closeMembersText: String; def noneToClose: String; def closeMemberQuestion(name: String): String
   def memberClosed(name: String): String; def accountIsClosed: String
+  // ---- paid, seen
+  def checkPaid: String; def receivedTitle: String; def receiveAgain: String; def anotherCommunityShort: String
+  def receivedFrom(amount: String, who: String, memo: String): String
 
 object Words:
   /** the language of a code (`ru`, `uk-UA`, `pl`…): English when it is none of ours */
@@ -573,3 +576,7 @@ object Words:
     def closeMemberQuestion(name: String) = s"Close $name's account? It cannot be used again."
     def memberClosed(name: String) = s"$name's account is closed."
     val accountIsClosed = "This account is closed."
+    val checkPaid = "Check"; val receivedTitle = "Received"; val receiveAgain = "Receive again"
+    val anotherCommunityShort = "another community"
+    def receivedFrom(amount: String, who: String, memo: String) = s"Received $amount from $who" +
+      (if memo.isEmpty then "." else s" — for: $memo.")

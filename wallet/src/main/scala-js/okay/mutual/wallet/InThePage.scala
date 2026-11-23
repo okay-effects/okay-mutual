@@ -1,6 +1,7 @@
 package okay.mutual.wallet
 
 import okay.effects.json.{Descent, Json}
+import okay.business.model.Events
 import okay.mutual.chain.B64
 import okay.scala3.*
 import okay.scala3.std.Async
@@ -54,7 +55,19 @@ object NetInPage:
         Async.fromFuture[(Int, Json), Rest](call(hub + path, method, body, "")).flatMap(k)
       case Net.Elsewhere(address, path) => Async.fromFuture[(Int, Json), Rest](call(
           (if address.startsWith("/") then hub + address else address) + path, "GET", None, "")).flatMap(k)
-      case Net.Invite() => k(invitation)))
+      case Net.Invite() => k(invitation)
+      // the account asked for every few seconds while the screen is open; fired once its head moved on
+      case Net.Changes(account, head) => k(Events[Unit] { fire =>
+          var live = true
+          val timer = js.timers.setInterval(4000) {
+            call(s"$node/api/accounts/$account", "GET", None, "").foreach { (status, j) =>
+              if live && status == 200 && j.field("head").exists(_ != Json.str(head)) then
+                live = false
+                fire(())
+            }
+          }
+          () => { live = false; js.timers.clearInterval(timer) }
+        })))
 
 /**
  * `Device` IN A PAGE: a P-256 key pair made by Web Crypto with its secret half UNEXTRACTABLE — no script, this one

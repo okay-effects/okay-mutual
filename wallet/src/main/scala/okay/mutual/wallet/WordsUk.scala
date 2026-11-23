@@ -418,3 +418,7 @@ object WordsUk extends Words:
   def closeMemberQuestion(name: String) = s"Закрити рахунок «$name»? Ним більше не можна буде користуватися."
   def memberClosed(name: String) = s"Рахунок «$name» закрито."
   val accountIsClosed = "Цей рахунок закрито."
+  val checkPaid = "Перевірити"; val receivedTitle = "Отримано"; val receiveAgain = "Отримати ще"
+  val anotherCommunityShort = "інша громада"
+  def receivedFrom(amount: String, who: String, memo: String) = s"Отримано $amount від: $who" +
+    (if memo.isEmpty then "." else s" — за: $memo.")
